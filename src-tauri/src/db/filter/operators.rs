@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
@@ -177,16 +177,16 @@ const MYSQL_CASE_SENSITIVE: &[Entry] = &[
 ];
 
 /// The operators a driver offers, in menu order (FLT-2). The UI never hardcodes this.
-pub fn operators(driver: Driver) -> Vec<OperatorInfo> {
+pub fn operators(driver: Dialect) -> Vec<OperatorInfo> {
     let mut entries: Vec<Entry> = COMMON.to_vec();
-    if driver == Driver::Postgres {
+    if driver == Dialect::Postgres {
         entries.push(PG_ILIKE);
     }
     entries.extend_from_slice(TEXT);
     match driver {
-        Driver::Postgres => entries.extend_from_slice(PG_CASE_INSENSITIVE),
-        Driver::Mysql => entries.extend_from_slice(MYSQL_CASE_SENSITIVE),
-        Driver::Sqlite => {}
+        Dialect::Postgres => entries.extend_from_slice(PG_CASE_INSENSITIVE),
+        Dialect::Mysql => entries.extend_from_slice(MYSQL_CASE_SENSITIVE),
+        Dialect::Sqlite => {}
     }
     entries
         .into_iter()
@@ -199,17 +199,17 @@ pub fn operators(driver: Driver) -> Vec<OperatorInfo> {
         .collect()
 }
 
-pub(super) fn supported(driver: Driver, op: Op) -> bool {
+pub(super) fn supported(driver: Dialect, op: Op) -> bool {
     match op {
-        Op::ILike => driver == Driver::Postgres,
+        Op::ILike => driver == Dialect::Postgres,
         Op::Contains(Case::Insensitive)
         | Op::NotContains(Case::Insensitive)
         | Op::HasPrefix(Case::Insensitive)
-        | Op::HasSuffix(Case::Insensitive) => driver == Driver::Postgres,
+        | Op::HasSuffix(Case::Insensitive) => driver == Dialect::Postgres,
         Op::Contains(Case::Sensitive)
         | Op::NotContains(Case::Sensitive)
         | Op::HasPrefix(Case::Sensitive)
-        | Op::HasSuffix(Case::Sensitive) => driver == Driver::Mysql,
+        | Op::HasSuffix(Case::Sensitive) => driver == Dialect::Mysql,
         _ => true,
     }
 }

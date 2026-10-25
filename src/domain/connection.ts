@@ -3,40 +3,75 @@
 import {
   type Connection,
   type ConnectionView,
+  type Dialect,
   type Driver,
+  type DriverGroup,
   type SecretChange,
   type SecretsInput,
   type Tag,
 } from "@/types";
 
-export interface DriverInfo {
-  id: Driver;
-  label: string;
-  description: string;
-  defaultPort: number | null;
-}
-
-export const DRIVERS: DriverInfo[] = [
-  {
-    id: "postgres",
-    label: "PostgreSQL",
-    description: "PostgreSQL 10 and later",
-    defaultPort: 5432,
-  },
-  {
-    id: "mysql",
-    label: "MySQL / MariaDB",
-    description: "MySQL 5.7+ and MariaDB 10.3+",
-    defaultPort: 3306,
-  },
-  { id: "sqlite", label: "SQLite", description: "A database file on this Mac", defaultPort: null },
-];
-
 export const DRIVER_LABEL: Record<Driver, string> = {
   postgres: "PostgreSQL",
   mysql: "MySQL",
   sqlite: "SQLite",
+  mariadb: "MariaDB",
+  cockroach: "CockroachDB",
+  redshift: "Amazon Redshift",
+  greenplum: "Greenplum",
+  vertica: "Vertica",
+  libsql: "LibSQL / Turso",
+  cloudflare_d1: "Cloudflare D1",
+  mssql: "Microsoft SQL Server",
+  oracle: "Oracle",
+  clickhouse: "ClickHouse",
+  duckdb: "DuckDB",
+  cassandra: "Cassandra",
+  snowflake: "Snowflake",
+  bigquery: "BigQuery",
+  redis: "Redis",
+  mongodb: "MongoDB",
+  dynamodb: "DynamoDB",
+  elasticsearch: "Elasticsearch",
 };
+
+/** Drivers on the built-in Postgres, MySQL and SQLite code (the full feature set). */
+const BUILT_IN: Partial<Record<Driver, Dialect>> = {
+  postgres: "postgres",
+  cockroach: "postgres",
+  redshift: "postgres",
+  greenplum: "postgres",
+  vertica: "postgres",
+  mysql: "mysql",
+  mariadb: "mysql",
+  sqlite: "sqlite",
+};
+
+/** The built-in dialect a driver runs on, if it is one of them (mirrors Driver::sqlx_dialect). */
+export const builtInDialect = (driver: Driver): Dialect | undefined => BUILT_IN[driver];
+
+/** Default ports of the built-in server drivers (the form's placeholder). */
+export const DEFAULT_PORT: Partial<Record<Driver, number>> = {
+  postgres: 5432,
+  greenplum: 5432,
+  cockroach: 26257,
+  redshift: 5439,
+  vertica: 5433,
+  mysql: 3306,
+  mariadb: 3306,
+};
+
+/** Drivers that open a local file. */
+export const isFileDriver = (driver: Driver) => driver === "sqlite" || driver === "duckdb";
+
+/** Picker sections, in order. */
+export const DRIVER_GROUPS: { id: DriverGroup; label: string }[] = [
+  { id: "relational", label: "Relational" },
+  { id: "compatible", label: "Compatible" },
+  { id: "analytics", label: "Analytics" },
+  { id: "cloud", label: "Cloud" },
+  { id: "nosql", label: "NoSQL" },
+];
 
 export const TAGS: Tag[] = ["local", "testing", "development", "staging", "production"];
 
@@ -76,6 +111,7 @@ export function newConnection(driver: Driver): Connection {
       socket: "",
       filePath: "",
       passwordMode: "keychain",
+      extra: {},
     },
     ssh: {
       enabled: false,

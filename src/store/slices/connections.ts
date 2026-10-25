@@ -1,8 +1,9 @@
-// Saved connections and groups, and which of them were open in the last session.
+// Saved connections and groups, which of them were open in the last session, and the
+// driver catalog the picker and the connection form are built from.
 
 import { type StateCreator } from "zustand";
 import { api } from "@/api";
-import { type ConnectionView, type Group } from "@/types";
+import { type ConnectionView, type DriverEntry, type Group } from "@/types";
 import { savedOpenConnections } from "../persistence";
 import { type AppState } from "../types";
 
@@ -11,7 +12,9 @@ export interface ConnectionsSlice {
   groups: Group[];
   /** Connection ids whose tabs are saved from a previous session (STO-5). */
   restorable: string[];
+  drivers: DriverEntry[];
   loadConnections: () => Promise<void>;
+  loadDrivers: () => Promise<void>;
 }
 
 export const createConnectionsSlice: StateCreator<AppState, [], [], ConnectionsSlice> = (
@@ -21,6 +24,9 @@ export const createConnectionsSlice: StateCreator<AppState, [], [], ConnectionsS
   connections: [],
   groups: [],
   restorable: [],
+  drivers: [],
+
+  loadDrivers: async () => set({ drivers: await api.listDrivers() }),
 
   loadConnections: async () => {
     const { connections, groups } = await api.listConnections();

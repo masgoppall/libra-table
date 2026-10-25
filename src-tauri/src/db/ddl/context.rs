@@ -4,7 +4,7 @@
 use crate::db::sql::quote_ident;
 use crate::db::{meta, DbPool};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::plan::Ctx;
 use super::rebuild::SqliteObject;
@@ -43,6 +43,7 @@ pub async fn context(pool: &DbPool, change: &SchemaChange) -> AppResult<Ctx> {
             let altering = matches!(change, SchemaChange::AlterTable { .. });
             sqlite_context(pool, p, schema, table, altering).await
         }
+        DbPool::Engine(_) => Err(crate::db::engine::sqlx_only()),
     }
 }
 
@@ -106,7 +107,7 @@ async fn sqlite_context(
     let mut ctx = Ctx::default();
     let sql = format!(
         "SELECT type FROM {}.sqlite_master WHERE name = ?1 AND type IN ('table','view')",
-        quote_ident(Driver::Sqlite, schema)
+        quote_ident(Dialect::Sqlite, schema)
     );
     let t: Option<String> = sqlx::query_scalar(&sql)
         .bind(table)
@@ -129,7 +130,7 @@ where
 {
     let sql: Option<String> = sqlx::query_scalar(&format!(
         "SELECT sql FROM {}.sqlite_master WHERE type = 'table' AND name = ?1",
-        quote_ident(Driver::Sqlite, schema)
+        quote_ident(Dialect::Sqlite, schema)
     ))
     .bind(table)
     .fetch_optional(exec)
@@ -148,7 +149,7 @@ pub(super) async fn sqlite_objects(
         "SELECT type, name, sql FROM {}.sqlite_master \
          WHERE tbl_name = ?1 AND type IN ('index','trigger') AND sql IS NOT NULL \
          ORDER BY type, name",
-        quote_ident(Driver::Sqlite, schema)
+        quote_ident(Dialect::Sqlite, schema)
     );
     let rows: Vec<(String, String, String)> = sqlx::query_as(&sql)
         .bind(table)

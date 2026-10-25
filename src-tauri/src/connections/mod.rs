@@ -17,8 +17,9 @@ pub use store::{delete, delete_group, duplicate, save, save_group};
 use serde::{Deserialize, Serialize};
 
 use crate::db;
+use crate::drivers;
 use crate::error::{AppError, AppResult};
-use crate::models::{Connection, ConnectionView, Driver, SecretsInput};
+use crate::models::{Connection, ConnectionView, Dialect, Driver, SecretsInput};
 use crate::state::AppState;
 use crate::storage::secrets::SecretKind;
 
@@ -35,6 +36,8 @@ pub struct ConnectionInput {
 pub struct ConnectInfo {
     pub connection_id: String,
     pub driver: Driver,
+    /// The SQL rules the UI quotes and splits with (`Driver::dialect`).
+    pub dialect: Dialect,
     pub database: String,
     pub server_version: String,
     pub through_tunnel: bool,
@@ -80,19 +83,34 @@ fn validate(c: &Connection) -> AppResult<()> {
     if c.name.trim().is_empty() {
         return Err(AppError::validation("Give the connection a name."));
     }
-    if c.driver == Driver::Sqlite && c.db.file_path.trim().is_empty() {
-        return Err(AppError::validation("Choose the SQLite database file."));
+    let info = drivers::info(c.driver);
+    if c.driver.is_file() && c.db.file_path.trim().is_empty() {
+        return Err(AppError::validation(format!(
+            "Choose the {} database file.",
+            c.driver.label()
+        )));
     }
-    if c.driver != Driver::Sqlite && c.db.use_socket && c.db.socket.trim().is_empty() {
+    if let Some(missing) = info
+        .fields
+        .iter()
+        .find(|f| f.required && field_value(c, f.key).is_empty())
+    {
+        return Err(AppError::validation(format!(
+            "Enter the {}.",
+            missing.label.to_lowercase()
+        )));
+    }
+    if !c.driver.is_file() && c.db.use_socket && c.db.socket.trim().is_empty() {
         return Err(AppError::validation(
             "Enter the socket path, or switch back to host and port.",
         ));
     }
     if c.ssh.enabled {
-        if c.driver == Driver::Sqlite {
-            return Err(AppError::validation(
-                "SSH tunnels are not available for SQLite files.",
-            ));
+        if !info.ssh {
+            return Err(AppError::validation(format!(
+                "SSH tunnels are not available for {}.",
+                c.driver.label()
+            )));
         }
         if c.ssh.host.trim().is_empty() {
             return Err(AppError::validation("Enter the SSH server address."));
@@ -105,4 +123,22 @@ fn validate(c: &Connection) -> AppResult<()> {
         )));
     }
     Ok(())
+}
+
+/// The value of a form field (`drivers::Field::key`) in the saved settings.
+fn field_value<'a>(c: &'a Connection, key: &str) -> &'a str {
+    match key {
+        "host" => c.db.host.trim(),
+        "user" => c.db.user.trim(),
+        "database" => c.db.database.trim(),
+        "filePath" => c.db.file_path.trim(),
+        "port" => {
+            if c.db.port.is_some() {
+                "set"
+            } else {
+                ""
+            }
+        }
+        k => k.strip_prefix("extra.").map(|e| c.extra(e)).unwrap_or(""),
+    }
 }

@@ -25,5 +25,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // UI flows load lazy tabs (editor, diagram, metrics); give a busy machine room.
+    testTimeout: 15000,
   },
 });

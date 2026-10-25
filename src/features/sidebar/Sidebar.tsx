@@ -11,6 +11,7 @@ import { type MatchMode, search } from "@/lib/fuzzy";
 import { store } from "@/store";
 import { type Workspace } from "@/types";
 import { openMetrics } from "../import/openTools";
+import { KeyValueSidebar } from "../keyvalue/KeyValueSidebar";
 import { historyTab, newQueryTab } from "../workspace/tabs";
 import { SchemaObjectSections } from "./ObjectGroups";
 import { RecentSection } from "./RecentSection";
@@ -27,23 +28,29 @@ function SidebarFoot({ ws, loading }: { ws: Workspace; loading: boolean }) {
   const { addTab, refresh } = store.get();
   return (
     <div className="sidebar-foot">
-      <button
-        className="btn sm ghost"
-        title={withShortcut("New query", "new-query")}
-        onClick={() => addTab(id, newQueryTab())}
-      >
-        <SquareTerminal size={13} /> Query
-      </button>
-      <button
-        className="btn sm ghost"
-        title={withShortcut("Query history", "history")}
-        onClick={() => addTab(id, historyTab(), { reuse: true })}
-      >
-        <History size={13} /> History
-      </button>
-      <button className="btn sm ghost" title="Metrics boards" onClick={() => openMetrics(ws)}>
-        <Gauge size={13} /> Metrics
-      </button>
+      {ws.caps.query && (
+        <>
+          <button
+            className="btn sm ghost"
+            title={withShortcut("New query", "new-query")}
+            onClick={() => addTab(id, newQueryTab())}
+          >
+            <SquareTerminal size={13} /> Query
+          </button>
+          <button
+            className="btn sm ghost"
+            title={withShortcut("Query history", "history")}
+            onClick={() => addTab(id, historyTab(), { reuse: true })}
+          >
+            <History size={13} /> History
+          </button>
+        </>
+      )}
+      {ws.caps.metrics && (
+        <button className="btn sm ghost" title="Metrics boards" onClick={() => openMetrics(ws)}>
+          <Gauge size={13} /> Metrics
+        </button>
+      )}
       <span className="spacer" />
       <button
         className="btn sm icon ghost"
@@ -69,6 +76,7 @@ export function Sidebar(props: {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<MatchMode>("fuzzy");
   const pick = useMemo(() => needsDatabase(ws), [ws]);
+  const keyValue = ws.caps.kind === "key_value";
   const extras = useSidebarExtras(ws, data.objects, { query, mode });
 
   const objects = useMemo(
@@ -94,7 +102,26 @@ export function Sidebar(props: {
         search={{ query, setQuery, mode, setMode }}
       />
       <div className="sidebar-list">
-        {ws.caps.switchDatabase && data.databases.length > 0 && (
+        {keyValue && (
+          <>
+            <KeyValueSidebar
+              ws={ws}
+              query={query}
+              collapsed={collapsed.isCollapsed("databases")}
+              onToggle={() => collapsed.toggle("databases")}
+              menu={menu}
+            />
+            <SavedQuerySection
+              ws={ws}
+              matches={saved}
+              query={query}
+              collapsed={collapsed}
+              menu={menu}
+              reload={data.loadSaved}
+            />
+          </>
+        )}
+        {ws.caps.switchDatabase && !keyValue && data.databases.length > 0 && (
           <DatabaseSection ws={ws} matches={databases} collapsed={collapsed} menu={menu} />
         )}
         {data.loading && (
@@ -103,7 +130,7 @@ export function Sidebar(props: {
           </div>
         )}
         {pick && !data.loading && <SideHint>Choose a database above to see its tables.</SideHint>}
-        {data.objects && !pick && (
+        {data.objects && !pick && !keyValue && (
           <>
             <RecentSection
               ws={ws}
@@ -122,13 +149,15 @@ export function Sidebar(props: {
               items={extras.items}
               onExportTable={props.onExportTable}
             />
-            <SchemaObjectSections
-              ws={ws}
-              matches={extras.objectMatches}
-              collapsed={collapsed}
-              menu={menu}
-              items={extras.items}
-            />
+            {ws.caps.schemaObjects && (
+              <SchemaObjectSections
+                ws={ws}
+                matches={extras.objectMatches}
+                collapsed={collapsed}
+                menu={menu}
+                items={extras.items}
+              />
+            )}
             <SavedQuerySection
               ws={ws}
               matches={saved}

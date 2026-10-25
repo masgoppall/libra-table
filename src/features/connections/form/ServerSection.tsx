@@ -1,6 +1,7 @@
 // Where the database server is: host and port (or a socket), user, password, database.
 
 import { Check } from "@/components/Check";
+import { builtInDialect, DEFAULT_PORT } from "@/domain/connection";
 import { FieldNote, PasswordField } from "./fields";
 import { type ConnectionFormState, parsePort } from "./useConnectionForm";
 
@@ -28,7 +29,7 @@ function HostRow({ form }: { form: ConnectionFormState }) {
       <input
         className="input port-input"
         value={c.db.port ?? ""}
-        placeholder={c.driver === "postgres" ? "5432" : "3306"}
+        placeholder={String(DEFAULT_PORT[c.driver] ?? "")}
         onChange={(e) => setDb({ port: parsePort(e.target.value) })}
       />
     </>
@@ -55,7 +56,7 @@ export function ServerSection({ form }: { form: ConnectionFormState }) {
       <input
         className="input"
         value={c.db.user}
-        placeholder={c.driver === "postgres" ? "postgres" : "root"}
+        placeholder={builtInDialect(c.driver) === "postgres" ? "postgres" : "root"}
         onChange={(e) => setDb({ user: e.target.value })}
       />
       <PasswordField

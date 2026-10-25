@@ -38,6 +38,8 @@ pub enum ErrorKind {
     Io,
     Keychain,
     Cancelled,
+    /// The driver can't do this (the UI normally hides it).
+    Unsupported,
     Internal,
 }
 
@@ -102,6 +104,39 @@ impl AppError {
 
     pub fn cancelled() -> Self {
         Self::new(ErrorKind::Cancelled, Layer::App, "Cancelled.")
+    }
+
+    pub fn unsupported(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Unsupported, Layer::App, message)
+    }
+
+    /// The server could not be reached (engines without sqlx errors use this).
+    pub fn unreachable(detail: impl std::fmt::Display, through_tunnel: bool) -> Self {
+        let via = if through_tunnel {
+            " through the SSH tunnel"
+        } else {
+            ""
+        };
+        Self::new(
+            ErrorKind::DbConnect,
+            Layer::Database,
+            format!("Can't reach the database server{via}: {detail}"),
+        )
+        .hint(if through_tunnel {
+            UNREACHABLE_THROUGH_TUNNEL
+        } else {
+            UNREACHABLE_DIRECT
+        })
+    }
+
+    /// The server refused the login or token.
+    pub fn auth_failed(detail: impl std::fmt::Display) -> Self {
+        Self::new(
+            ErrorKind::DbAuth,
+            Layer::Database,
+            format!("Database login failed: {detail}"),
+        )
+        .hint("Check the user name and password (or token).")
     }
 
     /// Maps an error that happened while opening a database connection

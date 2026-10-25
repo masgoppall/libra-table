@@ -31,11 +31,11 @@ struct ToolProgress {
 async fn choose(state: &AppState, s: &Session, tool: &str) -> AppResult<ToolChoice> {
     let saved = state.storage.load_tool_paths()?;
     let custom = saved.paths.get(tool).map(String::as_str);
-    Ok(tools::resolve(tool, s.driver(), &s.server_version, custom).await)
+    Ok(tools::resolve(tool, s.dialect(), &s.server_version, custom).await)
 }
 
 async fn backup_choice(state: &AppState, s: &Session) -> AppResult<Option<ToolChoice>> {
-    match tools::backup_tool(s.driver()) {
+    match tools::backup_tool(s.dialect()) {
         Some(tool) => Ok(Some(choose(state, s, tool).await?)),
         None => Ok(None),
     }
@@ -44,9 +44,9 @@ async fn backup_choice(state: &AppState, s: &Session) -> AppResult<Option<ToolCh
 /// The restore tool for the chosen file (psql or pg_restore by its format).
 async fn restore_choice(state: &AppState, s: &Session, path: &str) -> AppResult<ToolChoice> {
     let tool = if path.trim().is_empty() {
-        tools::restore_tool_default(s.driver())?
+        tools::restore_tool_default(s.dialect())?
     } else {
-        tools::restore_tool(s.driver(), path)?
+        tools::restore_tool(s.dialect(), path)?
     };
     choose(state, s, tool).await
 }
@@ -224,7 +224,7 @@ pub struct CommandLine {
 }
 
 async fn command_for(state: &AppState, s: &Session) -> AppResult<CommandLine> {
-    let tool = choose(state, s, tools::client_tool(s.driver())).await?;
+    let tool = choose(state, s, tools::client_tool(s.dialect())).await?;
     let program = tool.path.clone().unwrap_or_else(|| tool.tool.clone());
     let asks = s.connection.db.password_mode != PasswordMode::None;
     let e = Endpoint::of(s);

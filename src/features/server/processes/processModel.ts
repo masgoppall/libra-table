@@ -1,7 +1,7 @@
 // Pure rules of the process list: refresh intervals, search, idle rows, durations and
 // the wording of the stop confirmations.
 
-import { type Driver, type ProcessAction, type ProcessInfo } from "@/types";
+import { type Dialect, type ProcessAction, type ProcessInfo } from "@/types";
 
 /** Milliseconds between refreshes; 0 is off. */
 export type RefreshInterval = 0 | 2000 | 5000 | 10000;
@@ -53,7 +53,7 @@ export interface StopWording {
   typeToConfirm?: string;
 }
 
-export function stopWording(driver: Driver, p: ProcessInfo, action: ProcessAction): StopWording {
+export function stopWording(driver: Dialect, p: ProcessInfo, action: ProcessAction): StopWording {
   const what = driver === "postgres" ? `process ${p.id}` : `connection ${p.id}`;
   const who = p.user ? ` (${p.user}${p.database ? ` on ${p.database}` : ""})` : "";
   const base =

@@ -6,12 +6,12 @@
 
 use std::path::Path;
 
-use crate::models::{Driver, TlsMode, TlsSettings};
+use crate::models::{Dialect, TlsMode, TlsSettings};
 use crate::state::Session;
 
 #[derive(Debug, Clone)]
 pub struct Endpoint {
-    pub driver: Driver,
+    pub driver: Dialect,
     /// None when a Unix socket is used.
     pub host: Option<String>,
     pub port: u16,
@@ -36,7 +36,7 @@ impl Endpoint {
             (None, None) => (Some(c.db_host()), c.db_port()),
         };
         Endpoint {
-            driver: c.driver,
+            driver: c.driver.dialect(),
             host,
             port,
             socket,
@@ -53,9 +53,9 @@ impl Endpoint {
     /// picks MariaDB's TLS flags, which differ from MySQL's.
     pub fn conn_args(&self, mariadb: bool) -> Vec<String> {
         match self.driver {
-            Driver::Postgres => self.pg_args(),
-            Driver::Mysql => self.mysql_args(mariadb),
-            Driver::Sqlite => Vec::new(),
+            Dialect::Postgres => self.pg_args(),
+            Dialect::Mysql => self.mysql_args(mariadb),
+            Dialect::Sqlite => Vec::new(),
         }
     }
 
@@ -96,14 +96,14 @@ impl Endpoint {
     pub fn env(&self) -> Vec<(String, String)> {
         let mut env = Vec::new();
         let pw_var = match self.driver {
-            Driver::Postgres => "PGPASSWORD",
-            Driver::Mysql => "MYSQL_PWD",
-            Driver::Sqlite => return env,
+            Dialect::Postgres => "PGPASSWORD",
+            Dialect::Mysql => "MYSQL_PWD",
+            Dialect::Sqlite => return env,
         };
         if let Some(pw) = &self.password {
             env.push((pw_var.to_string(), pw.clone()));
         }
-        if self.driver == Driver::Postgres {
+        if self.driver == Dialect::Postgres {
             env.push(("PGSSLMODE".into(), pg_ssl_mode(self.tls.mode).into()));
             for (var, path) in [
                 ("PGSSLROOTCERT", &self.tls.ca_path),
@@ -177,7 +177,7 @@ pub fn mysql_tls(tls: &TlsSettings, mariadb: bool) -> Vec<String> {
 pub(crate) mod tests {
     use super::*;
 
-    pub fn endpoint(driver: Driver) -> Endpoint {
+    pub fn endpoint(driver: Dialect) -> Endpoint {
         Endpoint {
             driver,
             host: Some("127.0.0.1".into()),
@@ -194,13 +194,13 @@ pub(crate) mod tests {
 
     #[test]
     fn password_only_in_the_environment() {
-        let pg = endpoint(Driver::Postgres);
+        let pg = endpoint(Dialect::Postgres);
         let args = pg.conn_args(false).join(" ");
         assert_eq!(args, "-h 127.0.0.1 -p 5432 -U admin");
         assert!(pg.env().contains(&("PGPASSWORD".into(), "s3cret".into())));
         let my = Endpoint {
             port: 3306,
-            ..endpoint(Driver::Mysql)
+            ..endpoint(Dialect::Mysql)
         };
         let args = my.conn_args(false).join(" ");
         assert_eq!(args, "-h 127.0.0.1 -P 3306 --protocol=TCP -u admin");

@@ -1,5 +1,7 @@
 // What the schema browser reads: databases, objects, columns, keys and indexes.
 
+import { type DataKind } from "./connection";
+
 /** Database of the server a call is about; null = the one the connection opened. */
 export type Db = string | null;
 
@@ -10,10 +12,31 @@ export interface OperatorInfo {
   placeholder: string;
 }
 
+/** What a driver's workspace can show and do (src-tauri/src/drivers.rs `Features`). */
 export interface Capabilities {
   operators: OperatorInfo[];
+  kind: DataKind;
+  /** postgres, mysql, sqlite, mssql, oracle, clickhouse, duckdb, cql, snowflake, bigquery. */
+  sqlDialect: string | null;
+  /** sql, redis, mongo, partiql or elastic. */
+  queryLanguage: string;
+  ready: boolean;
   hasSchemas: boolean;
   switchDatabase: boolean;
+  query: boolean;
+  editRows: boolean;
+  structure: "none" | "view" | "edit";
+  createTable: boolean;
+  createDatabase: boolean;
+  schemaObjects: boolean;
+  processes: boolean;
+  users: boolean;
+  backup: boolean;
+  import: boolean;
+  diagram: boolean;
+  explain: boolean;
+  metrics: boolean;
+  quickLook: boolean;
 }
 
 export type ObjectKind = "table" | "view";

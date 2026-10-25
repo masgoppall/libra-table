@@ -19,6 +19,7 @@ import { TopBar } from "./TopBar";
 import { useAppActions } from "./useAppActions";
 import { useAppearance } from "./useAppearance";
 import { useCustomShortcuts, useGlobalKeys } from "./useGlobalKeys";
+import { useWindowClose } from "./useWindowClose";
 
 function Overlays() {
   const settingsOpen = useStore((s) => s.settingsOpen);
@@ -43,8 +44,9 @@ export default function App() {
   const consoleOpen = useStore((s) => s.consoleOpen);
 
   useEffect(() => {
-    const { loadConnections, loadSettings } = useStore.getState();
+    const { loadConnections, loadDrivers, loadSettings } = useStore.getState();
     loadConnections().catch(showError);
+    loadDrivers().catch(showError);
     loadSettings().catch(showError);
   }, []);
   useAppearance();
@@ -52,6 +54,7 @@ export default function App() {
   usePasscodeLock();
   useGlobalKeys();
   useAppActions();
+  useWindowClose();
 
   return (
     <div className="app">

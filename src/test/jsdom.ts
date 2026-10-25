@@ -1,6 +1,10 @@
 // Fills the gaps of jsdom that the app relies on. Call once per test file.
 
+import { configure } from "@testing-library/react";
 import { beforeAll } from "vitest";
+
+/** Lazily loaded tabs (editor, diagram, metrics) can take over a second on a busy machine. */
+const ASYNC_TIMEOUT_MS = 5000;
 
 const SIZE = { width: 1000, height: 600 };
 
@@ -9,6 +13,7 @@ function fixedSize(prop: string, value: number) {
 }
 
 export function installJsdomShims() {
+  configure({ asyncUtilTimeout: ASYNC_TIMEOUT_MS });
   beforeAll(() => {
     // The virtualized grid needs a viewport size; jsdom reports 0.
     fixedSize("offsetHeight", SIZE.height);

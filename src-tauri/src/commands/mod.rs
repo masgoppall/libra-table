@@ -16,6 +16,7 @@ pub mod metadata;
 pub mod metrics;
 pub mod objects;
 pub mod query;
+pub mod redis;
 pub mod schema;
 pub mod server;
 pub mod sidebar;
@@ -161,6 +162,7 @@ macro_rules! all_commands {
             $crate::commands::app::passcode_set,
             $crate::commands::app::verify_passcode,
             $crate::commands::app::change_passcode,
+            $crate::commands::app::set_window_view,
             $crate::commands::app::get_workspace,
             $crate::commands::app::save_workspace,
             $crate::commands::app::get_table_state,
@@ -185,6 +187,7 @@ macro_rules! all_commands {
             $crate::commands::connections::connection_url,
             $crate::commands::connections::parse_connection_url,
             $crate::commands::metadata::driver_capabilities,
+            $crate::commands::metadata::list_drivers,
             $crate::commands::metadata::list_databases,
             $crate::commands::metadata::list_schemas,
             $crate::commands::metadata::list_objects,
@@ -209,6 +212,10 @@ macro_rules! all_commands {
             $crate::commands::query::split_statements,
             $crate::commands::query::run_query,
             $crate::commands::query::cancel_query,
+            $crate::commands::redis::redis_databases,
+            $crate::commands::redis::redis_scan,
+            $crate::commands::redis::redis_read_key,
+            $crate::commands::redis::redis_edit,
             $crate::commands::history::search_history,
             $crate::commands::history::delete_history,
             $crate::commands::history::purge_history,

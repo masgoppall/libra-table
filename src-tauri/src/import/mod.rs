@@ -157,7 +157,7 @@ pub async fn target(
         None => meta::list_columns(&session.pool, &req.schema, &req.table).await?,
     };
     let names: Vec<String> = req.mapping.iter().map(|m| m.target.clone()).collect();
-    Target::new(session.driver(), &req.schema, &req.table, &names, &catalog)
+    Target::new(session.dialect(), &req.schema, &req.table, &names, &catalog)
 }
 
 fn new_column_info(c: &NewColumn) -> ColumnInfo {

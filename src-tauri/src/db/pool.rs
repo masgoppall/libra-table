@@ -9,9 +9,10 @@ use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::ConnectOptions;
 
+use crate::db::engine::{self, OpenArgs, SharedEngine};
 use crate::db::split;
 use crate::error::{AppError, AppResult, ErrorKind, Layer};
-use crate::models::{Connection, Driver, TlsMode};
+use crate::models::{Connection, Dialect, Driver, TlsMode};
 
 const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(15);
 const SQLITE_BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -36,27 +37,22 @@ macro_rules! setup_hook {
     };
 }
 
+/// A session's connection: one of the built-in sqlx pools, or an engine driver.
 #[derive(Clone)]
 pub enum DbPool {
     Postgres(PgPool),
     Mysql(MySqlPool),
     Sqlite(SqlitePool),
+    Engine(SharedEngine),
 }
 
 impl DbPool {
-    pub fn driver(&self) -> Driver {
-        match self {
-            DbPool::Postgres(_) => Driver::Postgres,
-            DbPool::Mysql(_) => Driver::Mysql,
-            DbPool::Sqlite(_) => Driver::Sqlite,
-        }
-    }
-
     pub fn is_closed(&self) -> bool {
         match self {
             DbPool::Postgres(p) => p.is_closed(),
             DbPool::Mysql(p) => p.is_closed(),
             DbPool::Sqlite(p) => p.is_closed(),
+            DbPool::Engine(e) => e.is_closed(),
         }
     }
 
@@ -65,6 +61,7 @@ impl DbPool {
             DbPool::Postgres(p) => p.close().await,
             DbPool::Mysql(p) => p.close().await,
             DbPool::Sqlite(p) => p.close().await,
+            DbPool::Engine(e) => e.close().await,
         }
     }
 
@@ -74,7 +71,35 @@ impl DbPool {
             DbPool::Postgres(p) => scalar("SHOW server_version").fetch_one(p).await?,
             DbPool::Mysql(p) => scalar("SELECT VERSION()").fetch_one(p).await?,
             DbPool::Sqlite(p) => scalar("SELECT sqlite_version()").fetch_one(p).await?,
+            DbPool::Engine(e) => e.server_version().await?,
         })
+    }
+
+    /// The dialect of a built-in pool; None for engines.
+    pub fn dialect(&self) -> Option<Dialect> {
+        match self {
+            DbPool::Postgres(_) => Some(Dialect::Postgres),
+            DbPool::Mysql(_) => Some(Dialect::Mysql),
+            DbPool::Sqlite(_) => Some(Dialect::Sqlite),
+            DbPool::Engine(_) => None,
+        }
+    }
+
+    /// The engine behind an engine driver's session.
+    pub fn engine(&self) -> Option<&SharedEngine> {
+        match self {
+            DbPool::Engine(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// The engine, or an `unsupported` error naming `what` for the built-in drivers'
+    /// code paths that have no engine equivalent.
+    pub fn sqlx_only(&self, driver: Driver, what: &str) -> AppResult<()> {
+        match self {
+            DbPool::Engine(_) => Err(engine::unsupported(driver, what)),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -131,10 +156,20 @@ pub async fn open_pool(
             .unwrap_or_else(|| conn.db.database.clone()),
         max_connections,
     };
-    match conn.driver {
-        Driver::Postgres => open_postgres(&args).await,
-        Driver::Mysql => open_mysql(&args).await,
-        Driver::Sqlite => open_sqlite(&args).await,
+    match conn.driver.sqlx_dialect() {
+        Some(Dialect::Postgres) => open_postgres(&args).await,
+        Some(Dialect::Mysql) => open_mysql(&args).await,
+        Some(Dialect::Sqlite) => open_sqlite(&args).await,
+        None => {
+            let open = OpenArgs {
+                conn,
+                target,
+                secret: password,
+                database,
+                max_connections,
+            };
+            Ok(DbPool::Engine(crate::engines::open(&open).await?))
+        }
     }
 }
 
@@ -273,16 +308,16 @@ async fn open_sqlite(a: &PoolArgs<'_>) -> AppResult<DbPool> {
 fn session_setup(conn: &Connection) -> Arc<Vec<String>> {
     let mut out = Vec::new();
     if conn.options.read_only {
-        match conn.driver {
-            Driver::Postgres => {
+        match conn.driver.sqlx_dialect() {
+            Some(Dialect::Postgres) => {
                 out.push("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY".to_string())
             }
-            Driver::Mysql => out.push("SET SESSION TRANSACTION READ ONLY".to_string()),
-            // SQLite connections are opened read-only instead.
-            Driver::Sqlite => {}
+            Some(Dialect::Mysql) => out.push("SET SESSION TRANSACTION READ ONLY".to_string()),
+            // SQLite connections are opened read-only instead; engines handle it themselves.
+            Some(Dialect::Sqlite) | None => {}
         }
     }
-    let startup = split::split(conn.driver, &conn.options.startup_query);
+    let startup = split::split(conn.driver.dialect(), &conn.options.startup_query);
     out.extend(startup.into_iter().map(|s| s.text));
     Arc::new(out)
 }

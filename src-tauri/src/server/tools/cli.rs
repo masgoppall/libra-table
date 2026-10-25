@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, AppResult};
-use crate::models::{Driver, TlsMode};
+use crate::models::{Dialect, TlsMode};
 
 use super::endpoint::{pg_ssl_mode, Endpoint};
 
@@ -27,7 +27,7 @@ pub fn command_line(e: &Endpoint, program: &str, mariadb: bool, asks_password: b
     let mut words: Vec<String> = Vec::new();
     let mut env = String::new();
     match e.driver {
-        Driver::Postgres => {
+        Dialect::Postgres => {
             if e.tls.mode != TlsMode::Prefer {
                 env = format!("PGSSLMODE={} ", pg_ssl_mode(e.tls.mode));
             }
@@ -37,7 +37,7 @@ pub fn command_line(e: &Endpoint, program: &str, mariadb: bool, asks_password: b
                 words.extend(["-d".into(), e.database.clone()]);
             }
         }
-        Driver::Mysql => {
+        Dialect::Mysql => {
             words.push(program.into());
             words.extend(e.conn_args(mariadb));
             if asks_password {
@@ -47,7 +47,7 @@ pub fn command_line(e: &Endpoint, program: &str, mariadb: bool, asks_password: b
                 words.push(e.database.clone());
             }
         }
-        Driver::Sqlite => {
+        Dialect::Sqlite => {
             words.push(program.into());
             words.push(e.file.clone());
         }
@@ -101,13 +101,13 @@ mod tests {
 
     #[test]
     fn commands_have_no_password() {
-        let pg = endpoint(Driver::Postgres);
+        let pg = endpoint(Dialect::Postgres);
         let line = command_line(&pg, "psql", false, true);
         assert_eq!(line, "psql -h 127.0.0.1 -p 5432 -U admin -d shop");
         let my = Endpoint {
             port: 3306,
             database: "my shop".into(),
-            ..endpoint(Driver::Mysql)
+            ..endpoint(Dialect::Mysql)
         };
         let line = command_line(&my, "/opt/mysql", false, true);
         assert_eq!(
@@ -117,7 +117,7 @@ mod tests {
         assert!(!line.contains("s3cret"));
         let lite = Endpoint {
             file: "/x/a b.db".into(),
-            ..endpoint(Driver::Sqlite)
+            ..endpoint(Dialect::Sqlite)
         };
         assert_eq!(
             command_line(&lite, "sqlite3", false, false),
@@ -128,7 +128,7 @@ mod tests {
                 mode: TlsMode::Require,
                 ..Default::default()
             },
-            ..endpoint(Driver::Postgres)
+            ..endpoint(Dialect::Postgres)
         };
         assert!(command_line(&tls, "psql", false, false).starts_with("PGSSLMODE=require psql"));
         let script = terminal_script("psql -d shop");

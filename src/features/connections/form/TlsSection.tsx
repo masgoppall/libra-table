@@ -1,10 +1,19 @@
 // TLS-1: SSL mode and certificates. The modes and their names differ per driver.
 
-import { type Driver, type TlsMode } from "@/types";
+import { builtInDialect } from "@/domain/connection";
+import { type Dialect, type TlsMode } from "@/types";
 import { PathField } from "./fields";
 import { type ConnectionFormState } from "./useConnectionForm";
 
-const TLS_MODES: Partial<Record<Driver, [TlsMode, string][]>> = {
+/** Engine drivers: TLS on or off, and whether the certificate is checked. */
+const GENERIC_MODES: [TlsMode, string][] = [
+  ["disable", "Off"],
+  ["prefer", "Prefer (default)"],
+  ["require", "Require"],
+  ["verify_full", "Require and verify certificate"],
+];
+
+const TLS_MODES: Partial<Record<Dialect, [TlsMode, string][]>> = {
   postgres: [
     ["disable", "Disable"],
     ["allow", "Allow"],
@@ -32,7 +41,7 @@ export function TlsSection({ form }: { form: ConnectionFormState }) {
         value={c.tls.mode}
         onChange={(e) => setTls({ mode: e.target.value as TlsMode })}
       >
-        {(TLS_MODES[c.driver] ?? []).map(([mode, label]) => (
+        {(TLS_MODES[builtInDialect(c.driver) ?? "sqlite"] ?? GENERIC_MODES).map(([mode, label]) => (
           <option key={mode} value={mode}>
             {label}
           </option>

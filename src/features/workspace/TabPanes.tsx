@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react";
 import { type Workspace, type WorkspaceTab } from "@/types";
 import { DataView } from "../data/DataView";
 import { HistoryView } from "../history/HistoryView";
+import { KeysView } from "../keyvalue/KeysView";
 import { DefinitionView } from "../objects/DefinitionView";
 import { ProcessListView } from "../server/processes/ProcessListView";
 import { UsersView } from "../server/users/UsersView";
@@ -23,6 +24,7 @@ const loading = <div className="message faint">Loading…</div>;
 function TabContent({ ws, tab, visible }: { ws: Workspace; tab: WorkspaceTab; visible: boolean }) {
   switch (tab.kind) {
     case "data":
+      if (ws.caps.kind === "key_value") return <KeysView ws={ws} tab={tab} />;
       return tab.schema !== undefined && tab.table ? <DataView ws={ws} tab={tab} /> : null;
     case "structure":
     case "new-table":

@@ -5,8 +5,10 @@ import { DriverLogo } from "@/components/DriverLogo";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { Modal } from "@/components/Modal";
 import { BusyIcon } from "@/components/Spinner";
-import { DRIVER_LABEL } from "@/domain/connection";
+import { builtInDialect, DRIVER_LABEL } from "@/domain/connection";
+import { useDriverEntry } from "@/store";
 import { type ConnectionView, type TestResult } from "@/types";
+import { DriverFieldsSection } from "./DriverFieldsSection";
 import { GeneralSection } from "./GeneralSection";
 import { OptionsSection } from "./OptionsSection";
 import { SafetySection } from "./SafetySection";
@@ -65,7 +67,12 @@ export function ConnectionForm(props: {
 }) {
   const form = useConnectionForm(props.initial);
   const { c } = form;
-  const isSqlite = c.driver === "sqlite";
+  const entry = useDriverEntry(c.driver);
+  const dialect = builtInDialect(c.driver);
+  const isSqlite = dialect === "sqlite";
+  // The built-in drivers have their own sections; engines are described by the catalog.
+  const ssh = dialect ? !isSqlite : !!entry?.ssh;
+  const tls = dialect ? !isSqlite : !!entry?.tls;
   const onSave = async (andConnect: boolean) => {
     const saved = await form.save(andConnect);
     if (saved) props.onSaved(saved, andConnect);
@@ -79,9 +86,11 @@ export function ConnectionForm(props: {
       footer={<Footer form={form} onClose={props.onClose} onSave={onSave} />}
     >
       <GeneralSection form={form} />
-      {isSqlite ? <SqliteSection form={form} /> : <ServerSection form={form} />}
-      {!isSqlite && <SshSection form={form} />}
-      {!isSqlite && <TlsSection form={form} />}
+      {isSqlite && <SqliteSection form={form} />}
+      {dialect && !isSqlite && <ServerSection form={form} />}
+      {!dialect && entry && <DriverFieldsSection form={form} entry={entry} />}
+      {ssh && <SshSection form={form} />}
+      {tls && <TlsSection form={form} />}
       <OptionsSection form={form} />
       <SafetySection form={form} />
       <TestOutcome test={form.test} />

@@ -13,7 +13,7 @@ mod mysql;
 mod postgres;
 
 use libratable_lib::db::{open_pool, DbPool};
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::server::tools::{self, args};
 use libratable_lib::state::Session;
 use serde_json::json;
@@ -42,7 +42,7 @@ async fn sqlite_backup_is_a_copy_of_the_file() {
     let db = dir.path().join("live.db");
     std::fs::File::create(&db).unwrap();
     let conn = common::connection(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         json!({ "filePath": db.display().to_string() }),
     );
     let pool = open_pool(&conn, None, None, None, 2).await.unwrap();
@@ -65,7 +65,7 @@ async fn sqlite_backup_is_a_copy_of_the_file() {
     };
     tools::backup(&s, &req, None, &token, |_| {}).await.unwrap();
     let backup_conn = common::connection(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         json!({ "filePath": copy.display().to_string() }),
     );
     let b = open_pool(&backup_conn, None, None, None, 1).await.unwrap();
@@ -84,7 +84,7 @@ async fn sqlite_backup_is_a_copy_of_the_file() {
         common::scalar_i64(&s.pool, "SELECT count(*) FROM t").await,
         2
     );
-    assert!(tools::restore_tool(Driver::Sqlite, &db.display().to_string()).is_err());
+    assert!(tools::restore_tool(Dialect::Sqlite, &db.display().to_string()).is_err());
     let DbPool::Sqlite(p) = &s.pool else {
         unreachable!()
     };

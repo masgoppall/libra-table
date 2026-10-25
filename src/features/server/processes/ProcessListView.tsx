@@ -61,7 +61,7 @@ export function ProcessListView({ ws, visible }: { ws: Workspace; visible: boole
   const onStop = async (p: ProcessInfo, action: ProcessAction) => {
     if (await stopProcess(ws, p, action)) void list.load();
   };
-  const idLabel = ws.info.driver === "postgres" ? "PID" : "ID";
+  const idLabel = ws.info.dialect === "postgres" ? "PID" : "ID";
   const loadedAt = list.loadedAt ? new Date(list.loadedAt).toLocaleTimeString() : null;
   return (
     <div className="tab-body">

@@ -1,12 +1,12 @@
 // The result tabs of a query tab: replaced by each run, or kept and added to in
 // append mode.
 
-import { type Driver, type RunResponse, type StatementResult } from "@/types";
+import { type Dialect, type RunResponse, type StatementResult } from "@/types";
 import { initialResult } from "./statements";
 
 /** A result shown as a plan (EXPLAIN run from the toolbar). */
 export interface ExplainSpec {
-  driver: Driver;
+  driver: Dialect;
   analyze: boolean;
 }
 

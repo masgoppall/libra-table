@@ -90,7 +90,7 @@ export function RestoreDialog(props: { ws: Workspace; database: string; onClose:
     const path = await open({
       multiple: false,
       directory: false,
-      filters: restoreFilters(ws.info.driver),
+      filters: restoreFilters(ws.info.dialect),
     });
     if (typeof path === "string") set({ path });
   };

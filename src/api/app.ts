@@ -21,6 +21,7 @@ export const appApi = {
     call<void>("change_passcode", { current, next }),
   consoleEntries: () => call<ConsoleEntry[]>("console_entries"),
   clearConsole: () => call<void>("clear_console"),
+  setWindowView: (inWorkspace: boolean) => call<void>("set_window_view", { inWorkspace }),
   getTableState: (key: string) => call<TableState | null>("get_table_state", { key }),
   saveTableState: (key: string, tableState: TableState) =>
     call<void>("save_table_state", { key, tableState }),

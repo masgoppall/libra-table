@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::db::meta::ForeignKeyInfo;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 fn col(name: &str, ty: &str) -> ColumnSpec {
     ColumnSpec {
@@ -27,10 +27,10 @@ fn sqls(plan: &Plan) -> Vec<String> {
         .collect()
 }
 
-fn create(driver: Driver) -> SchemaChange {
+fn create(driver: Dialect) -> SchemaChange {
     let mut id = col(
         "id",
-        if driver == Driver::Sqlite {
+        if driver == Dialect::Sqlite {
             "INTEGER"
         } else {
             "bigint"
@@ -46,7 +46,7 @@ fn create(driver: Driver) -> SchemaChange {
     let mut email = col("email", "text");
     email.unique = true;
     SchemaChange::CreateTable {
-        schema: if driver == Driver::Sqlite {
+        schema: if driver == Dialect::Sqlite {
             "main".into()
         } else {
             "app".into()
@@ -73,7 +73,12 @@ fn create(driver: Driver) -> SchemaChange {
 
 #[test]
 fn create_table_postgres() {
-    let p = build(Driver::Postgres, &create(Driver::Postgres), &Ctx::default()).unwrap();
+    let p = build(
+        Dialect::Postgres,
+        &create(Dialect::Postgres),
+        &Ctx::default(),
+    )
+    .unwrap();
     assert_eq!(p.exec, Exec::Transaction);
     assert_eq!(
         sqls(&p),
@@ -98,7 +103,7 @@ fn create_table_postgres() {
 
 #[test]
 fn create_table_mysql_and_sqlite() {
-    let p = build(Driver::Mysql, &create(Driver::Mysql), &Ctx::default()).unwrap();
+    let p = build(Dialect::Mysql, &create(Dialect::Mysql), &Ctx::default()).unwrap();
     assert_eq!(p.exec, Exec::Sequential);
     assert_eq!(
         sqls(&p)[0],
@@ -114,7 +119,7 @@ fn create_table_mysql_and_sqlite() {
             ") COMMENT='People'"
         )
     );
-    let p = build(Driver::Sqlite, &create(Driver::Sqlite), &Ctx::default()).unwrap();
+    let p = build(Dialect::Sqlite, &create(Dialect::Sqlite), &Ctx::default()).unwrap();
     assert_eq!(
         sqls(&p),
         vec![
@@ -143,23 +148,23 @@ fn rejects_bad_input() {
         foreign_keys: vec![],
         comment: None,
     };
-    assert!(build(Driver::Postgres, &one(vec![]), &Ctx::default()).is_err());
+    assert!(build(Dialect::Postgres, &one(vec![]), &Ctx::default()).is_err());
     assert!(build(
-        Driver::Postgres,
+        Dialect::Postgres,
         &one(vec![col("", "int")]),
         &Ctx::default()
     )
     .is_err());
-    assert!(build(Driver::Postgres, &one(vec![col("a", "")]), &Ctx::default()).is_err());
+    assert!(build(Dialect::Postgres, &one(vec![col("a", "")]), &Ctx::default()).is_err());
     assert!(build(
-        Driver::Postgres,
+        Dialect::Postgres,
         &one(vec![col("a", "int"), col("A", "int")]),
         &Ctx::default()
     )
     .is_err());
     // A type that tries to end the statement.
     let err = build(
-        Driver::Postgres,
+        Dialect::Postgres,
         &one(vec![col("a", "int); DROP TABLE x; --")]),
         &Ctx::default(),
     )
@@ -167,7 +172,7 @@ fn rejects_bad_input() {
     assert!(err.message.contains("stray"), "{}", err.message);
     let mut auto = col("a", "text");
     auto.auto_increment = true;
-    assert!(build(Driver::Sqlite, &one(vec![auto]), &Ctx::default()).is_err());
+    assert!(build(Dialect::Sqlite, &one(vec![auto]), &Ctx::default()).is_err());
     let bad_db = SchemaChange::CreateDatabase {
         name: "x".into(),
         options: DatabaseOptions {
@@ -175,7 +180,7 @@ fn rejects_bad_input() {
             ..Default::default()
         },
     };
-    assert!(build(Driver::Mysql, &bad_db, &Ctx::default()).is_err());
+    assert!(build(Dialect::Mysql, &bad_db, &Ctx::default()).is_err());
 }
 
 #[test]
@@ -184,7 +189,7 @@ fn databases_schemas_and_tables() {
     let b = |d, c: SchemaChange| sqls(&build(d, &c, &ctx).unwrap());
     assert_eq!(
         b(
-            Driver::Postgres,
+            Dialect::Postgres,
             SchemaChange::CreateDatabase {
                 name: "shop".into(),
                 options: DatabaseOptions {
@@ -198,7 +203,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Mysql,
+            Dialect::Mysql,
             SchemaChange::CreateDatabase {
                 name: "shop".into(),
                 options: DatabaseOptions {
@@ -212,7 +217,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Postgres,
+            Dialect::Postgres,
             SchemaChange::DropDatabase {
                 name: "shop".into(),
                 force: true
@@ -222,7 +227,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         build(
-            Driver::Postgres,
+            Dialect::Postgres,
             &SchemaChange::DropDatabase {
                 name: "x".into(),
                 force: false
@@ -235,7 +240,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Postgres,
+            Dialect::Postgres,
             SchemaChange::DropSchema {
                 name: "old".into(),
                 cascade: true
@@ -244,14 +249,14 @@ fn databases_schemas_and_tables() {
         vec!["DROP SCHEMA \"old\" CASCADE"]
     );
     assert!(build(
-        Driver::Mysql,
+        Dialect::Mysql,
         &SchemaChange::CreateSchema { name: "x".into() },
         &ctx
     )
     .is_err());
     assert_eq!(
         b(
-            Driver::Mysql,
+            Dialect::Mysql,
             SchemaChange::RenameTable {
                 schema: "s".into(),
                 from: "a".into(),
@@ -262,7 +267,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Sqlite,
+            Dialect::Sqlite,
             SchemaChange::RenameTable {
                 schema: "main".into(),
                 from: "a".into(),
@@ -273,7 +278,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Sqlite,
+            Dialect::Sqlite,
             SchemaChange::TruncateTable {
                 schema: "main".into(),
                 name: "a".into(),
@@ -289,7 +294,7 @@ fn databases_schemas_and_tables() {
     assert_eq!(
         sqls(
             &build(
-                Driver::Postgres,
+                Dialect::Postgres,
                 &SchemaChange::DropTable {
                     schema: "s".into(),
                     name: "v".into(),
@@ -303,7 +308,7 @@ fn databases_schemas_and_tables() {
     );
     assert_eq!(
         b(
-            Driver::Postgres,
+            Dialect::Postgres,
             SchemaChange::DuplicateTable {
                 schema: "s".into(),
                 from: "a".into(),
@@ -318,7 +323,7 @@ fn databases_schemas_and_tables() {
     );
 }
 
-fn alter(driver: Driver, ops: Vec<AlterOp>, ctx: &Ctx) -> Plan {
+fn alter(driver: Dialect, ops: Vec<AlterOp>, ctx: &Ctx) -> Plan {
     build(
         driver,
         &SchemaChange::AlterTable {
@@ -344,7 +349,7 @@ fn alter_postgres() {
         ..Default::default()
     };
     let p = alter(
-        Driver::Postgres,
+        Dialect::Postgres,
         vec![
             AlterOp::AddIndex {
                 index: IndexSpec {
@@ -395,7 +400,7 @@ fn alter_postgres() {
     auto.auto_increment = true;
     assert_eq!(
         sqls(&alter(
-            Driver::Postgres,
+            Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: base.clone(),
                 column: auto.clone()
@@ -409,7 +414,7 @@ fn alter_postgres() {
     );
     assert_eq!(
         sqls(&alter(
-            Driver::Postgres,
+            Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: auto.clone(),
                 column: base.clone()
@@ -422,7 +427,7 @@ fn alter_postgres() {
     serial.default = Some("nextval('t_id_seq'::regclass)".into());
     assert_eq!(
         sqls(&alter(
-            Driver::Postgres,
+            Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: serial,
                 column: base
@@ -445,7 +450,7 @@ fn alter_mysql() {
     id.nullable = false;
     id.primary_key = true;
     let p = alter(
-        Driver::Mysql,
+        Dialect::Mysql,
         vec![
             AlterOp::ModifyColumn {
                 original: o,
@@ -481,7 +486,7 @@ fn alter_mysql() {
     };
     assert_eq!(
         sqls(&alter(
-            Driver::Mysql,
+            Dialect::Mysql,
             vec![AlterOp::SetPrimaryKey {
                 columns: vec!["a".into(), "b".into()]
             }],
@@ -494,7 +499,7 @@ fn alter_mysql() {
     u.default = Some("uuid()".into());
     assert_eq!(
         sqls(&alter(
-            Driver::Mysql,
+            Dialect::Mysql,
             vec![AlterOp::AddColumn { column: u }],
             &Ctx::default()
         )),
@@ -508,7 +513,7 @@ fn alter_sqlite_in_place_or_rebuild() {
     let mut renamed = o.clone();
     renamed.name = "b".into();
     let p = alter(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         vec![
             AlterOp::ModifyColumn {
                 original: o.clone(),
@@ -542,7 +547,7 @@ fn alter_sqlite_in_place_or_rebuild() {
     typed.data_type = "INTEGER".into();
     typed.nullable = false;
     let p = alter(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         vec![AlterOp::ModifyColumn {
             original: o,
             column: typed,
@@ -719,6 +724,6 @@ fn deserializes_from_the_ui() {
         ]
     });
     let c: SchemaChange = serde_json::from_value(v).unwrap();
-    let p = build(Driver::Postgres, &c, &Ctx::default()).unwrap();
+    let p = build(Dialect::Postgres, &c, &Ctx::default()).unwrap();
     assert_eq!(sqls(&p).len(), 4);
 }

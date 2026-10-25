@@ -6,6 +6,10 @@ import { withShortcut } from "@/lib/actions";
 
 export interface QueryToolsProps {
   running: boolean;
+  /** The driver can explain statements (EXPLAIN). */
+  canExplain: boolean;
+  /** The editor holds SQL the formatter knows. */
+  canFormat: boolean;
   canAnalyze: boolean;
   onExplain: (analyze: boolean) => void;
   onFormat: () => void;
@@ -19,33 +23,37 @@ export function QueryTools(p: QueryToolsProps) {
   ];
   return (
     <div className="tool-group">
-      <div className="split-btn">
+      {p.canExplain && (
+        <div className="split-btn">
+          <button
+            className="btn sm"
+            onClick={() => p.onExplain(false)}
+            disabled={p.running}
+            title={withShortcut("Explain the statement at the cursor", "explain")}
+          >
+            <ListTree size={13} /> Explain
+          </button>
+          {p.canAnalyze && (
+            <button
+              className="btn sm icon"
+              disabled={p.running}
+              aria-label="More explain options"
+              onClick={(e) => menu.openAt(e.currentTarget, items)}
+            >
+              <ChevronDown size={12} />
+            </button>
+          )}
+        </div>
+      )}
+      {p.canFormat && (
         <button
           className="btn sm"
-          onClick={() => p.onExplain(false)}
-          disabled={p.running}
-          title={withShortcut("Explain the statement at the cursor", "explain")}
+          onClick={p.onFormat}
+          title={withShortcut("Beautify the selection, or all", "format-sql")}
         >
-          <ListTree size={13} /> Explain
+          <WandSparkles size={13} /> Format
         </button>
-        {p.canAnalyze && (
-          <button
-            className="btn sm icon"
-            disabled={p.running}
-            aria-label="More explain options"
-            onClick={(e) => menu.openAt(e.currentTarget, items)}
-          >
-            <ChevronDown size={12} />
-          </button>
-        )}
-      </div>
-      <button
-        className="btn sm"
-        onClick={p.onFormat}
-        title={withShortcut("Beautify the selection, or all", "format-sql")}
-      >
-        <WandSparkles size={13} /> Format
-      </button>
+      )}
       {menu.node}
     </div>
   );

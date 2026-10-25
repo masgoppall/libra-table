@@ -5,14 +5,14 @@ mod postgres;
 mod sqlite;
 
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::plan::{Ctx, Step};
 use super::spec::AlterOp;
 
 /// Appends the steps for `ops`. Returns whether an SQLite table rebuild is needed.
 pub(super) fn build(
-    driver: Driver,
+    driver: Dialect,
     schema: &str,
     table: &str,
     ops: &[AlterOp],
@@ -20,8 +20,8 @@ pub(super) fn build(
     steps: &mut Vec<Step>,
 ) -> AppResult<bool> {
     match driver {
-        Driver::Postgres => postgres::alter(schema, table, ops, ctx, steps).map(|_| false),
-        Driver::Mysql => mysql::alter(schema, table, ops, ctx, steps).map(|_| false),
-        Driver::Sqlite => sqlite::alter(schema, table, ops, steps),
+        Dialect::Postgres => postgres::alter(schema, table, ops, ctx, steps).map(|_| false),
+        Dialect::Mysql => mysql::alter(schema, table, ops, ctx, steps).map(|_| false),
+        Dialect::Sqlite => sqlite::alter(schema, table, ops, steps),
     }
 }

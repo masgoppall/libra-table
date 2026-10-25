@@ -9,7 +9,7 @@ import {
   type AppError,
   type ColumnInfo,
   type CsvOptions,
-  type Driver,
+  type Dialect,
   type FilePreview,
   type ImportProgress,
   type ImportSource,
@@ -27,7 +27,7 @@ const FILE_FILTERS = [
 ];
 
 /** The file preview, read again whenever the file or its options change. */
-function usePreview(driver: Driver, source: ImportSource) {
+function usePreview(driver: Dialect, source: ImportSource) {
   const [preview, setPreview] = useState<FilePreview | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ function useTargetColumns(d: ImportDialog) {
   return columns;
 }
 
-export function useImportWizard(d: ImportDialog, driver: Driver) {
+export function useImportWizard(d: ImportDialog, driver: Dialect) {
   const [step, setStep] = useState<ImportStep>("source");
   const [source, setSource] = useState<ImportSource>({
     path: "",

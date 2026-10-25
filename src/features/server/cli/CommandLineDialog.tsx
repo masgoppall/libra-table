@@ -65,7 +65,7 @@ export function CommandLineDialog(props: { ws: Workspace; database: string; onCl
     >
       {!line && !error && (
         <div className="row muted">
-          <Spinner /> Finding {ws.info.driver === "sqlite" ? "sqlite3" : "the client"}…
+          <Spinner /> Finding {ws.info.dialect === "sqlite" ? "sqlite3" : "the client"}…
         </div>
       )}
       {line && (

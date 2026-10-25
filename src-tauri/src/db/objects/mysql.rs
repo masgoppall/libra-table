@@ -11,13 +11,13 @@ use sqlx::{MySqlPool, Row};
 
 use crate::db::sql::qualified;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     missing, terminated, unsupported, ObjectDefinition, ObjectKind, ObjectRef, SchemaObject,
 };
 
-const D: Driver = Driver::Mysql;
+const D: Dialect = Dialect::Mysql;
 
 const ROUTINES: &str = "SELECT CAST(ROUTINE_NAME AS CHAR), CAST(ROUTINE_TYPE AS CHAR), \
         CAST(DTD_IDENTIFIER AS CHAR) \

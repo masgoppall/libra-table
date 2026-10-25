@@ -5,13 +5,13 @@ use sqlx::SqlitePool;
 
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     missing, terminated, unsupported, ObjectDefinition, ObjectKind, ObjectRef, SchemaObject,
 };
 
-const D: Driver = Driver::Sqlite;
+const D: Dialect = Dialect::Sqlite;
 
 pub(super) async fn list(p: &SqlitePool, schema: &str) -> AppResult<Vec<SchemaObject>> {
     let sql = format!(

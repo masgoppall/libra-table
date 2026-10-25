@@ -3,7 +3,7 @@
 
 use crate::db::sql::{literal_for, qualified, quote_ident};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::plan::Step;
 use super::spec::{ColumnSpec, ForeignKeySpec, IndexSpec};
@@ -68,7 +68,7 @@ pub(super) fn comment_of(c: &Option<String>) -> Option<&str> {
 }
 
 /// A comment as a literal, or NULL to remove it.
-pub(super) fn comment_literal(driver: Driver, c: &Option<String>) -> String {
+pub(super) fn comment_literal(driver: Dialect, c: &Option<String>) -> String {
     comment_of(c)
         .map(|x| literal_for(driver, x))
         .unwrap_or_else(|| "NULL".into())
@@ -96,9 +96,9 @@ fn is_now_keyword(expr: &str) -> bool {
 }
 
 /// SQLite and MySQL need parentheses around a default that calls a function.
-fn wrap_default(driver: Driver, expr: &str) -> String {
+fn wrap_default(driver: Dialect, expr: &str) -> String {
     let t = expr.trim();
-    if driver == Driver::Postgres || t.starts_with('(') || is_now_keyword(t) || !t.contains('(') {
+    if driver == Dialect::Postgres || t.starts_with('(') || is_now_keyword(t) || !t.contains('(') {
         t.to_string()
     } else {
         format!("({t})")
@@ -114,7 +114,7 @@ pub(super) fn same_default(a: &ColumnSpec, b: &ColumnSpec) -> bool {
     default_expr(a) == default_expr(b)
 }
 
-pub(super) fn quoted_list(driver: Driver, names: &[String]) -> String {
+pub(super) fn quoted_list(driver: Dialect, names: &[String]) -> String {
     names
         .iter()
         .map(|n| quote_ident(driver, n))
@@ -137,7 +137,7 @@ fn fk_action(what: &str, v: &str) -> AppResult<Option<String>> {
 /// `inline_pk` puts PRIMARY KEY on the column itself (SQLite AUTOINCREMENT, MySQL
 /// ADD COLUMN with AUTO_INCREMENT); `unique` is left out when changing a column.
 pub(super) fn column_def(
-    driver: Driver,
+    driver: Dialect,
     c: &ColumnSpec,
     inline_pk: bool,
     with_unique: bool,
@@ -147,9 +147,9 @@ pub(super) fn column_def(
     let mut s = format!("{} {}", quote_ident(driver, &c.name), c.data_type.trim());
     let unique = c.unique && with_unique;
     match driver {
-        Driver::Postgres => pg_column_options(&mut s, c, inline_pk, unique),
-        Driver::Mysql => mysql_column_options(&mut s, c, inline_pk, unique),
-        Driver::Sqlite => sqlite_column_options(&mut s, c, inline_pk, unique),
+        Dialect::Postgres => pg_column_options(&mut s, c, inline_pk, unique),
+        Dialect::Mysql => mysql_column_options(&mut s, c, inline_pk, unique),
+        Dialect::Sqlite => sqlite_column_options(&mut s, c, inline_pk, unique),
     }
     Ok(s)
 }
@@ -173,7 +173,7 @@ fn pg_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bo
 }
 
 fn mysql_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bool) {
-    let d = Driver::Mysql;
+    let d = Dialect::Mysql;
     s.push_str(if c.nullable { " NULL" } else { " NOT NULL" });
     if let (Some(x), false) = (default_expr(c), c.auto_increment) {
         s.push_str(&format!(" DEFAULT {}", wrap_default(d, x)));
@@ -202,14 +202,14 @@ fn sqlite_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique
         s.push_str(" NOT NULL");
     }
     if let Some(d) = default_expr(c) {
-        s.push_str(&format!(" DEFAULT {}", wrap_default(Driver::Sqlite, d)));
+        s.push_str(&format!(" DEFAULT {}", wrap_default(Dialect::Sqlite, d)));
     }
     if unique {
         s.push_str(" UNIQUE");
     }
 }
 
-pub(super) fn fk_clause(driver: Driver, schema: &str, fk: &ForeignKeySpec) -> AppResult<String> {
+pub(super) fn fk_clause(driver: Dialect, schema: &str, fk: &ForeignKeySpec) -> AppResult<String> {
     if fk.columns.is_empty() || fk.columns.len() != fk.ref_columns.len() {
         return Err(bad(
             "A foreign key needs the same number of columns on both sides.",
@@ -223,7 +223,7 @@ pub(super) fn fk_clause(driver: Driver, schema: &str, fk: &ForeignKeySpec) -> Ap
     };
     let target = match driver {
         // SQLite only references tables of the same database file, by bare name.
-        Driver::Sqlite => quote_ident(driver, &fk.ref_table),
+        Dialect::Sqlite => quote_ident(driver, &fk.ref_table),
         _ => qualified(driver, ref_schema, &fk.ref_table),
     };
     let mut s = String::new();
@@ -263,7 +263,7 @@ fn index_name(table: &str, idx: &IndexSpec) -> String {
 }
 
 pub(super) fn create_index(
-    driver: Driver,
+    driver: Dialect,
     schema: &str,
     table: &str,
     idx: &IndexSpec,
@@ -276,7 +276,7 @@ pub(super) fn create_index(
     let cols = quoted_list(driver, &idx.columns);
     let (index, on) = match driver {
         // SQLite puts the schema on the index name, and the table must be in it.
-        Driver::Sqlite => (qualified(driver, schema, &name), quote_ident(driver, table)),
+        Dialect::Sqlite => (qualified(driver, schema, &name), quote_ident(driver, table)),
         _ => (quote_ident(driver, &name), qualified(driver, schema, table)),
     };
     Ok(format!("CREATE {unique}INDEX {index} ON {on} ({cols})"))

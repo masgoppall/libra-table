@@ -1,16 +1,16 @@
 //! Dialect helpers: identifier quoting, placeholders, qualified names, literal rendering.
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
-pub fn quote_ident(driver: Driver, name: &str) -> String {
+pub fn quote_ident(driver: Dialect, name: &str) -> String {
     match driver {
-        Driver::Mysql => format!("`{}`", name.replace('`', "``")),
-        Driver::Postgres | Driver::Sqlite => format!("\"{}\"", name.replace('"', "\"\"")),
+        Dialect::Mysql => format!("`{}`", name.replace('`', "``")),
+        Dialect::Postgres | Dialect::Sqlite => format!("\"{}\"", name.replace('"', "\"\"")),
     }
 }
 
 /// `schema.table` quoted for the driver. An empty schema gives just the table.
-pub fn qualified(driver: Driver, schema: &str, table: &str) -> String {
+pub fn qualified(driver: Dialect, schema: &str, table: &str) -> String {
     if schema.is_empty() {
         quote_ident(driver, table)
     } else {
@@ -24,12 +24,12 @@ pub fn qualified(driver: Driver, schema: &str, table: &str) -> String {
 
 /// Hands out `$1, $2, …` on Postgres and `?` elsewhere.
 pub struct Placeholder {
-    driver: Driver,
+    driver: Dialect,
     next: usize,
 }
 
 impl Placeholder {
-    pub fn new(driver: Driver, first: usize) -> Self {
+    pub fn new(driver: Dialect, first: usize) -> Self {
         Self {
             driver,
             next: first.max(1),
@@ -40,7 +40,7 @@ impl Placeholder {
         let n = self.next;
         self.next += 1;
         match self.driver {
-            Driver::Postgres => format!("${n}"),
+            Dialect::Postgres => format!("${n}"),
             _ => "?".to_string(),
         }
     }
@@ -61,8 +61,8 @@ pub fn mysql_literal(value: &str) -> String {
 }
 
 /// A string literal for DDL written by LibraTable (comments), escaped for the driver.
-pub fn literal_for(driver: Driver, value: &str) -> String {
-    if driver == Driver::Mysql {
+pub fn literal_for(driver: Dialect, value: &str) -> String {
+    if driver == Dialect::Mysql {
         mysql_literal(value)
     } else {
         literal(value)
@@ -72,7 +72,7 @@ pub fn literal_for(driver: Driver, value: &str) -> String {
 /// Fills placeholders with literals for display, in one pass that skips strings and
 /// quoted identifiers, so a `$1` or `?` inside a value or a column name is left alone.
 /// For previews only: what runs is the parameterized statement.
-pub fn inline_binds(driver: Driver, sql: &str, binds: &[Option<String>]) -> String {
+pub fn inline_binds(driver: Dialect, sql: &str, binds: &[Option<String>]) -> String {
     let lit = |i: usize| match binds.get(i) {
         Some(Some(v)) => literal(v),
         Some(None) => "NULL".to_string(),
@@ -88,14 +88,14 @@ pub fn inline_binds(driver: Driver, sql: &str, binds: &[Option<String>]) -> Stri
             i = copy_quoted(&chars, i, &mut out);
             continue;
         }
-        if driver == Driver::Postgres && c == '$' {
+        if driver == Dialect::Postgres && c == '$' {
             if let Some((n, end)) = dollar_param(&chars, i) {
                 out.push_str(&lit(n.saturating_sub(1)));
                 i = end;
                 continue;
             }
         }
-        if driver != Driver::Postgres && c == '?' {
+        if driver != Dialect::Postgres && c == '?' {
             out.push_str(&lit(next_q));
             next_q += 1;
             i += 1;
@@ -151,10 +151,10 @@ mod tests {
 
     #[test]
     fn quoting_doubles_the_quote_char() {
-        assert_eq!(quote_ident(Driver::Postgres, r#"we"ird"#), r#""we""ird""#);
-        assert_eq!(quote_ident(Driver::Mysql, "we`ird"), "`we``ird`");
-        assert_eq!(qualified(Driver::Sqlite, "main", "t"), r#""main"."t""#);
-        assert_eq!(qualified(Driver::Mysql, "", "t"), "`t`");
+        assert_eq!(quote_ident(Dialect::Postgres, r#"we"ird"#), r#""we""ird""#);
+        assert_eq!(quote_ident(Dialect::Mysql, "we`ird"), "`we``ird`");
+        assert_eq!(qualified(Dialect::Sqlite, "main", "t"), r#""main"."t""#);
+        assert_eq!(qualified(Dialect::Mysql, "", "t"), "`t`");
     }
 
     #[test]
@@ -163,7 +163,7 @@ mod tests {
         // The value "$2" must not be replaced again by the second bind.
         assert_eq!(
             inline_binds(
-                Driver::Postgres,
+                Dialect::Postgres,
                 r#"SELECT "a$1" FROM t WHERE a = $1 AND b = $2"#,
                 &b
             ),
@@ -172,26 +172,26 @@ mod tests {
         // A `?` inside a MySQL identifier doesn't shift the values.
         assert_eq!(
             inline_binds(
-                Driver::Mysql,
+                Dialect::Mysql,
                 "UPDATE t SET `odd?` = ? WHERE id = ?",
                 &[Some("v".into()), None]
             ),
             "UPDATE t SET `odd?` = 'v' WHERE id = NULL"
         );
         assert_eq!(
-            inline_binds(Driver::Sqlite, "x LIKE ? ESCAPE '!'", &[Some("a?".into())]),
+            inline_binds(Dialect::Sqlite, "x LIKE ? ESCAPE '!'", &[Some("a?".into())]),
             "x LIKE 'a?' ESCAPE '!'"
         );
     }
 
     #[test]
     fn placeholders() {
-        let mut p = Placeholder::new(Driver::Postgres, 2);
+        let mut p = Placeholder::new(Dialect::Postgres, 2);
         assert_eq!(
             (p.next_param(), p.next_param()),
             ("$2".to_string(), "$3".to_string())
         );
-        let mut q = Placeholder::new(Driver::Mysql, 1);
+        let mut q = Placeholder::new(Dialect::Mysql, 1);
         assert_eq!(q.next_param(), "?");
     }
 }

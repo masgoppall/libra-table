@@ -16,7 +16,8 @@ export interface CellMenuContext {
   setValue: (v: CellInput) => void;
   filterBy: (v: Cell) => void;
   deleteRows: () => void;
-  quickLook: () => void;
+  /** Absent when the driver can't load whole values. */
+  quickLook?: () => void;
   /** Set when the column is a foreign key and the cell has a value. */
   reference?: { table: string; open: () => void };
 }
@@ -43,7 +44,7 @@ export function cellMenu(c: CellMenuContext): MenuItem[] {
     : [];
   return [
     ...follow,
-    { label: "Quick Look", hint: "Space", onClick: c.quickLook },
+    ...(c.quickLook ? [{ label: "Quick Look", hint: "Space", onClick: c.quickLook }] : []),
     { label: "Copy cell", onClick: () => void copyText(cellText(c.value)) },
     {
       label: c.rowCount > 1 ? `Copy ${c.rowCount} rows` : "Copy row",

@@ -6,6 +6,7 @@ import {
   type CompletionSchema,
   type Db,
   type Driver,
+  type DriverEntry,
   type ObjectInfo,
   type TableStructure,
 } from "@/types";
@@ -13,6 +14,7 @@ import { call } from "./client";
 
 export const metadataApi = {
   driverCapabilities: (driver: Driver) => call<Capabilities>("driver_capabilities", { driver }),
+  listDrivers: () => call<DriverEntry[]>("list_drivers"),
   listDatabases: (id: string) => call<string[]>("list_databases", { id }),
   listSchemas: (id: string, db: Db) => call<string[]>("list_schemas", { id, database: db }),
   listObjects: (id: string, db: Db, schema: string) =>

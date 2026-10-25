@@ -61,7 +61,7 @@ function TargetPickers(props: {
 }) {
   const { kind, fields, set } = props;
   const names = useGrantTargets(props.ws, props.db, fields);
-  const pg = props.ws.info.driver === "postgres";
+  const pg = props.ws.info.dialect === "postgres";
   const container = pg ? "Schema" : "Database";
   return (
     <>
@@ -94,7 +94,7 @@ function TargetPickers(props: {
 }
 
 function initialFields(ws: Workspace): TargetFields {
-  const pg = ws.info.driver === "postgres";
+  const pg = ws.info.dialect === "postgres";
   return { database: ws.database, schema: pg ? ws.schema : ws.database, table: "" };
 }
 

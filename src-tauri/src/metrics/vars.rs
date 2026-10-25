@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::db::sql::{literal, mysql_literal};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -47,17 +47,17 @@ fn is_number(v: &str) -> bool {
     digits(int) && digits(frac)
 }
 
-fn quote(driver: Driver, v: &str) -> String {
+fn quote(driver: Dialect, v: &str) -> String {
     match driver {
-        Driver::Mysql => mysql_literal(v),
-        Driver::Postgres if v.contains('\\') => {
+        Dialect::Mysql => mysql_literal(v),
+        Dialect::Postgres if v.contains('\\') => {
             format!("E'{}'", v.replace('\\', "\\\\").replace('\'', "''"))
         }
         _ => literal(v),
     }
 }
 
-fn render(driver: Driver, var: &Variable) -> AppResult<String> {
+fn render(driver: Dialect, var: &Variable) -> AppResult<String> {
     if var.value.contains('\0') {
         return Err(AppError::validation("Variable values can't contain NUL."));
     }
@@ -73,7 +73,7 @@ fn render(driver: Driver, var: &Variable) -> AppResult<String> {
 }
 
 /// End of a quoted run or comment starting at `i`, or None when `i` starts neither.
-fn skip(driver: Driver, s: &[char], i: usize) -> Option<usize> {
+fn skip(driver: Dialect, s: &[char], i: usize) -> Option<usize> {
     let next = s.get(i + 1).copied();
     let close = |from: usize, pat: &[char]| {
         (from..s.len())
@@ -82,9 +82,9 @@ fn skip(driver: Driver, s: &[char], i: usize) -> Option<usize> {
     };
     match s[i] {
         q @ ('\'' | '"') => Some(close(i + 1, &[q])),
-        '`' if driver == Driver::Mysql => Some(close(i + 1, &['`'])),
+        '`' if driver == Dialect::Mysql => Some(close(i + 1, &['`'])),
         '-' if next == Some('-') => Some(close(i, &['\n'])),
-        '#' if driver == Driver::Mysql => Some(close(i, &['\n'])),
+        '#' if driver == Dialect::Mysql => Some(close(i, &['\n'])),
         '/' if next == Some('*') => Some(close(i + 2, &['*', '/'])),
         _ => None,
     }
@@ -101,7 +101,7 @@ fn placeholder(s: &[char], i: usize) -> Option<(String, usize)> {
 }
 
 /// Replaces every `{{name}}` outside strings and comments with its value.
-pub fn substitute(driver: Driver, sql: &str, vars: &[Variable]) -> AppResult<String> {
+pub fn substitute(driver: Dialect, sql: &str, vars: &[Variable]) -> AppResult<String> {
     let s: Vec<char> = sql.chars().collect();
     let mut out = String::with_capacity(sql.len());
     let mut i = 0;
@@ -143,20 +143,20 @@ mod tests {
         ];
         let sql = "select * from t where r = {{region}} and x > {{ n }} limit {{n}}";
         assert_eq!(
-            substitute(Driver::Postgres, sql, &v).unwrap(),
+            substitute(Dialect::Postgres, sql, &v).unwrap(),
             "select * from t where r = 'O''Hara' and x > 10 limit 10"
         );
         let slash = [var("p", "a\\'", VarKind::Text)];
         assert_eq!(
-            substitute(Driver::Postgres, "{{p}}", &slash).unwrap(),
+            substitute(Dialect::Postgres, "{{p}}", &slash).unwrap(),
             "E'a\\\\'''"
         );
         assert_eq!(
-            substitute(Driver::Mysql, "{{p}}", &slash).unwrap(),
+            substitute(Dialect::Mysql, "{{p}}", &slash).unwrap(),
             "'a\\\\'''"
         );
         assert_eq!(
-            substitute(Driver::Sqlite, "{{p}}", &slash).unwrap(),
+            substitute(Dialect::Sqlite, "{{p}}", &slash).unwrap(),
             "'a\\'''"
         );
     }
@@ -166,11 +166,11 @@ mod tests {
         let v = [var("x", "1", VarKind::Number)];
         let sql = "select '{{x}}', \"{{x}}\" -- {{x}}\n, {{x}} /* {{x}} */";
         assert_eq!(
-            substitute(Driver::Postgres, sql, &v).unwrap(),
+            substitute(Dialect::Postgres, sql, &v).unwrap(),
             "select '{{x}}', \"{{x}}\" -- {{x}}\n, 1 /* {{x}} */"
         );
         assert_eq!(
-            substitute(Driver::Sqlite, "{{ not a name }}", &v).unwrap(),
+            substitute(Dialect::Sqlite, "{{ not a name }}", &v).unwrap(),
             "{{ not a name }}"
         );
     }
@@ -178,9 +178,9 @@ mod tests {
     #[test]
     fn rejects_unknown_names_and_bad_numbers() {
         let v = [var("n", "1; drop table t", VarKind::Number)];
-        assert!(substitute(Driver::Mysql, "{{n}}", &v).is_err());
-        assert!(substitute(Driver::Mysql, "{{missing}}", &v).is_err());
+        assert!(substitute(Dialect::Mysql, "{{n}}", &v).is_err());
+        assert!(substitute(Dialect::Mysql, "{{missing}}", &v).is_err());
         let empty = [var("n", "", VarKind::Number)];
-        assert_eq!(substitute(Driver::Mysql, "{{n}}", &empty).unwrap(), "NULL");
+        assert_eq!(substitute(Dialect::Mysql, "{{n}}", &empty).unwrap(), "NULL");
     }
 }

@@ -100,17 +100,17 @@ export function restoreWorkspace(
   saved: SavedWorkspace | undefined,
 ): Workspace {
   let database = info.database;
-  let schema = defaultSchema(info.driver, info.database);
+  let schema = defaultSchema(info.dialect, info.database);
   let tabs: WorkspaceTab[] = [];
   let activeTabId: string | null = null;
   if (saved) {
     // Tabs saved before databases were per tab belong to the connection's database.
     tabs = (saved.tabs ?? []).map((t) => ({ ...t, database: t.database ?? info.database }));
     activeTabId = saved.activeTabId ?? tabs[0]?.id ?? null;
-    if (saved.database !== undefined && info.driver !== "sqlite") database = saved.database;
+    if (saved.database !== undefined && info.dialect !== "sqlite") database = saved.database;
     if (saved.schema) schema = saved.schema;
   }
-  if (info.driver === "mysql") schema = database;
+  if (info.dialect === "mysql") schema = database;
   const base = { connectionId: info.connectionId, info, caps, refreshKey: 0 };
   return { ...base, database, schema, tabs, activeTabId };
 }

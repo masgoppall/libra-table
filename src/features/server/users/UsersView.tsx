@@ -86,7 +86,7 @@ export function UsersView(props: { ws: Workspace; tab: WorkspaceTab; visible: bo
   const u = useUsers(ws.connectionId, db, visible);
   const [open, setOpen] = useState<OpenDialog | null>(null);
   useActions(LAYER.tab, visible, { refresh: u.reload });
-  const pg = ws.info.driver === "postgres";
+  const pg = ws.info.dialect === "postgres";
   const after = (done: Promise<boolean>) => void done.then((ok) => ok && u.reload());
   const actions: RowActions = {
     onEdit: (role) => setOpen({ kind: "role", role }),

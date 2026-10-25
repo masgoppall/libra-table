@@ -47,8 +47,8 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     "run-current": () => void actions.runCurrent(),
     "run-all": () => void actions.runAll(),
     "cancel-query": runner.cancel,
-    explain: () => void actions.explain(false),
-    "format-sql": actions.format,
+    explain: () => (ws.caps.explain ? void actions.explain(false) : false),
+    "format-sql": () => (ws.caps.sqlDialect ? actions.format() : false),
     save: () => void save(),
     export: () => (canExport && result ? setExportSql(result.sql) : false),
     // Results don't refresh on ⌘R; the sidebar does (next layer).
@@ -63,7 +63,7 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   }, []);
 
   const pickDatabase = (d: string) =>
-    updateTab(id, tab.id, { database: d, schema: defaultSchema(ws.info.driver, d) });
+    updateTab(id, tab.id, { database: d, schema: defaultSchema(ws.info.dialect, d) });
 
   return (
     <div className="tab-body">
@@ -80,7 +80,9 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
         onSave={() => void save()}
         tools={{
           running: !!runner.running,
-          canAnalyze: canAnalyze(ws.info.driver),
+          canExplain: ws.caps.explain,
+          canFormat: ws.caps.sqlDialect !== null,
+          canAnalyze: canAnalyze(ws.info.dialect),
           onExplain: (analyze) => void actions.explain(analyze),
           onFormat: actions.format,
         }}
@@ -91,7 +93,8 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
             editorRef={editorRef}
             value={text}
             onChange={setText}
-            driver={ws.info.driver}
+            driver={ws.info.dialect}
+            language={ws.caps.queryLanguage}
             schema={ctx.schema}
             completion={ctx.completion}
           />
@@ -99,7 +102,7 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
         <div className="splitter" onMouseDown={split.onSplitterDown} />
         <ResultsPane
           runner={runner}
-          driver={ws.info.driver}
+          driver={ws.info.dialect}
           rowLimit={conn?.options.queryRowLimit ?? 0}
           onExport={setExportSql}
         />

@@ -30,7 +30,7 @@ export const TAB_ICONS: Record<TabKind, LucideIcon> = {
 };
 
 export function tabTooltip(ws: Workspace, t: WorkspaceTab): string {
-  const schema = ws.info.driver === "postgres" ? t.schema : undefined;
+  const schema = ws.info.dialect === "postgres" || ws.caps.hasSchemas ? t.schema : undefined;
   const where = [t.database ?? ws.database, schema].filter(Boolean).join(".");
   if (t.kind === "data" || t.kind === "structure") return `${where}.${t.table} · ${t.kind}`;
   if (t.kind === "query") {

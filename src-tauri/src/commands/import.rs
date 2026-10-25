@@ -13,7 +13,7 @@ use crate::error::{AppError, AppResult};
 use crate::import::sqlrun::{self, SqlFileProgress, SqlFileRequest, SqlFileSummary};
 use crate::import::{self, FilePreview, ImportProgress, ImportRequest, ImportSummary, NewColumn};
 use crate::import::{SourceSpec, Target};
-use crate::models::Driver;
+use crate::models::Dialect;
 use crate::state::{AppState, Session};
 
 use super::{confirm_production, record_history, Cmd, Outcome, Timer};
@@ -78,7 +78,7 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> AppResult<T> + Send + '
 }
 
 #[tauri::command]
-pub async fn preview_import_file(driver: Driver, source: SourceSpec) -> Cmd<FilePreview> {
+pub async fn preview_import_file(driver: Dialect, source: SourceSpec) -> Cmd<FilePreview> {
     blocking(move || import::preview_file(&source, driver)).await
 }
 
@@ -168,7 +168,7 @@ pub async fn start_sql_file(
 ) -> Cmd<()> {
     let s = state.session_in(&id, database.as_deref()).await?;
     if state.live_connection(&s).is_production() && !confirmed {
-        let statements = sql_file_preview(&request.path, s.driver()).await?;
+        let statements = sql_file_preview(&request.path, s.dialect()).await?;
         confirm_production(&state, &s, &statements, confirmed)?;
     }
     let token = register_job(&state, &job_id);
@@ -177,7 +177,7 @@ pub async fn start_sql_file(
 }
 
 /// The first statements of the file and a line standing for the rest.
-async fn sql_file_preview(path: &str, driver: Driver) -> Cmd<Vec<String>> {
+async fn sql_file_preview(path: &str, driver: Dialect) -> Cmd<Vec<String>> {
     let p = path.to_string();
     let mut out =
         blocking(move || sqlrun::first_statements(&p, driver, PREVIEW_STATEMENTS)).await?;

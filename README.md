@@ -1,6 +1,6 @@
 # LibraTable
 
-Desktop database client for **PostgreSQL, MySQL/MariaDB and SQLite**, built with Tauri 2 (Rust) and React. Connect directly or through an SSH tunnel, work in several databases of a server at once, create and change databases, schemas and tables, filter and edit table data, run SQL, search history, import CSV/JSON and SQL files, export to CSV/JSON/SQL, back up and restore, browse functions, triggers and other schema objects, draw an ER diagram and build metrics boards. Everything has a keyboard shortcut (⌘/ lists them, and they can be changed).
+Desktop database client for **PostgreSQL, MySQL/MariaDB, SQLite, Snowflake, BigQuery, DynamoDB and Redis**, built with Tauri 2 (Rust) and React. The driver picker lists every TablePlus driver; the ones not built yet show as "Coming soon". Connect directly or through an SSH tunnel, work in several databases of a server at once, create and change databases, schemas and tables, filter and edit table data, run SQL, search history, import CSV/JSON and SQL files, export to CSV/JSON/SQL, back up and restore, browse functions, triggers and other schema objects, draw an ER diagram and build metrics boards. Everything has a keyboard shortcut (⌘/ lists them, and they can be changed).
 
 The product spec is the PRD in `../reverse-tableplus/docs/prd-database-client.md`; requirement IDs below (CON-1, FLT-4, …) refer to it.
 
@@ -151,7 +151,7 @@ Data folder: `~/Library/Application Support/com.libratable.app/` (`connections.j
 | Visual | ER diagram tab (drag, pan/zoom, saved layout, SVG/PNG export), metrics boards (scoreboard, table, bar, line, pie, input widgets; auto refresh) |
 | App | Console log of every statement the app sends (⇧⌘C), custom keyboard shortcuts (menu follows), passcode lock (⇧⌘L, auto lock after idle), encrypted export/import of connections |
 
-Not built yet: drivers beyond PostgreSQL/MySQL/SQLite (SQL Server, ClickHouse, DuckDB, Redis, MongoDB…), AI assistant and MCP server, plugins and custom scripts, themes from git, several windows, and a split query editor.
+Drivers not built yet (shown as "Coming soon"): SQL Server, Oracle, ClickHouse, DuckDB, Cassandra, MongoDB, Elasticsearch, LibSQL/Turso, Cloudflare D1 and Vertica; CockroachDB, Redshift and Greenplum use the PostgreSQL code without per-flavor adjustments yet. Snowflake, BigQuery and DynamoDB are tested against mocks and emulators, not the real services. Also not built: AI assistant and MCP server, plugins and custom scripts, themes from git, several windows, and a split query editor.
 
 ## Measured
 

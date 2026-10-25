@@ -6,7 +6,7 @@ use crate::db::meta::ForeignKeyInfo;
 use crate::db::split;
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::alter;
 use super::clauses::{bad, need_name, need_word, sql};
@@ -69,7 +69,7 @@ pub struct Ctx {
 /// original table when the statements are worked out.
 pub(super) const SQLITE_COPY_MARKER: &str = "-- copy of";
 
-pub fn build(driver: Driver, change: &SchemaChange, ctx: &Ctx) -> AppResult<Plan> {
+pub fn build(driver: Dialect, change: &SchemaChange, ctx: &Ctx) -> AppResult<Plan> {
     let mut steps = Vec::new();
     let exec = match change {
         SchemaChange::CreateDatabase { name, options } => {
@@ -100,8 +100,8 @@ pub fn build(driver: Driver, change: &SchemaChange, ctx: &Ctx) -> AppResult<Plan
 }
 
 /// MySQL commits each DDL statement, so its plans run one by one.
-fn default_exec(driver: Driver) -> Exec {
-    if driver == Driver::Mysql {
+fn default_exec(driver: Dialect) -> Exec {
+    if driver == Dialect::Mysql {
         Exec::Sequential
     } else {
         Exec::Transaction
@@ -110,7 +110,7 @@ fn default_exec(driver: Driver) -> Exec {
 
 /// Schema and table changes other than ALTER TABLE.
 fn object_steps(
-    driver: Driver,
+    driver: Dialect,
     change: &SchemaChange,
     ctx: &Ctx,
     steps: &mut Vec<Step>,
@@ -178,7 +178,7 @@ fn object_steps(
 
 /// DROP TABLE / VIEW / MATERIALIZED VIEW / FOREIGN TABLE, whichever the object is.
 fn drop_table(
-    driver: Driver,
+    driver: Dialect,
     schema: &str,
     name: &str,
     cascade: bool,
@@ -186,7 +186,7 @@ fn drop_table(
 ) -> AppResult<String> {
     need_name("The table", name)?;
     let kind = ctx.object_kind.clone().unwrap_or_else(|| "TABLE".into());
-    let cascade = if cascade && driver == Driver::Postgres {
+    let cascade = if cascade && driver == Dialect::Postgres {
         " CASCADE"
     } else {
         ""
@@ -197,7 +197,7 @@ fn drop_table(
 
 /// Types and defaults are SQL the user typed: each generated statement must still be
 /// exactly one statement.
-fn check_single_statements(driver: Driver, steps: &[Step]) -> AppResult<()> {
+fn check_single_statements(driver: Dialect, steps: &[Step]) -> AppResult<()> {
     for s in steps {
         if let Step::Sql(text) = s {
             if !text.starts_with("--") && split::split(driver, text).len() != 1 {
@@ -211,20 +211,20 @@ fn check_single_statements(driver: Driver, steps: &[Step]) -> AppResult<()> {
     Ok(())
 }
 
-fn need_schemas(driver: Driver, name: &str) -> AppResult<()> {
+fn need_schemas(driver: Dialect, name: &str) -> AppResult<()> {
     need_name("The schema", name)?;
-    if driver != Driver::Postgres {
+    if driver != Dialect::Postgres {
         return Err(bad("Only PostgreSQL has schemas inside a database."));
     }
     Ok(())
 }
 
-fn create_database(driver: Driver, name: &str, options: &DatabaseOptions) -> AppResult<String> {
+fn create_database(driver: Dialect, name: &str, options: &DatabaseOptions) -> AppResult<String> {
     need_name("The database", name)?;
     let mut s = format!("CREATE DATABASE {}", quote_ident(driver, name));
     let set = |v: &str| !v.trim().is_empty();
     match driver {
-        Driver::Postgres => {
+        Dialect::Postgres => {
             if set(&options.owner) {
                 let owner = quote_ident(driver, options.owner.trim());
                 s.push_str(&format!(" OWNER {owner}"));
@@ -238,7 +238,7 @@ fn create_database(driver: Driver, name: &str, options: &DatabaseOptions) -> App
                 s.push_str(&format!(" ENCODING '{}'", options.encoding.trim()));
             }
         }
-        Driver::Mysql => {
+        Dialect::Mysql => {
             if set(&options.charset) {
                 need_word("Character set", options.charset.trim())?;
                 s.push_str(&format!(" CHARACTER SET {}", options.charset.trim()));
@@ -248,7 +248,7 @@ fn create_database(driver: Driver, name: &str, options: &DatabaseOptions) -> App
                 s.push_str(&format!(" COLLATE {}", options.collation.trim()));
             }
         }
-        Driver::Sqlite => {
+        Dialect::Sqlite => {
             return Err(bad(
                 "An SQLite database is a file: create it from the new connection form.",
             ));
@@ -257,46 +257,46 @@ fn create_database(driver: Driver, name: &str, options: &DatabaseOptions) -> App
     Ok(s)
 }
 
-fn drop_database(driver: Driver, name: &str, force: bool) -> AppResult<String> {
+fn drop_database(driver: Dialect, name: &str, force: bool) -> AppResult<String> {
     need_name("The database", name)?;
     let db = quote_ident(driver, name);
     match driver {
-        Driver::Postgres => {
+        Dialect::Postgres => {
             let force = if force { " WITH (FORCE)" } else { "" };
             Ok(format!("DROP DATABASE {db}{force}"))
         }
-        Driver::Mysql => Ok(format!("DROP DATABASE {db}")),
-        Driver::Sqlite => Err(bad(
+        Dialect::Mysql => Ok(format!("DROP DATABASE {db}")),
+        Dialect::Sqlite => Err(bad(
             "An SQLite database is a file: delete the file to remove it.",
         )),
     }
 }
 
-fn rename_table(driver: Driver, schema: &str, from: &str, to: &str) -> AppResult<String> {
+fn rename_table(driver: Dialect, schema: &str, from: &str, to: &str) -> AppResult<String> {
     need_name("The table", from)?;
     need_name("The new table", to)?;
     let src = qualified(driver, schema, from);
     Ok(match driver {
-        Driver::Mysql => format!("RENAME TABLE {src} TO {}", qualified(driver, schema, to)),
+        Dialect::Mysql => format!("RENAME TABLE {src} TO {}", qualified(driver, schema, to)),
         _ => format!("ALTER TABLE {src} RENAME TO {}", quote_ident(driver, to)),
     })
 }
 
-fn truncate_table(driver: Driver, schema: &str, name: &str, cascade: bool) -> AppResult<String> {
+fn truncate_table(driver: Dialect, schema: &str, name: &str, cascade: bool) -> AppResult<String> {
     need_name("The table", name)?;
     let t = qualified(driver, schema, name);
     Ok(match driver {
-        Driver::Postgres => {
+        Dialect::Postgres => {
             let cascade = if cascade { " CASCADE" } else { "" };
             format!("TRUNCATE TABLE {t}{cascade}")
         }
-        Driver::Mysql => format!("TRUNCATE TABLE {t}"),
-        Driver::Sqlite => format!("DELETE FROM {t}"),
+        Dialect::Mysql => format!("TRUNCATE TABLE {t}"),
+        Dialect::Sqlite => format!("DELETE FROM {t}"),
     })
 }
 
 fn duplicate_table(
-    driver: Driver,
+    driver: Dialect,
     schema: &str,
     from: &str,
     to: &str,
@@ -308,15 +308,15 @@ fn duplicate_table(
     let src = qualified(driver, schema, from);
     let dst = qualified(driver, schema, to);
     let (create, insert) = match driver {
-        Driver::Postgres => (
+        Dialect::Postgres => (
             format!("CREATE TABLE {dst} (LIKE {src} INCLUDING ALL)"),
             format!("INSERT INTO {dst} OVERRIDING SYSTEM VALUE SELECT * FROM {src}"),
         ),
-        Driver::Mysql => (
+        Dialect::Mysql => (
             format!("CREATE TABLE {dst} LIKE {src}"),
             format!("INSERT INTO {dst} SELECT * FROM {src}"),
         ),
-        Driver::Sqlite => (
+        Dialect::Sqlite => (
             format!("{SQLITE_COPY_MARKER} {src}"),
             format!("INSERT INTO {dst} SELECT * FROM {src}"),
         ),

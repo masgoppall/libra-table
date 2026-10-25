@@ -32,7 +32,7 @@ pub struct StatementResult {
 }
 
 impl StatementResult {
-    fn new(sql: &str) -> Self {
+    pub fn new(sql: &str) -> Self {
         Self {
             sql: sql.to_string(),
             columns: Vec::new(),
@@ -97,6 +97,8 @@ async fn ensure_editor(
                 };
                 EditorConn::Sqlite { conn, handle }
             }
+            // Engines run statements themselves (`Engine::run`).
+            DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
         });
     }
     Ok(match (slot.as_ref().unwrap(), &session.pool) {
@@ -268,6 +270,11 @@ pub async fn cancel(target: &CancelTarget, still_running: impl Fn() -> bool) -> 
         CancelTarget::Sqlite { handle } => {
             if still_running() {
                 interrupt_sqlite(*handle);
+            }
+        }
+        CancelTarget::Engine(e) => {
+            if still_running() {
+                e.cancel().await?;
             }
         }
     }

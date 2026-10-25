@@ -66,7 +66,7 @@ export function TableDesigner({ ws, tab }: { ws: Workspace; tab: WorkspaceTab })
     );
   }
 
-  if (d.isView && d.structure) {
+  if ((d.isView || ws.caps.structure === "view") && d.structure) {
     return (
       <div className="tab-body">
         {toolbar}

@@ -7,7 +7,7 @@ use sqlx::PgPool;
 
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     missing, terminated, ObjectDefinition, ObjectKind, ObjectRef, SchemaObject, SequenceInfo,
@@ -17,7 +17,7 @@ mod ddl;
 
 pub(super) use ddl::{sequence_ddl, trigger_detail, type_ddl, type_detail, TypeRow};
 
-const D: Driver = Driver::Postgres;
+const D: Dialect = Dialect::Postgres;
 
 const FUNCTIONS: &str = "SELECT p.proname::text, p.prokind::text, \
         pg_get_function_identity_arguments(p.oid), pg_get_function_result(p.oid) \

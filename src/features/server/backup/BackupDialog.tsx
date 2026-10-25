@@ -23,7 +23,7 @@ export function BackupDialog(props: { ws: Workspace; database: string; onClose: 
   const { ws, database } = props;
   const id = ws.connectionId;
   const db = tabDb(ws, { database });
-  const driver = ws.info.driver;
+  const driver = ws.info.dialect;
   const [r, setR] = useState<BackupRequest>(defaultBackup());
   const set = (patch: Partial<BackupRequest>) => setR((x) => ({ ...x, ...patch }));
   const plan = useToolPlan(r, (req) => api.planBackup(id, db, req));

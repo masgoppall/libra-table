@@ -3,6 +3,7 @@
 import { Command, Database, Eye, FileCode2, Plus, Table2 } from "lucide-react";
 import { type ReactNode } from "react";
 import { api } from "@/api";
+import { actionAvailable } from "@/domain/features";
 import { type ActionId, dispatch, SHORTCUTS, shortcutFor, UNBOUND_ACTIONS } from "@/lib/actions";
 import { showError } from "@/services/errors";
 import { store, tabDb } from "@/store";
@@ -53,7 +54,8 @@ function actionLabel(a: ActionId): string {
 
 function actionItems(ws: Workspace): PaletteItem[] {
   const server = SERVER_ACTIONS.filter((a) => serverActionAvailable(ws, a));
-  return [...ACTIONS, ...server].map((a) => ({
+  const offered = ACTIONS.filter((a) => actionAvailable(ws.caps, a));
+  return [...offered, ...server].map((a) => ({
     key: `act:${a}`,
     group: "Actions",
     label: actionLabel(a),
@@ -77,7 +79,7 @@ export async function databaseItems(ws: Workspace): Promise<PaletteItem[]> {
     icon: <Database size={14} />,
     run: () => store.get().switchDatabase(ws.connectionId, d),
   }));
-  if (ws.info.driver !== "sqlite") {
+  if (ws.info.dialect !== "sqlite") {
     items.push({
       key: "new-db",
       group: "Actions",

@@ -101,3 +101,9 @@ pub async fn change_passcode(
 ) -> Cmd<()> {
     crate::app_lock::change(&state, current.as_deref(), next.as_deref()).await
 }
+
+/// Which page is visible, so closing the window can go back to the connections page.
+#[tauri::command]
+pub fn set_window_view(in_workspace: bool) {
+    crate::window::set_in_workspace(in_workspace);
+}

@@ -3,11 +3,11 @@
 import { useMemo } from "react";
 import { type GridColumn } from "@/components/grid/DataGrid";
 import { editorFor } from "@/domain/cellEditors";
-import { type Driver, type PageResult } from "@/types";
+import { type Dialect, type PageResult } from "@/types";
 import { type TableRelations } from "./useTableRelations";
 
 export function useGridColumns(
-  driver: Driver,
+  driver: Dialect,
   result: PageResult | null,
   relations: TableRelations,
 ): GridColumn[] {

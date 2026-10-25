@@ -1,6 +1,31 @@
 // Saved connections and what connecting returns. Mirrors src-tauri models (serde camelCase).
 
-export type Driver = "postgres" | "mysql" | "sqlite";
+/** The database product of a connection (src-tauri/src/models.rs `Driver`). */
+export type Driver =
+  | "postgres"
+  | "mysql"
+  | "sqlite"
+  | "mariadb"
+  | "cockroach"
+  | "redshift"
+  | "greenplum"
+  | "vertica"
+  | "libsql"
+  | "cloudflare_d1"
+  | "mssql"
+  | "oracle"
+  | "clickhouse"
+  | "duckdb"
+  | "cassandra"
+  | "snowflake"
+  | "bigquery"
+  | "redis"
+  | "mongodb"
+  | "dynamodb"
+  | "elasticsearch";
+
+/** SQL rules for quoting and splitting: the built-in dialect closest to the driver. */
+export type Dialect = "postgres" | "mysql" | "sqlite";
 export type Tag = "local" | "testing" | "development" | "staging" | "production";
 export type PasswordMode = "keychain" | "ask" | "none";
 export type TlsMode = "disable" | "allow" | "prefer" | "require" | "verify_ca" | "verify_full";
@@ -14,6 +39,8 @@ export interface DbSettings {
   socket: string;
   filePath: string;
   passwordMode: PasswordMode;
+  /** Driver-specific settings that are not secrets (account, region, URL…). */
+  extra: Record<string, string>;
 }
 
 export interface SshSettings {
@@ -103,6 +130,7 @@ export interface PromptedSecrets {
 export interface ConnectInfo {
   connectionId: string;
   driver: Driver;
+  dialect: Dialect;
   database: string;
   serverVersion: string;
   throughTunnel: boolean;
@@ -130,4 +158,46 @@ export interface ConnectionDraft {
   connection: Connection;
   dbPassword: string | null;
   sshPassword: string | null;
+}
+
+export type DriverGroup = "relational" | "compatible" | "analytics" | "cloud" | "nosql";
+
+/** How a workspace presents data: tables and SQL, documents, or keys. */
+export type DataKind = "sql" | "document" | "key_value";
+
+export type FieldKind = "text" | "number" | "file" | "select" | "bool";
+
+/** A connection form field; `key` is host, port, user, database, filePath or extra.<name>. */
+export interface DriverField {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  placeholder: string;
+  required: boolean;
+  options: string[];
+  help: string;
+}
+
+/** The secret kept in the keychain for the driver (password, token, key…). */
+export interface DriverSecret {
+  label: string;
+  multiline: boolean;
+  optional: boolean;
+}
+
+/** One entry of the driver picker (src-tauri/src/drivers.rs). */
+export interface DriverEntry {
+  id: Driver;
+  label: string;
+  group: DriverGroup;
+  kind: DataKind;
+  sqlDialect: string | null;
+  queryLanguage: string;
+  defaultPort: number | null;
+  fields: DriverField[];
+  secret: DriverSecret | null;
+  ssh: boolean;
+  tls: boolean;
+  note: string;
+  ready: boolean;
 }

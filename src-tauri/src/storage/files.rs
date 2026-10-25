@@ -21,6 +21,12 @@ const FORBIDDEN_KEYS: &[&str] = &[
     "sshKeyPassphrase",
     "privateKey",
     "secret",
+    "token",
+    "apiToken",
+    "authToken",
+    "apiKey",
+    "secretAccessKey",
+    "serviceAccountKey",
 ];
 
 #[derive(Serialize, Deserialize)]

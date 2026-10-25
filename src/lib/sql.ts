@@ -1,19 +1,19 @@
 // Identifier and literal quoting for SQL the UI writes itself (copy as INSERT, SELECT …).
 
-import { type Cell, type Driver } from "@/types";
+import { type Cell, type Dialect } from "@/types";
 import { isBinary } from "./cells";
 
-export function quoteIdent(driver: Driver, name: string): string {
+export function quoteIdent(driver: Dialect, name: string): string {
   if (driver === "mysql") return "`" + name.replace(/`/g, "``") + "`";
   return '"' + name.replace(/"/g, '""') + '"';
 }
 
 /** `"schema"."table"` from a dotted name or from parts. */
-export function qualifiedName(driver: Driver, ...parts: string[]): string {
+export function qualifiedName(driver: Dialect, ...parts: string[]): string {
   return parts.map((p) => quoteIdent(driver, p)).join(".");
 }
 
-export function sqlLiteral(driver: Driver, v: Cell): string {
+export function sqlLiteral(driver: Dialect, v: Cell): string {
   if (v === null) return "NULL";
   if (typeof v === "number") return String(v);
   if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
@@ -22,7 +22,7 @@ export function sqlLiteral(driver: Driver, v: Cell): string {
   return "'" + escaped.replace(/'/g, "''") + "'";
 }
 
-export function selectAllSql(driver: Driver, schema: string, table: string, limit = 100): string {
+export function selectAllSql(driver: Dialect, schema: string, table: string, limit = 100): string {
   return `SELECT * FROM ${qualifiedName(driver, schema, table)} LIMIT ${limit};`;
 }
 

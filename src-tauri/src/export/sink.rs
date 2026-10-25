@@ -9,7 +9,7 @@ use serde_json::Value;
 use crate::db::sql::{literal, quote_ident};
 use crate::db::value::ColumnMeta;
 use crate::error::{AppError, AppResult, ErrorKind, Layer};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{Format, Options};
 
@@ -28,7 +28,7 @@ pub(super) enum Sink {
     },
     Sql {
         w: BufWriter<File>,
-        driver: Driver,
+        driver: Dialect,
         table: String,
         cols: Vec<String>,
     },
@@ -39,7 +39,7 @@ impl Sink {
         path: &Path,
         format: Format,
         opts: &Options,
-        driver: Driver,
+        driver: Dialect,
         default_table: &str,
     ) -> AppResult<Self> {
         let file = File::create(path)?;
@@ -81,7 +81,7 @@ impl Sink {
         })
     }
 
-    fn sql(buf: BufWriter<File>, opts: &Options, driver: Driver, default_table: &str) -> Self {
+    fn sql(buf: BufWriter<File>, opts: &Options, driver: Dialect, default_table: &str) -> Self {
         let table = if opts.table_name.trim().is_empty() {
             default_table.to_string()
         } else {
@@ -163,7 +163,7 @@ fn csv_err(e: csv::Error) -> AppError {
     AppError::new(ErrorKind::Io, Layer::App, format!("CSV write failed: {e}"))
 }
 
-fn quote_table(driver: Driver, name: &str) -> String {
+fn quote_table(driver: Dialect, name: &str) -> String {
     // "schema.table" is written as two quoted parts.
     match name.split_once('.') {
         Some((s, t)) => format!("{}.{}", quote_ident(driver, s), quote_ident(driver, t)),
@@ -190,7 +190,7 @@ fn csv_text(v: &Value, null: &str) -> String {
     }
 }
 
-pub fn sql_literal(driver: Driver, v: &Value) -> String {
+pub fn sql_literal(driver: Dialect, v: &Value) -> String {
     match v {
         Value::Null => "NULL".into(),
         Value::Bool(b) => {
@@ -203,12 +203,12 @@ pub fn sql_literal(driver: Driver, v: &Value) -> String {
         Value::Number(n) => n.to_string(),
         Value::String(s) => match driver {
             // MySQL treats backslash as an escape character in string literals by default.
-            Driver::Mysql => literal(&s.replace('\\', "\\\\")),
+            Dialect::Mysql => literal(&s.replace('\\', "\\\\")),
             _ => literal(s),
         },
         other => match hex_of(other) {
             Some(h) => match driver {
-                Driver::Postgres => format!("'\\x{h}'::bytea"),
+                Dialect::Postgres => format!("'\\x{h}'::bytea"),
                 _ => format!("X'{h}'"),
             },
             None => literal(&other.to_string()),
@@ -230,20 +230,23 @@ mod tests {
 
     #[test]
     fn literals_per_driver() {
-        assert_eq!(sql_literal(Driver::Postgres, &json!("it's")), "'it''s'");
-        assert_eq!(sql_literal(Driver::Mysql, &json!("a\\b")), "'a\\\\b'");
-        assert_eq!(sql_literal(Driver::Sqlite, &json!(null)), "NULL");
+        assert_eq!(sql_literal(Dialect::Postgres, &json!("it's")), "'it''s'");
+        assert_eq!(sql_literal(Dialect::Mysql, &json!("a\\b")), "'a\\\\b'");
+        assert_eq!(sql_literal(Dialect::Sqlite, &json!(null)), "NULL");
         assert_eq!(
-            sql_literal(Driver::Postgres, &json!({"$binary": "beef", "size": 2})),
+            sql_literal(Dialect::Postgres, &json!({"$binary": "beef", "size": 2})),
             "'\\xbeef'::bytea"
         );
         assert_eq!(
-            sql_literal(Driver::Mysql, &json!({"$binary": "beef", "size": 2})),
+            sql_literal(Dialect::Mysql, &json!({"$binary": "beef", "size": 2})),
             "X'beef'"
         );
         assert_eq!(csv_text(&json!(null), "NULL"), "NULL");
         assert_eq!(csv_text(&json!(12.5), ""), "12.5");
-        assert_eq!(quote_table(Driver::Mysql, "shop.orders"), "`shop`.`orders`");
+        assert_eq!(
+            quote_table(Dialect::Mysql, "shop.orders"),
+            "`shop`.`orders`"
+        );
     }
 
     #[test]
@@ -251,7 +254,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("out.json");
         let opts = Options::default();
-        let mut s = Sink::open(&path, Format::Json, &opts, Driver::Sqlite, "t").unwrap();
+        let mut s = Sink::open(&path, Format::Json, &opts, Dialect::Sqlite, "t").unwrap();
         s.header(&[meta("a", "INTEGER")], true).unwrap();
         s.row(&[json!(1)]).unwrap();
         s.row(&[json!(null)]).unwrap();
@@ -270,7 +273,7 @@ mod tests {
             null_as: "null".into(),
             ..Default::default()
         };
-        let mut s = Sink::open(&path, Format::Csv, &opts, Driver::Sqlite, "t").unwrap();
+        let mut s = Sink::open(&path, Format::Csv, &opts, Dialect::Sqlite, "t").unwrap();
         s.header(&[meta("a", ""), meta("b", "")], true).unwrap();
         s.row(&[json!("x;y"), json!(null)]).unwrap();
         s.finish().unwrap();

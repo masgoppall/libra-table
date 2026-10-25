@@ -1,6 +1,7 @@
 // Process list, users, backup / restore and the command line: where each opens and
 // which drivers have it (SQLite has no server: only backup and the command line).
 
+import { actionAvailable } from "@/domain/features";
 import { type ActionId, LAYER, useActions } from "@/lib/actions";
 import { toastInfo } from "@/services/errors";
 import { type ServerDialog, store } from "@/store";
@@ -16,9 +17,10 @@ export const SERVER_ACTIONS: ActionId[] = [
 
 const SERVER_ONLY: ActionId[] = ["process-list", "users", "restore"];
 
-/** False for the server-only tools on SQLite (hidden from the palette). */
+/** False for tools the driver lacks: SQLite has no server, engines have none of them. */
 export function serverActionAvailable(ws: Workspace, id: ActionId): boolean {
-  return ws.info.driver !== "sqlite" || !SERVER_ONLY.includes(id);
+  if (ws.info.driver === "sqlite") return !SERVER_ONLY.includes(id);
+  return actionAvailable(ws.caps, id);
 }
 
 /** The process list is server-wide: one tab, whatever database the sidebar shows. */
@@ -54,14 +56,17 @@ export function useServerActions(ws: Workspace, visible: boolean) {
     const [message, detail] = SQLITE_NOTES[action] ?? ["", ""];
     toastInfo(message, detail || undefined);
   };
-  const guarded = (action: ActionId, run: () => void) => () =>
-    serverActionAvailable(ws, action) ? run() : sqliteNote(action);
+  const guarded = (action: ActionId, run: () => void) => () => {
+    if (serverActionAvailable(ws, action)) return run();
+    // SQLite explains why; other drivers simply don't offer the tool.
+    return ws.info.driver === "sqlite" ? sqliteNote(action) : false;
+  };
   const { addTab } = store.get();
   useActions(LAYER.workspace, visible, {
     "process-list": guarded("process-list", () => addTab(id, processesTab(ws), { reuse: true })),
     users: guarded("users", () => addTab(id, usersTab(ws.database), { reuse: true })),
-    backup: () => openServerDialog(ws, "backup"),
+    backup: guarded("backup", () => openServerDialog(ws, "backup")),
     restore: guarded("restore", () => openServerDialog(ws, "restore")),
-    "command-line": () => openServerDialog(ws, "command-line"),
+    "command-line": guarded("command-line", () => openServerDialog(ws, "command-line")),
   });
 }

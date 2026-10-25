@@ -7,9 +7,9 @@ import { tabDb } from "@/store";
 import { type CompletionSchema, type Workspace, type WorkspaceTab } from "@/types";
 
 function tabSchema(ws: Workspace, tab: WorkspaceTab, database: string): string {
-  if (ws.info.driver === "mysql") return database;
+  if (ws.info.dialect === "mysql" && !ws.caps.hasSchemas) return database;
   if (tab.schema) return tab.schema;
-  return database === ws.database ? ws.schema : defaultSchema(ws.info.driver, database);
+  return database === ws.database ? ws.schema : defaultSchema(ws.info.dialect, database);
 }
 
 export function useQueryContext(ws: Workspace, tab: WorkspaceTab) {

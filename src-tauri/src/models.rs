@@ -1,24 +1,110 @@
 //! Data model shared with the UI. Nothing here holds a secret: passwords and keys
 //! live in the OS keychain (see `secrets.rs`) and move only as `SecretChange`.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 pub const CONFIG_SCHEMA_VERSION: u32 = 1;
 
+/// The database product a connection talks to (what the driver picker offers).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Driver {
     Postgres,
     Mysql,
     Sqlite,
+    Mariadb,
+    Cockroach,
+    Redshift,
+    Greenplum,
+    Vertica,
+    Libsql,
+    CloudflareD1,
+    Mssql,
+    Oracle,
+    Clickhouse,
+    Duckdb,
+    Cassandra,
+    Snowflake,
+    Bigquery,
+    Redis,
+    Mongodb,
+    Dynamodb,
+    Elasticsearch,
 }
 
 impl Driver {
+    pub const ALL: [Driver; 21] = [
+        Driver::Postgres,
+        Driver::Mysql,
+        Driver::Sqlite,
+        Driver::Mariadb,
+        Driver::Cockroach,
+        Driver::Redshift,
+        Driver::Greenplum,
+        Driver::Vertica,
+        Driver::Libsql,
+        Driver::CloudflareD1,
+        Driver::Mssql,
+        Driver::Oracle,
+        Driver::Clickhouse,
+        Driver::Duckdb,
+        Driver::Cassandra,
+        Driver::Snowflake,
+        Driver::Bigquery,
+        Driver::Redis,
+        Driver::Mongodb,
+        Driver::Dynamodb,
+        Driver::Elasticsearch,
+    ];
+
+    /// Drivers that run on one of the built-in sqlx pools; the rest are `db::engine`s.
+    pub fn sqlx_dialect(self) -> Option<Dialect> {
+        match self {
+            Driver::Postgres
+            | Driver::Cockroach
+            | Driver::Redshift
+            | Driver::Greenplum
+            | Driver::Vertica => Some(Dialect::Postgres),
+            Driver::Mysql | Driver::Mariadb => Some(Dialect::Mysql),
+            Driver::Sqlite => Some(Dialect::Sqlite),
+            _ => None,
+        }
+    }
+
+    /// The closest built-in SQL dialect, used to split scripts and classify statements
+    /// for safe mode. Engines without SQL (Redis, MongoDB…) fall back to Postgres rules.
+    pub fn dialect(self) -> Dialect {
+        match self {
+            Driver::Libsql | Driver::CloudflareD1 => Dialect::Sqlite,
+            // Backtick identifiers and backslash escapes in strings.
+            Driver::Clickhouse | Driver::Bigquery => Dialect::Mysql,
+            d => d.sqlx_dialect().unwrap_or(Dialect::Postgres),
+        }
+    }
+
     pub fn default_port(self) -> Option<u16> {
         match self {
-            Driver::Postgres => Some(5432),
-            Driver::Mysql => Some(3306),
-            Driver::Sqlite => None,
+            Driver::Postgres | Driver::Greenplum => Some(5432),
+            Driver::Mysql | Driver::Mariadb => Some(3306),
+            Driver::Cockroach => Some(26257),
+            Driver::Redshift => Some(5439),
+            Driver::Vertica => Some(5433),
+            Driver::Mssql => Some(1433),
+            Driver::Oracle => Some(1521),
+            Driver::Clickhouse => Some(8123),
+            Driver::Cassandra => Some(9042),
+            Driver::Redis => Some(6379),
+            Driver::Mongodb => Some(27017),
+            Driver::Elasticsearch => Some(9200),
+            Driver::Sqlite
+            | Driver::Libsql
+            | Driver::CloudflareD1
+            | Driver::Duckdb
+            | Driver::Snowflake
+            | Driver::Bigquery
+            | Driver::Dynamodb => None,
         }
     }
 
@@ -27,6 +113,48 @@ impl Driver {
             Driver::Postgres => "PostgreSQL",
             Driver::Mysql => "MySQL",
             Driver::Sqlite => "SQLite",
+            Driver::Mariadb => "MariaDB",
+            Driver::Cockroach => "CockroachDB",
+            Driver::Redshift => "Amazon Redshift",
+            Driver::Greenplum => "Greenplum",
+            Driver::Vertica => "Vertica",
+            Driver::Libsql => "LibSQL / Turso",
+            Driver::CloudflareD1 => "Cloudflare D1",
+            Driver::Mssql => "Microsoft SQL Server",
+            Driver::Oracle => "Oracle",
+            Driver::Clickhouse => "ClickHouse",
+            Driver::Duckdb => "DuckDB",
+            Driver::Cassandra => "Cassandra",
+            Driver::Snowflake => "Snowflake",
+            Driver::Bigquery => "BigQuery",
+            Driver::Redis => "Redis",
+            Driver::Mongodb => "MongoDB",
+            Driver::Dynamodb => "DynamoDB",
+            Driver::Elasticsearch => "Elasticsearch",
+        }
+    }
+
+    /// Local files rather than servers (no host, SSH or TLS).
+    pub fn is_file(self) -> bool {
+        matches!(self, Driver::Sqlite | Driver::Duckdb)
+    }
+}
+
+/// SQL dialect of the built-in sqlx drivers: quoting, binds, catalogs and DDL.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum Dialect {
+    Postgres,
+    Mysql,
+    Sqlite,
+}
+
+impl Dialect {
+    pub fn label(self) -> &'static str {
+        match self {
+            Dialect::Postgres => "PostgreSQL",
+            Dialect::Mysql => "MySQL",
+            Dialect::Sqlite => "SQLite",
         }
     }
 }
@@ -78,9 +206,12 @@ pub struct DbSettings {
     pub database: String,
     pub use_socket: bool,
     pub socket: String,
-    /// SQLite only: path to the database file.
+    /// SQLite and DuckDB: path to the database file.
     pub file_path: String,
     pub password_mode: PasswordMode,
+    /// Driver-specific settings that are not secrets (account, region, URL, keyspace…);
+    /// the keys each driver reads are listed in `drivers::fields`.
+    pub extra: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -196,22 +327,34 @@ impl Connection {
         self.ssh.port.unwrap_or(22)
     }
 
-    /// One-line summary for lists: `host:port/db` or the SQLite file path.
+    /// A driver-specific setting from `db.extra` ("" when unset).
+    pub fn extra(&self, key: &str) -> &str {
+        self.db.extra.get(key).map(|v| v.trim()).unwrap_or("")
+    }
+
+    /// One-line summary for lists: `host:port/db`, a file path, a URL or a cloud account.
     pub fn summary(&self) -> String {
-        match self.driver {
-            Driver::Sqlite => self.db.file_path.clone(),
-            _ => {
-                let mut s = if self.db.use_socket && !self.db.socket.is_empty() {
-                    self.db.socket.clone()
-                } else {
-                    format!("{}:{}", self.db_host(), self.db_port())
-                };
-                if !self.db.database.is_empty() {
-                    s.push('/');
-                    s.push_str(&self.db.database);
-                }
-                s
+        let with_db = |mut s: String| {
+            if !self.db.database.is_empty() {
+                s.push('/');
+                s.push_str(&self.db.database);
             }
+            s
+        };
+        match self.driver {
+            d if d.is_file() => self.db.file_path.clone(),
+            Driver::Libsql => self.extra("url").to_string(),
+            Driver::CloudflareD1 => with_db(format!("d1:{}", self.extra("accountId"))),
+            Driver::Snowflake => with_db(self.extra("account").to_string()),
+            Driver::Bigquery => with_db(self.extra("project").to_string()),
+            Driver::Dynamodb => match self.extra("endpoint") {
+                "" => format!("dynamodb:{}", self.extra("region")),
+                endpoint => endpoint.to_string(),
+            },
+            _ if self.db.use_socket && !self.db.socket.is_empty() => {
+                with_db(self.db.socket.clone())
+            }
+            _ => with_db(format!("{}:{}", self.db_host(), self.db_port())),
         }
     }
 }

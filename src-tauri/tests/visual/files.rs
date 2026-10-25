@@ -6,7 +6,7 @@ use libratable_lib::db::DbPool;
 use libratable_lib::import::{
     ColumnMap, CsvOptions, FileFormat, ImportRequest, OnError, SourceSpec, TxScope,
 };
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 
 const TABLES_PG: &str = "CREATE TABLE authors (id integer PRIMARY KEY, name text NOT NULL, \
         born date);
@@ -24,11 +24,11 @@ const TABLES_SQLITE: &str = "CREATE TABLE authors (id INTEGER PRIMARY KEY, \
     CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES authors(id), \
         title TEXT NOT NULL, price NUMERIC, in_stock BOOLEAN, tags TEXT);";
 
-pub fn tables_sql(driver: Driver) -> &'static str {
+pub fn tables_sql(driver: Dialect) -> &'static str {
     match driver {
-        Driver::Postgres => TABLES_PG,
-        Driver::Mysql => TABLES_MYSQL,
-        Driver::Sqlite => TABLES_SQLITE,
+        Dialect::Postgres => TABLES_PG,
+        Dialect::Mysql => TABLES_MYSQL,
+        Dialect::Sqlite => TABLES_SQLITE,
     }
 }
 
@@ -37,6 +37,7 @@ pub async fn exec(pool: &DbPool, sql: &str) {
         DbPool::Postgres(p) => drop(sqlx::raw_sql(sql).execute(p).await.unwrap()),
         DbPool::Mysql(p) => drop(sqlx::raw_sql(sql).execute(p).await.unwrap()),
         DbPool::Sqlite(p) => drop(sqlx::raw_sql(sql).execute(p).await.unwrap()),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -46,6 +47,7 @@ pub async fn int(pool: &DbPool, sql: &str) -> i64 {
         DbPool::Postgres(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Mysql(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Sqlite(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -55,6 +57,7 @@ pub async fn text(pool: &DbPool, sql: &str) -> Option<String> {
         DbPool::Postgres(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Mysql(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Sqlite(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 

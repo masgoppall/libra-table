@@ -25,7 +25,7 @@ function DatabaseSwitch({ ws }: { ws: Workspace }) {
 
 function SchemaPicker(props: { ws: Workspace; schemas: string[]; menu: ContextMenuApi }) {
   const { ws, schemas } = props;
-  const isSqlite = ws.info.driver === "sqlite";
+  const isSqlite = ws.info.dialect === "sqlite";
   const set = (schema: string) => store.get().updateWorkspace(ws.connectionId, { schema });
   return (
     <div className="row tight">
@@ -42,7 +42,7 @@ function SchemaPicker(props: { ws: Workspace; schemas: string[]; menu: ContextMe
           </option>
         ))}
       </select>
-      {ws.info.driver === "postgres" && (
+      {ws.info.dialect === "postgres" && (
         <button
           className="btn sm icon"
           title="Schema actions"

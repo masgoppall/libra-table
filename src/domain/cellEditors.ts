@@ -1,17 +1,17 @@
 // Which in-place editor a column gets: enum values, booleans, dates, or plain text.
 
-import { type CellEditorKind, type ColumnInfo, type Driver } from "@/types";
+import { type CellEditorKind, type ColumnInfo, type Dialect } from "@/types";
 
 const TEXT: CellEditorKind = { kind: "text" };
 
-function isBoolean(driver: Driver, type: string): boolean {
+function isBoolean(driver: Dialect, type: string): boolean {
   if (/^(bool|boolean)$/i.test(type)) return true;
   // MySQL's BOOLEAN is TINYINT(1).
   return driver === "mysql" && /^tinyint\(1\)/i.test(type);
 }
 
 export function editorFor(
-  driver: Driver,
+  driver: Dialect,
   column: Pick<ColumnInfo, "dataType">,
   choices: string[] | undefined,
 ): CellEditorKind {

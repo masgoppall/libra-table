@@ -14,7 +14,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 use crate::state::Session;
 
 use super::conn::Conn;
@@ -75,7 +75,7 @@ enum Msg {
 
 /// The first statements of a file, for the confirmation on production connections.
 /// Blocking: call it off the async runtime.
-pub fn first_statements(path: &str, driver: Driver, n: usize) -> AppResult<Vec<String>> {
+pub fn first_statements(path: &str, driver: Dialect, n: usize) -> AppResult<Vec<String>> {
     let file = BufReader::new(File::open(path)?);
     let mut out = Vec::new();
     for piece in StatementReader::new(file, driver) {
@@ -90,7 +90,7 @@ pub fn first_statements(path: &str, driver: Driver, n: usize) -> AppResult<Vec<S
     Ok(out)
 }
 
-fn produce(path: String, driver: Driver, tx: mpsc::Sender<Msg>, read: Arc<AtomicU64>) {
+fn produce(path: String, driver: Dialect, tx: mpsc::Sender<Msg>, read: Arc<AtomicU64>) {
     let reader = match source::open(&path, read) {
         Ok((r, _)) => r,
         Err(e) => {
@@ -122,7 +122,7 @@ pub async fn run(
     let total_bytes = std::fs::metadata(&req.path)?.len();
     let read = Arc::new(AtomicU64::new(0));
     let (tx, mut rx) = mpsc::channel(64);
-    let (path, driver, counter) = (req.path.clone(), session.driver(), read.clone());
+    let (path, driver, counter) = (req.path.clone(), session.dialect(), read.clone());
     let producer = tokio::task::spawn_blocking(move || produce(path, driver, tx, counter));
     let mut runner = Runner {
         conn: Conn::acquire(&session.pool).await?,

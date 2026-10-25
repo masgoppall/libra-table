@@ -128,6 +128,7 @@ pub async fn list(pool: &DbPool, schema: &str) -> AppResult<Vec<SchemaObject>> {
         DbPool::Postgres(p) => postgres::list(p, schema).await,
         DbPool::Mysql(p) => mysql::list(p, schema).await,
         DbPool::Sqlite(p) => sqlite::list(p, schema).await,
+        DbPool::Engine(_) => Ok(Vec::new()),
     }
 }
 
@@ -140,6 +141,7 @@ pub async fn definition(
         DbPool::Postgres(p) => postgres::definition(p, schema, object).await,
         DbPool::Mysql(p) => mysql::definition(p, schema, object).await,
         DbPool::Sqlite(p) => sqlite::definition(p, schema, object).await,
+        DbPool::Engine(_) => Err(crate::db::engine::sqlx_only()),
     }
 }
 

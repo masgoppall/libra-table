@@ -38,7 +38,7 @@ pub async fn fetch_cell(
     pk: &Map<String, Value>,
     column: &str,
 ) -> AppResult<CellContent> {
-    let driver = session.driver();
+    let driver = session.dialect();
     let cols = session.columns(schema, table).await?;
     let col = cols
         .iter()
@@ -67,6 +67,7 @@ async fn fetch_one(pool: &DbPool, sql: &str, binds: &[Option<String>]) -> AppRes
         DbPool::Postgres(p) => one!(p, value::pg::row),
         DbPool::Mysql(p) => one!(p, value::mysql::row),
         DbPool::Sqlite(p) => one!(p, value::sqlite::row),
+        DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
     };
     let row = row.ok_or_else(|| {
         AppError::validation("The row no longer exists.").hint("Refresh the table.")

@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 
 use crate::db::sql::quote_ident;
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     fk_definition, kind_label, primary_key, ColumnInfo, ForeignKeyInfo, IndexInfo, ObjectInfo,
@@ -29,7 +29,7 @@ const FOREIGN_KEY_LIST: &str = "SELECT id, seq, \"table\", \"from\", \"to\", on_
 
 /// `"schema".sqlite_master`
 fn master(schema: &str) -> String {
-    format!("{}.sqlite_master", quote_ident(Driver::Sqlite, schema))
+    format!("{}.sqlite_master", quote_ident(Dialect::Sqlite, schema))
 }
 
 pub(super) async fn databases(p: &SqlitePool) -> AppResult<Vec<String>> {

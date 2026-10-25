@@ -8,7 +8,7 @@ use std::io::BufRead;
 
 use crate::db::split;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 /// The buffer is split once it holds this much text (it grows for huge statements).
 const SPLIT_AT: usize = 256 * 1024;
@@ -36,7 +36,7 @@ pub enum Piece {
 /// Iterates over the pieces of a SQL file.
 pub struct StatementReader<R: BufRead> {
     reader: R,
-    driver: Driver,
+    driver: Dialect,
     buf: String,
     /// File line of the buffer's first character.
     buf_line: u64,
@@ -52,12 +52,12 @@ pub struct StatementReader<R: BufRead> {
 }
 
 impl<R: BufRead> StatementReader<R> {
-    pub fn new(reader: R, driver: Driver) -> Self {
+    pub fn new(reader: R, driver: Dialect) -> Self {
         Self::with_split_at(reader, driver, SPLIT_AT)
     }
 
     /// For tests: split after `split_at` bytes to exercise the chunk boundaries.
-    pub fn with_split_at(reader: R, driver: Driver, split_at: usize) -> Self {
+    pub fn with_split_at(reader: R, driver: Dialect, split_at: usize) -> Self {
         Self {
             reader,
             driver,
@@ -110,15 +110,15 @@ impl<R: BufRead> StatementReader<R> {
             return self.copy_line(line);
         }
         let trimmed = line.trim();
-        if self.driver == Driver::Mysql && starts_with_word(trimmed, "DELIMITER") {
+        if self.driver == Dialect::Mysql && starts_with_word(trimmed, "DELIMITER") {
             self.delimiter = trimmed[9..].trim().to_string();
             return self.skip_line();
         }
-        if self.driver == Driver::Postgres && trimmed.starts_with('\\') && self.at_top_level() {
+        if self.driver == Dialect::Postgres && trimmed.starts_with('\\') && self.at_top_level() {
             self.skipped_commands += 1;
             return self.skip_line();
         }
-        if self.driver == Driver::Postgres && is_copy_from_stdin(trimmed) && self.at_top_level() {
+        if self.driver == Dialect::Postgres && is_copy_from_stdin(trimmed) && self.at_top_level() {
             self.split(true);
             self.index += 1;
             let sql = trimmed.trim_end_matches(';').to_string();

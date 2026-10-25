@@ -9,10 +9,19 @@ import { type RefObject, useMemo } from "react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { dispatch, shortcutFor } from "@/lib/actions";
 import { useSettings } from "@/store";
+import { redisEditor } from "../keyvalue/redisEditor";
 import { runMarks } from "./editor/runMarks";
-import { type CompletionSchema, type Driver } from "@/types";
+import { type CompletionSchema, type Dialect } from "@/types";
 
 const DIALECTS = { postgres: PostgreSQL, mysql: MySQL, sqlite: SQLite };
+
+/** Placeholder examples for languages other than SQL. */
+const EXAMPLES: Record<string, string> = {
+  redis: "GET key",
+  mongo: "db.collection.find({})",
+  partiql: 'SELECT * FROM "table"',
+  elastic: "GET /index/_search",
+};
 
 // CodeMirror sees these keys first; hand them to the app's actions.
 const appKeys = Prec.highest(
@@ -38,31 +47,40 @@ export interface SqlEditorProps {
   editorRef: RefObject<ReactCodeMirrorRef>;
   value: string;
   onChange: (v: string) => void;
-  driver: Driver;
+  driver: Dialect;
+  /** The driver's query language (caps.queryLanguage); only "sql" gets SQL support. */
+  language: string;
   schema: string;
   completion: CompletionSchema | null;
 }
 
 export function SqlEditor(p: SqlEditorProps) {
   const runKey = shortcutFor("run-current");
-  const placeholder = `SELECT * FROM …    ${runKey} runs the statement under the cursor`;
+  const isSql = p.language === "sql";
+  const example = isSql ? "SELECT * FROM …" : (EXAMPLES[p.language] ?? "");
+  const placeholder = `${example}    ${runKey} runs the statement under the cursor`;
   const settings = useSettings();
   const dark = useDarkMode(settings?.theme);
   const fontSize = settings?.editorFontSize ?? 13;
   const extensions = useMemo(
     () => [
-      sqlLang({
-        dialect: DIALECTS[p.driver],
-        schema: p.completion?.tables ?? {},
-        defaultSchema: p.schema,
-        upperCaseKeywords: true,
-      }),
+      ...(isSql
+        ? [
+            sqlLang({
+              dialect: DIALECTS[p.driver],
+              schema: p.completion?.tables ?? {},
+              defaultSchema: p.schema,
+              upperCaseKeywords: true,
+            }),
+          ]
+        : []),
+      ...(p.language === "redis" ? [redisEditor()] : []),
       appKeys,
       runMarks,
       editorTheme(fontSize),
       EditorView.lineWrapping,
     ],
-    [p.completion, p.driver, p.schema, fontSize],
+    [p.completion, p.driver, p.schema, fontSize, isSql, p.language],
   );
   return (
     <CodeMirror

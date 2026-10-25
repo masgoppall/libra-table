@@ -10,23 +10,23 @@ use std::sync::Arc;
 use crate::db::exec::{self, StatementResult};
 use crate::db::{split, DbPool};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 use crate::safe_mode::{self, Kind};
 use crate::state::{EditorConn, Session};
 
 /// Rows a widget keeps at most (charts and tables of a dashboard stay small).
 const MAX_ROWS: usize = 5000;
 
-fn read_only_guard(driver: Driver) -> (&'static str, &'static str) {
+fn read_only_guard(driver: Dialect) -> (&'static str, &'static str) {
     match driver {
-        Driver::Postgres => ("BEGIN READ ONLY", "ROLLBACK"),
-        Driver::Mysql => ("START TRANSACTION READ ONLY", "ROLLBACK"),
-        Driver::Sqlite => ("PRAGMA query_only = ON", "PRAGMA query_only = OFF"),
+        Dialect::Postgres => ("BEGIN READ ONLY", "ROLLBACK"),
+        Dialect::Mysql => ("START TRANSACTION READ ONLY", "ROLLBACK"),
+        Dialect::Sqlite => ("PRAGMA query_only = ON", "PRAGMA query_only = OFF"),
     }
 }
 
 /// The statements of `sql`, refusing anything that is not a read.
-pub fn read_statements(driver: Driver, sql: &str) -> AppResult<Vec<String>> {
+pub fn read_statements(driver: Dialect, sql: &str) -> AppResult<Vec<String>> {
     let stmts: Vec<String> = split::split(driver, sql)
         .into_iter()
         .map(|s| s.text)
@@ -60,13 +60,14 @@ async fn connection(pool: &DbPool) -> AppResult<EditorConn> {
             conn: p.acquire().await?,
             handle: 0,
         },
+        DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
     })
 }
 
 /// Runs statements that passed `read_statements` and returns the last one's result (or
 /// the first error).
 pub async fn run_widget_query(session: &Session, stmts: Vec<String>) -> AppResult<StatementResult> {
-    let driver = session.driver();
+    let driver = session.dialect();
     let limit = (session.connection.options.query_row_limit as usize).clamp(1, MAX_ROWS);
     let (begin, end) = read_only_guard(driver);
     let mut slot = Some(connection(&session.pool).await?);
@@ -105,13 +106,13 @@ mod tests {
     #[test]
     fn only_reads_pass() {
         assert_eq!(
-            read_statements(Driver::Postgres, "select 1; select 2")
+            read_statements(Dialect::Postgres, "select 1; select 2")
                 .unwrap()
                 .len(),
             2
         );
-        assert!(read_statements(Driver::Postgres, "select 1; delete from t").is_err());
-        assert!(read_statements(Driver::Mysql, "set @a = 1").is_err());
-        assert!(read_statements(Driver::Sqlite, "  ").is_err());
+        assert!(read_statements(Dialect::Postgres, "select 1; delete from t").is_err());
+        assert!(read_statements(Dialect::Mysql, "set @a = 1").is_err());
+        assert!(read_statements(Dialect::Sqlite, "  ").is_err());
     }
 }

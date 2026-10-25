@@ -13,13 +13,13 @@ use std::sync::Arc;
 use libratable_lib::db::objects::{self, ObjectKind, ObjectRef, SchemaObject};
 use libratable_lib::db::{ddl, open_pool, split, DbPool};
 use libratable_lib::error::AppError;
-use libratable_lib::models::{Connection, Driver};
+use libratable_lib::models::{Connection, Dialect};
 use libratable_lib::state::Session;
 use serde_json::{json, Value};
 
 const DB: &str = "libratable_obj_test";
 
-fn connection(driver: Driver, settings: Value) -> Connection {
+fn connection(driver: Dialect, settings: Value) -> Connection {
     let mut v = json!({ "id": "obj-test", "name": "Objects", "driver": driver });
     v["db"] = settings;
     serde_json::from_value(v).unwrap()
@@ -47,7 +47,7 @@ async fn run_script(s: &Session, script: &str) {
     macro_rules! run_all {
         ($pool:expr) => {{
             let mut c = $pool.acquire().await.unwrap();
-            for st in split::split(s.driver(), script) {
+            for st in split::split(s.dialect(), script) {
                 sqlx::raw_sql(&st.text)
                     .execute(&mut *c)
                     .await
@@ -59,6 +59,7 @@ async fn run_script(s: &Session, script: &str) {
         DbPool::Postgres(p) => run_all!(p),
         DbPool::Mysql(p) => run_all!(p),
         DbPool::Sqlite(p) => run_all!(p),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -67,6 +68,7 @@ async fn scalar_i64(s: &Session, sql: &str) -> i64 {
         DbPool::Postgres(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Mysql(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Sqlite(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -74,7 +76,7 @@ async fn scalar_i64(s: &Session, sql: &str) -> i64 {
 async fn change(s: &Session, change: Value) -> Result<Vec<String>, AppError> {
     let change: ddl::SchemaChange = serde_json::from_value(change).expect("change JSON");
     let ctx = ddl::context(&s.pool, &change).await?;
-    let plan = ddl::build(s.driver(), &change, &ctx)?;
+    let plan = ddl::build(s.dialect(), &change, &ctx)?;
     let preview = ddl::preview(&s.pool, &plan, &change, &ctx).await?;
     ddl::apply(&s.pool, &plan, &change, &ctx).await?;
     s.clear_cache();
@@ -120,7 +122,7 @@ async fn sqlite_triggers() {
     let path = dir.path().join("objects.db");
     std::fs::File::create(&path).unwrap();
     let conn = connection(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         json!({ "filePath": path.display().to_string() }),
     );
     let s = session(conn, "main", None).await;
@@ -155,7 +157,7 @@ mod postgres;
 
 #[tokio::test]
 async fn postgres_objects() {
-    let Some(server) = Server::from_env(Driver::Postgres, "LIBRATABLE_TEST_PG_URL") else {
+    let Some(server) = Server::from_env(Dialect::Postgres, "LIBRATABLE_TEST_PG_URL") else {
         return;
     };
     let s = server.open().await;
@@ -169,7 +171,7 @@ async fn postgres_objects() {
 
 #[tokio::test]
 async fn mysql_objects_end_to_end() {
-    let Some(server) = Server::from_env(Driver::Mysql, "LIBRATABLE_TEST_MYSQL_URL") else {
+    let Some(server) = Server::from_env(Dialect::Mysql, "LIBRATABLE_TEST_MYSQL_URL") else {
         return;
     };
     let s = server.open().await;
@@ -180,12 +182,12 @@ async fn mysql_objects_end_to_end() {
 
 /// A Postgres or MySQL server reached through an admin URL.
 struct Server {
-    driver: Driver,
+    driver: Dialect,
     admin: String,
 }
 
 impl Server {
-    fn from_env(driver: Driver, var: &str) -> Option<Self> {
+    fn from_env(driver: Dialect, var: &str) -> Option<Self> {
         let Ok(admin) = std::env::var(var) else {
             eprintln!("skipped: set {var} to run");
             return None;
@@ -209,7 +211,7 @@ impl Server {
     }
 
     async fn drop_db(&self) {
-        let force = if self.driver == Driver::Postgres {
+        let force = if self.driver == Dialect::Postgres {
             " WITH (FORCE)"
         } else {
             ""
@@ -220,7 +222,7 @@ impl Server {
 
     async fn exec(&self, sql: &str) {
         match self.driver {
-            Driver::Postgres => {
+            Dialect::Postgres => {
                 let pool = sqlx::PgPool::connect(&self.admin).await.unwrap();
                 sqlx::query(sql).execute(&pool).await.unwrap();
                 pool.close().await;

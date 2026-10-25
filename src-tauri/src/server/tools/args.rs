@@ -4,7 +4,7 @@
 
 use serde::Deserialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::endpoint::Endpoint;
 
@@ -213,10 +213,10 @@ pub fn is_pg_archive(head: &[u8]) -> bool {
 }
 
 /// The tool a restore of `head` (the file's first bytes) needs.
-pub fn restore_tool(driver: Driver, head: &[u8]) -> &'static str {
+pub fn restore_tool(driver: Dialect, head: &[u8]) -> &'static str {
     match driver {
-        Driver::Postgres if is_pg_archive(head) => "pg_restore",
-        Driver::Postgres => "psql",
+        Dialect::Postgres if is_pg_archive(head) => "pg_restore",
+        Dialect::Postgres => "psql",
         _ => "mysql",
     }
 }
@@ -241,7 +241,7 @@ mod tests {
             clean: true,
             ..Default::default()
         };
-        let a = pg_dump(&endpoint(Driver::Postgres), &r);
+        let a = pg_dump(&endpoint(Dialect::Postgres), &r);
         let joined = a.join(" ");
         assert!(joined.starts_with("-h 127.0.0.1 -p 5432 -U admin --dbname=shop --verbose"));
         assert!(a.contains(&"--format=custom".to_string()));
@@ -255,7 +255,7 @@ mod tests {
     fn mysqldump_arguments() {
         let e = Endpoint {
             port: 3306,
-            ..endpoint(Driver::Mysql)
+            ..endpoint(Dialect::Mysql)
         };
         let mut r = BackupRequest {
             path: "/tmp/x.sql".into(),
@@ -288,21 +288,21 @@ mod tests {
             stop_on_error: true,
             ..Default::default()
         };
-        let pg = endpoint(Driver::Postgres);
+        let pg = endpoint(Dialect::Postgres);
         let a = psql(&pg, &r).join(" ");
         assert!(a.ends_with("--dbname=shop --no-psqlrc --quiet --set ON_ERROR_STOP=1"));
         let a = pg_restore(&pg, &r).join(" ");
         assert!(a.ends_with("--verbose --exit-on-error /tmp/x.sql"));
-        let my = endpoint(Driver::Mysql);
+        let my = endpoint(Dialect::Mysql);
         assert!(!mysql(&my, &r, false).contains(&"--force".to_string()));
         let keep_going = RestoreRequest {
             stop_on_error: false,
             ..r
         };
         assert!(mysql(&my, &keep_going, false).contains(&"--force".to_string()));
-        assert_eq!(restore_tool(Driver::Postgres, b"PGDMP\x01"), "pg_restore");
-        assert_eq!(restore_tool(Driver::Postgres, b"-- SQL"), "psql");
-        assert_eq!(restore_tool(Driver::Mysql, b"PGDMP"), "mysql");
+        assert_eq!(restore_tool(Dialect::Postgres, b"PGDMP\x01"), "pg_restore");
+        assert_eq!(restore_tool(Dialect::Postgres, b"-- SQL"), "psql");
+        assert_eq!(restore_tool(Dialect::Mysql, b"PGDMP"), "mysql");
         assert_eq!(pg_dbname("shop"), "shop");
         assert_eq!(pg_dbname("a=b's"), r"dbname='a=b\'s'");
     }

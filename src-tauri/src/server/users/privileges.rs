@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::TargetKind;
 
@@ -108,20 +108,20 @@ fn my_global() -> Vec<&'static str> {
 }
 
 /// The privileges `kind` accepts on `driver`; None when the driver has no such target.
-pub fn allowed(driver: Driver, kind: TargetKind) -> Option<Vec<&'static str>> {
+pub fn allowed(driver: Dialect, kind: TargetKind) -> Option<Vec<&'static str>> {
     use TargetKind::*;
     Some(match (driver, kind) {
-        (Driver::Postgres, Database) => PG_DATABASE.to_vec(),
-        (Driver::Postgres, Schema) => PG_SCHEMA.to_vec(),
-        (Driver::Postgres, AllTables | Table) => PG_TABLE.to_vec(),
-        (Driver::Mysql, Global) => my_global(),
-        (Driver::Mysql, Database) => MY_DATABASE.to_vec(),
-        (Driver::Mysql, Table) => MY_TABLE.to_vec(),
+        (Dialect::Postgres, Database) => PG_DATABASE.to_vec(),
+        (Dialect::Postgres, Schema) => PG_SCHEMA.to_vec(),
+        (Dialect::Postgres, AllTables | Table) => PG_TABLE.to_vec(),
+        (Dialect::Mysql, Global) => my_global(),
+        (Dialect::Mysql, Database) => MY_DATABASE.to_vec(),
+        (Dialect::Mysql, Table) => MY_TABLE.to_vec(),
         _ => return None,
     })
 }
 
-pub fn privilege_options(driver: Driver) -> Vec<PrivilegeOption> {
+pub fn privilege_options(driver: Dialect) -> Vec<PrivilegeOption> {
     use TargetKind::*;
     [Global, Database, Schema, AllTables, Table]
         .into_iter()
@@ -141,12 +141,12 @@ mod tests {
             |d| -> Vec<TargetKind> { privilege_options(d).into_iter().map(|o| o.target).collect() };
         use TargetKind::*;
         assert_eq!(
-            kinds(Driver::Postgres),
+            kinds(Dialect::Postgres),
             vec![Database, Schema, AllTables, Table]
         );
-        assert_eq!(kinds(Driver::Mysql), vec![Global, Database, Table]);
-        assert!(kinds(Driver::Sqlite).is_empty());
-        let global = allowed(Driver::Mysql, Global).unwrap();
+        assert_eq!(kinds(Dialect::Mysql), vec![Global, Database, Table]);
+        assert!(kinds(Dialect::Sqlite).is_empty());
+        let global = allowed(Dialect::Mysql, Global).unwrap();
         assert!(global.contains(&"PROCESS") && !global.contains(&"GRANT OPTION"));
     }
 }

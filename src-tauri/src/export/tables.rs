@@ -86,7 +86,7 @@ fn table_request(req: &TablesRequest, table: &str, path: &Path) -> ExportRequest
 }
 
 /// Exports every table in order; stops at the first failure or on cancel.
-pub async fn run<F: Fn(&TablesProgress)>(
+pub async fn run<F: Fn(&TablesProgress) + Sync>(
     session: &Session,
     req: &TablesRequest,
     cancel: &CancellationToken,

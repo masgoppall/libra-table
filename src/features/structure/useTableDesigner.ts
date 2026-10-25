@@ -24,7 +24,7 @@ function useTableNames(ws: Workspace, schema: string) {
 
 export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
   const id = ws.connectionId;
-  const driver = ws.info.driver;
+  const driver = ws.info.dialect;
   const db = tabDb(ws, tab);
   const schema = tab.schema ?? ws.schema;
   const creating = tab.kind === "new-table";

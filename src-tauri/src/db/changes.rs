@@ -9,7 +9,7 @@ use crate::db::meta::{primary_key, ColumnInfo};
 use crate::db::sql::{qualified, quote_ident, Placeholder};
 use crate::db::{bind_all, DbPool};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -69,14 +69,19 @@ const STALE_ROW_HINT: &str =
     "The row may have been changed or deleted by someone else. Refresh and try again.";
 
 pub struct Builder<'a> {
-    driver: Driver,
+    driver: Dialect,
     schema: &'a str,
     table: &'a str,
     columns: &'a [ColumnInfo],
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(driver: Driver, schema: &'a str, table: &'a str, columns: &'a [ColumnInfo]) -> Self {
+    pub fn new(
+        driver: Dialect,
+        schema: &'a str,
+        table: &'a str,
+        columns: &'a [ColumnInfo],
+    ) -> Self {
         Self {
             driver,
             schema,
@@ -94,7 +99,7 @@ impl<'a> Builder<'a> {
 
     fn param(&self, ph: &mut Placeholder, col: &ColumnInfo) -> String {
         let p = ph.next_param();
-        if self.driver == Driver::Postgres {
+        if self.driver == Dialect::Postgres {
             format!("{p}::{}", col.data_type)
         } else {
             p
@@ -220,7 +225,7 @@ impl<'a> Builder<'a> {
         let table = self.table();
         let sql = if names.is_empty() {
             match self.driver {
-                Driver::Mysql => format!("INSERT INTO {table} () VALUES ()"),
+                Dialect::Mysql => format!("INSERT INTO {table} () VALUES ()"),
                 _ => format!("INSERT INTO {table} DEFAULT VALUES"),
             }
         } else {
@@ -250,7 +255,7 @@ impl<'a> Builder<'a> {
 }
 
 /// SQL with values inlined, for the preview dialog only (never executed).
-pub fn preview(driver: Driver, stmt: &Stmt) -> String {
+pub fn preview(driver: Dialect, stmt: &Stmt) -> String {
     crate::db::sql::inline_binds(driver, &stmt.sql, &stmt.binds)
 }
 
@@ -287,6 +292,7 @@ pub async fn apply(pool: &DbPool, stmts: &[Stmt]) -> AppResult<u64> {
         DbPool::Postgres(p) => run!(p),
         DbPool::Mysql(p) => run!(p),
         DbPool::Sqlite(p) => run!(p),
+        DbPool::Engine(_) => Err(crate::db::engine::sqlx_only()),
     }
 }
 
@@ -334,7 +340,7 @@ mod tests {
     #[test]
     fn update_insert_delete_postgres() {
         let c = cols();
-        let b = Builder::new(Driver::Postgres, "public", "t", &c);
+        let b = Builder::new(Dialect::Postgres, "public", "t", &c);
         let stmts = b
             .build(&[
                 Change::Update {
@@ -367,7 +373,7 @@ mod tests {
             r#"DELETE FROM "public"."t" WHERE "id" = $1::integer"#
         );
         assert_eq!(
-            preview(Driver::Postgres, &stmts[0]),
+            preview(Dialect::Postgres, &stmts[0]),
             concat!(
                 r#"UPDATE "public"."t" SET "at" = DEFAULT, "name" = 'O''Neil'::text "#,
                 r#"WHERE "id" = '7'::integer"#
@@ -378,7 +384,7 @@ mod tests {
     #[test]
     fn empty_insert_and_mysql_placeholders() {
         let c = cols();
-        let b = Builder::new(Driver::Mysql, "shop", "t", &c);
+        let b = Builder::new(Dialect::Mysql, "shop", "t", &c);
         let s = b
             .build(&[
                 Change::Insert { values: Map::new() },
@@ -391,7 +397,7 @@ mod tests {
         assert_eq!(s[0].sql, "INSERT INTO `shop`.`t` () VALUES ()");
         assert_eq!(s[1].sql, "UPDATE `shop`.`t` SET `name` = ? WHERE `id` = ?");
         assert_eq!(
-            preview(Driver::Mysql, &s[1]),
+            preview(Dialect::Mysql, &s[1]),
             "UPDATE `shop`.`t` SET `name` = 'x' WHERE `id` = '1'"
         );
     }
@@ -400,14 +406,14 @@ mod tests {
     fn rejects_missing_pk_binary_and_unknown_columns() {
         let mut no_pk = cols();
         no_pk[0].pk_position = None;
-        let b = Builder::new(Driver::Sqlite, "main", "t", &no_pk);
+        let b = Builder::new(Dialect::Sqlite, "main", "t", &no_pk);
         assert!(b
             .build(&[Change::Delete {
                 pk: map(json!({"id": 1}))
             }])
             .is_err());
         let c = cols();
-        let b = Builder::new(Driver::Sqlite, "main", "t", &c);
+        let b = Builder::new(Dialect::Sqlite, "main", "t", &c);
         assert!(b
             .build(&[Change::Update {
                 pk: map(json!({"id": 1})),

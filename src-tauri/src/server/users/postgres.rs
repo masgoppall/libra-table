@@ -4,7 +4,7 @@ use sqlx::{PgPool, Row};
 
 use crate::db::sql::{literal, quote_ident};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{check_grant, check_password, require, GrantTarget, PgRole, RoleSpec, Stmt};
 use super::{UserChange, MASK};
@@ -115,7 +115,7 @@ pub fn plan(change: &UserChange, current: Option<&PgRole>) -> AppResult<Vec<Stmt
 }
 
 fn q(name: &str) -> String {
-    quote_ident(Driver::Postgres, name)
+    quote_ident(Dialect::Postgres, name)
 }
 
 /// A string literal that means the same whatever `standard_conforming_strings` is:
@@ -250,7 +250,7 @@ fn alter(cur: &PgRole, r: &RoleSpec, password: Option<&str>) -> AppResult<Vec<St
 /// `SELECT, INSERT ON TABLE "s"."t"`: the part GRANT and REVOKE share.
 fn grant_head(privileges: &[String], target: &GrantTarget, grantee: &str) -> AppResult<String> {
     require(grantee, "role name")?;
-    check_grant(Driver::Postgres, privileges, target)?;
+    check_grant(Dialect::Postgres, privileges, target)?;
     let on = match target {
         GrantTarget::Database { name } => format!("DATABASE {}", q(name)),
         GrantTarget::Schema { name } => format!("SCHEMA {}", q(name)),

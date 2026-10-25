@@ -12,7 +12,7 @@ use libratable_lib::db::filter::{SortSpec, ANY_COLUMN, RAW_SQL};
 use libratable_lib::db::meta;
 use libratable_lib::error::ErrorKind;
 use libratable_lib::export::{self, ExportRequest, Format, Options, Source};
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::state::{CancelTarget, EditorConn, Session};
 use serde_json::{json, Map, Value};
 use tokio_util::sync::CancellationToken;
@@ -44,11 +44,11 @@ const PEOPLE_SQLITE: &str = "CREATE TABLE people (id INTEGER PRIMARY KEY AUTOINC
         ('O''Brien', 'quote', 30, 'c'), ('alice2', 'lowercase', 40, NULL),
         ('Eve', '50 percent off', 50, NULL);";
 
-fn setup_sql(driver: Driver) -> &'static str {
+fn setup_sql(driver: Dialect) -> &'static str {
     match driver {
-        Driver::Postgres => PEOPLE_PG,
-        Driver::Mysql => PEOPLE_MYSQL,
-        Driver::Sqlite => PEOPLE_SQLITE,
+        Dialect::Postgres => PEOPLE_PG,
+        Dialect::Mysql => PEOPLE_MYSQL,
+        Dialect::Sqlite => PEOPLE_SQLITE,
     }
 }
 
@@ -58,7 +58,7 @@ fn object(v: Value) -> Map<String, Value> {
 
 /// The same scenario for every driver; `sleep_sql` runs long enough to be cancelled.
 pub async fn run(session: Arc<Session>, schema: &str, sleep_sql: &str) {
-    exec_sql(&session.pool, setup_sql(session.driver())).await;
+    exec_sql(&session.pool, setup_sql(session.dialect())).await;
     metadata(&session, schema).await;
     filters(&session, schema).await;
     paging(&session, schema).await;
@@ -67,7 +67,7 @@ pub async fn run(session: Arc<Session>, schema: &str, sleep_sql: &str) {
         let mut slot = session.editor.lock().await;
         let target = exec::prepare(&session, &mut slot).await.unwrap();
         editor_script(&mut slot).await;
-        cancel(&mut slot, target, sleep_sql, session.driver()).await;
+        cancel(&mut slot, target, sleep_sql, session.dialect()).await;
     }
     exports(&session, schema).await;
     schema::run(&session, schema).await;
@@ -156,10 +156,10 @@ async fn filters(session: &Session, schema: &str) {
     let raw = names(session, &only(filter(RAW_SQL, "", "score >= 40"))).await;
     assert_eq!(raw.len(), 2);
 
-    let case_op = match session.driver() {
-        Driver::Postgres => Some(("has_prefix_ci", 2usize)),
-        Driver::Mysql => Some(("has_prefix_cs", 1usize)),
-        Driver::Sqlite => None,
+    let case_op = match session.dialect() {
+        Dialect::Postgres => Some(("has_prefix_ci", 2usize)),
+        Dialect::Mysql => Some(("has_prefix_cs", 1usize)),
+        Dialect::Sqlite => None,
     };
     if let Some((op, expected)) = case_op {
         let found = names(session, &only(filter("name", op, "Alice"))).await;
@@ -178,7 +178,7 @@ async fn paging(session: &Session, schema: &str) {
     let count = data::count_rows(session, &over_15).await.unwrap();
     assert_eq!((count.total, count.exact), (4, true));
 
-    if session.driver() == Driver::Postgres {
+    if session.dialect() == Dialect::Postgres {
         let alice = page(schema, vec![filter("name", "eq", "Alice")]);
         let p = data::fetch_page(session, &alice).await.unwrap();
         let tags = p.columns.iter().position(|c| c.name == "tags").unwrap();
@@ -188,7 +188,7 @@ async fn paging(session: &Session, schema: &str) {
 
 /// Cell edits (GRD-4), and a commit that rolls back as a whole.
 async fn edits(session: &Session, schema: &str) {
-    let driver = session.driver();
+    let driver = session.dialect();
     let cols = session.columns(schema, "people").await.unwrap();
     let bob = page(schema, vec![filter("name", "eq", "Bob")]);
     let bob_id = {
@@ -261,7 +261,7 @@ async fn cancel(
     slot: &mut Option<EditorConn>,
     target: CancelTarget,
     sleep_sql: &str,
-    driver: Driver,
+    driver: Dialect,
 ) {
     let flag = Arc::new(AtomicBool::new(false));
     let canceller = {
@@ -280,7 +280,7 @@ async fn cancel(
         "cancel must stop the query early ({:?})",
         started.elapsed()
     );
-    if driver != Driver::Mysql {
+    if driver != Dialect::Mysql {
         // MySQL's SLEEP() returns 1 instead of failing when killed.
         assert_eq!(
             results[0].error.as_ref().map(|e| e.kind),

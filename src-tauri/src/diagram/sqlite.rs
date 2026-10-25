@@ -7,7 +7,7 @@ use sqlx::SqlitePool;
 
 use crate::db::sql::quote_ident;
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{DiagramColumn, DiagramForeignKey, Loaded};
 
@@ -15,7 +15,7 @@ use super::{DiagramColumn, DiagramForeignKey, Loaded};
 const TABLES: &str = "m.type = 'table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'";
 
 pub(super) async fn load(p: &SqlitePool, schema: &str) -> AppResult<Loaded> {
-    let master = format!("{}.sqlite_master m", quote_ident(Driver::Sqlite, schema));
+    let master = format!("{}.sqlite_master m", quote_ident(Dialect::Sqlite, schema));
     let cols_sql = format!(
         "SELECT m.name, c.name, c.type, c.\"notnull\", c.pk \
          FROM {master}, pragma_table_info(m.name, ?1) c WHERE {TABLES} ORDER BY m.name, c.cid"

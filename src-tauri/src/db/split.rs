@@ -4,7 +4,7 @@
 
 use serde::Serialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,7 @@ pub struct Statement {
     pub to: usize,
 }
 
-pub fn split(driver: Driver, sql: &str) -> Vec<Statement> {
+pub fn split(driver: Dialect, sql: &str) -> Vec<Statement> {
     let chars: Vec<char> = sql.chars().collect();
     let mut s = Splitter::new(&chars, driver);
     s.run();
@@ -45,7 +45,7 @@ struct Splitter<'a> {
 }
 
 impl<'a> Splitter<'a> {
-    fn new(chars: &'a [char], driver: Driver) -> Self {
+    fn new(chars: &'a [char], driver: Dialect) -> Self {
         let mut utf16 = Vec::with_capacity(chars.len() + 1);
         let mut off = 0usize;
         for c in chars {
@@ -56,8 +56,8 @@ impl<'a> Splitter<'a> {
         Self {
             chars,
             utf16,
-            mysql: driver == Driver::Mysql,
-            pg: driver == Driver::Postgres,
+            mysql: driver == Dialect::Mysql,
+            pg: driver == Dialect::Postgres,
             out: Vec::new(),
             start: 0,
             words: Vec::new(),
@@ -308,7 +308,7 @@ fn skip_dollar(chars: &[char], start: usize) -> Option<usize> {
 mod tests {
     use super::*;
 
-    fn texts(driver: Driver, sql: &str) -> Vec<String> {
+    fn texts(driver: Dialect, sql: &str) -> Vec<String> {
         split(driver, sql).into_iter().map(|s| s.text).collect()
     }
 
@@ -316,17 +316,17 @@ mod tests {
     fn mysql_versioned_comments_are_statements() {
         let sql = "/*!40101 SET NAMES utf8mb4 */;\n/* plain */;\nselect 1;";
         assert_eq!(
-            texts(Driver::Mysql, sql),
+            texts(Dialect::Mysql, sql),
             vec!["/*!40101 SET NAMES utf8mb4 */", "select 1"]
         );
-        assert_eq!(texts(Driver::Postgres, sql), vec!["select 1"]);
+        assert_eq!(texts(Dialect::Postgres, sql), vec!["select 1"]);
     }
 
     #[test]
     fn splits_on_semicolons_outside_strings_and_comments() {
         let sql = "select 'a;b'; -- c;d\nselect \"x;y\" /* e;f */ from t;\n\n";
         assert_eq!(
-            texts(Driver::Postgres, sql),
+            texts(Dialect::Postgres, sql),
             vec!["select 'a;b'", "-- c;d\nselect \"x;y\" /* e;f */ from t"]
         );
     }
@@ -335,19 +335,19 @@ mod tests {
     fn postgres_dollar_quotes_and_placeholders() {
         let sql = "create function f() returns int as $$ begin return 1; end $$ \
                    language plpgsql; select $1;";
-        let t = texts(Driver::Postgres, sql);
+        let t = texts(Dialect::Postgres, sql);
         assert_eq!(t.len(), 2);
         assert!(t[0].ends_with("language plpgsql"));
         assert_eq!(t[1], "select $1");
         let tagged = "do $body$ begin perform 1; end $body$; select 2";
-        assert_eq!(texts(Driver::Postgres, tagged).len(), 2);
+        assert_eq!(texts(Dialect::Postgres, tagged).len(), 2);
     }
 
     #[test]
     fn mysql_backticks_hash_comments_and_backslashes() {
         let sql = "select `a;b`, 'it\\'s; ok' from t # trailing; comment\n; select 2";
         assert_eq!(
-            texts(Driver::Mysql, sql),
+            texts(Dialect::Mysql, sql),
             vec![
                 "select `a;b`, 'it\\'s; ok' from t # trailing; comment",
                 "select 2"
@@ -359,12 +359,12 @@ mod tests {
     fn mysql_double_dash_needs_whitespace() {
         // MySQL does not treat `--1` as a comment, so the DELETE is its own statement.
         assert_eq!(
-            texts(Driver::Mysql, "SELECT 1 --1; DELETE FROM t"),
+            texts(Dialect::Mysql, "SELECT 1 --1; DELETE FROM t"),
             vec!["SELECT 1 --1", "DELETE FROM t"]
         );
-        assert_eq!(texts(Driver::Mysql, "SELECT 1 -- c; d\nSELECT 2").len(), 1);
+        assert_eq!(texts(Dialect::Mysql, "SELECT 1 -- c; d\nSELECT 2").len(), 1);
         assert_eq!(
-            texts(Driver::Postgres, "SELECT 1 --1; x\nSELECT 2").len(),
+            texts(Dialect::Postgres, "SELECT 1 --1; x\nSELECT 2").len(),
             1
         );
     }
@@ -373,24 +373,24 @@ mod tests {
     fn compound_bodies_stay_whole() {
         let lite = "CREATE TRIGGER t AFTER INSERT ON a BEGIN UPDATE b SET n = n + 1; \
                     INSERT INTO log VALUES (1); END; SELECT 1;";
-        let t = texts(Driver::Sqlite, lite);
+        let t = texts(Dialect::Sqlite, lite);
         assert_eq!(t.len(), 2, "{t:?}");
         assert!(t[0].ends_with("END"));
         let proc = "CREATE PROCEDURE p() BEGIN DECLARE x INT; IF x > 1 THEN SELECT 1; END IF; \
                     SET x = CASE WHEN x = 1 THEN 2 ELSE 3 END; \
                     WHILE x > 0 DO SET x = x - 1; END WHILE; END; CALL p();";
-        let t = texts(Driver::Mysql, proc);
+        let t = texts(Dialect::Mysql, proc);
         assert_eq!(t.len(), 2, "{t:?}");
         assert_eq!(t[1], "CALL p()");
         // A plain transaction BEGIN is not a compound body.
         assert_eq!(
-            texts(Driver::Sqlite, "BEGIN; UPDATE a SET x = 1; COMMIT;").len(),
+            texts(Dialect::Sqlite, "BEGIN; UPDATE a SET x = 1; COMMIT;").len(),
             3
         );
         // MySQL triggers without BEGIN end at the first semicolon.
         assert_eq!(
             texts(
-                Driver::Mysql,
+                Dialect::Mysql,
                 "CREATE TRIGGER t BEFORE INSERT ON a FOR EACH ROW SET NEW.x = 1; SELECT 2"
             )
             .len(),
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn drops_comment_only_statements() {
         assert_eq!(
-            texts(Driver::Sqlite, "-- only a comment\n; /* x */ ;select 1"),
+            texts(Dialect::Sqlite, "-- only a comment\n; /* x */ ;select 1"),
             vec!["select 1"]
         );
     }
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn utf16_offsets_and_statement_at_cursor() {
         let sql = "select '😀';\nselect 2;";
-        let s = split(Driver::Sqlite, sql);
+        let s = split(Dialect::Sqlite, sql);
         assert_eq!(s[0].from, 0);
         assert_eq!(s[0].to, 11); // emoji is 2 UTF-16 units
         assert_eq!(s[1].from, 13);

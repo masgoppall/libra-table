@@ -6,7 +6,7 @@ import { uid } from "@/lib/uid";
 import {
   type AlterOp,
   type ColumnSpec,
-  type Driver,
+  type Dialect,
   type ForeignKeyInfo,
   type ForeignKeySpec,
   type IndexInfo,
@@ -47,7 +47,7 @@ export const live = <T extends { dropped: boolean }>(rows: T[]) => rows.filter((
 
 // ------------------------------------------------------------------ building rows
 
-export function newColumnRow(driver: Driver, first: boolean): ColRow {
+export function newColumnRow(driver: Dialect, first: boolean): ColRow {
   return { key: uid(), cur: blankColumn(driver, first), dropped: false };
 }
 

@@ -2,7 +2,7 @@
 
 use crate::db::sql::{literal_for, qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::super::clauses::{
     column_def, comment_literal, comment_of, create_index, default_expr, fk_clause, need_name,
@@ -11,7 +11,7 @@ use super::super::clauses::{
 use super::super::plan::{Ctx, Step};
 use super::super::spec::{AlterOp, ColumnSpec};
 
-const D: Driver = Driver::Postgres;
+const D: Dialect = Dialect::Postgres;
 
 pub(super) fn alter(
     schema: &str,

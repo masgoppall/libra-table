@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use libratable_lib::db::{exec, meta};
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::state::Session;
 use serde_json::json;
 
@@ -64,7 +64,7 @@ pub async fn run(primary: Arc<Session>, schema_of: impl Fn(&str) -> String) {
 async fn current_database(s: &Session) -> serde_json::Value {
     let mut slot = s.editor.lock().await;
     exec::prepare(s, &mut slot).await.unwrap();
-    let sql = if s.driver() == Driver::Postgres {
+    let sql = if s.dialect() == Dialect::Postgres {
         "SELECT current_database()::text"
     } else {
         "SELECT DATABASE()"

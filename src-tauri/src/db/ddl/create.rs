@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::db::sql::{literal_for, qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::clauses::{
     bad, column_def, comment_of, create_index, fk_clause, need_name, quoted_list, sql,
@@ -24,7 +24,7 @@ pub(super) struct TableDef<'a> {
 }
 
 pub(super) fn build_create_table(
-    driver: Driver,
+    driver: Dialect,
     t: &TableDef<'_>,
     steps: &mut Vec<Step>,
 ) -> AppResult<()> {
@@ -37,8 +37,8 @@ pub(super) fn build_create_table(
         .map(|c| c.name.clone())
         .collect();
     // SQLite numbers rows itself only for a single INTEGER PRIMARY KEY.
-    let sqlite_inline = driver == Driver::Sqlite && pk.len() == 1;
-    if driver == Driver::Sqlite {
+    let sqlite_inline = driver == Dialect::Sqlite && pk.len() == 1;
+    if driver == Dialect::Sqlite {
         check_sqlite_autoincrement(t.columns, &pk)?;
     }
     let mut lines = Vec::new();
@@ -53,13 +53,13 @@ pub(super) fn build_create_table(
     }
     let table = qualified(driver, t.schema, t.name);
     let mut s = format!("CREATE TABLE {table} (\n  {}\n)", lines.join(",\n  "));
-    if driver == Driver::Mysql {
+    if driver == Dialect::Mysql {
         if let Some(cm) = comment_of(t.comment) {
             s.push_str(&format!(" COMMENT={}", literal_for(driver, cm)));
         }
     }
     sql(steps, s);
-    if driver == Driver::Postgres {
+    if driver == Dialect::Postgres {
         pg_comments(&table, t, steps);
     }
     for idx in t.indexes {
@@ -98,7 +98,7 @@ fn check_sqlite_autoincrement(columns: &[ColumnSpec], pk: &[String]) -> AppResul
 
 /// Postgres keeps comments outside CREATE TABLE.
 fn pg_comments(table: &str, t: &TableDef<'_>, steps: &mut Vec<Step>) {
-    let d = Driver::Postgres;
+    let d = Dialect::Postgres;
     if let Some(cm) = comment_of(t.comment) {
         sql(
             steps,

@@ -5,10 +5,12 @@
 
 use serde::Serialize;
 use sqlparser::ast::{Query, SetExpr, Statement};
-use sqlparser::dialect::{Dialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect};
+use sqlparser::dialect::{
+    Dialect as ParserDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect,
+};
 use sqlparser::parser::Parser;
 
-use crate::models::{Connection, Driver, SafeMode};
+use crate::models::{Connection, Dialect, Driver, SafeMode};
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -50,11 +52,11 @@ const READ_ONLY_PRAGMAS: &[&str] = &[
     "compile_options",
 ];
 
-fn dialect(driver: Driver) -> Box<dyn Dialect> {
+fn dialect(driver: Dialect) -> Box<dyn ParserDialect> {
     match driver {
-        Driver::Postgres => Box::new(PostgreSqlDialect {}),
-        Driver::Mysql => Box::new(MySqlDialect {}),
-        Driver::Sqlite => Box::new(SQLiteDialect {}),
+        Dialect::Postgres => Box::new(PostgreSqlDialect {}),
+        Dialect::Mysql => Box::new(MySqlDialect {}),
+        Dialect::Sqlite => Box::new(SQLiteDialect {}),
     }
 }
 
@@ -72,8 +74,8 @@ fn mysql_hidden_code(sql: &str) -> bool {
 }
 
 /// Classifies one statement (already split by `db::split`).
-pub fn classify(driver: Driver, sql: &str) -> Classified {
-    if driver == Driver::Mysql && mysql_hidden_code(sql) {
+pub fn classify(driver: Dialect, sql: &str) -> Classified {
+    if driver == Dialect::Mysql && mysql_hidden_code(sql) {
         return Classified {
             sql: sql.to_string(),
             kind: Kind::Write,
@@ -231,6 +233,19 @@ pub fn policy(conn: &Connection) -> (Scope, Level) {
     }
 }
 
+/// Classifies a statement in the driver's language: engines with their own language
+/// (Redis commands, MongoDB calls…) decide themselves; everything else is SQL.
+pub fn classify_for(driver: Driver, sql: &str) -> Classified {
+    match crate::engines::classify(driver, sql) {
+        Some(kind) => Classified {
+            sql: sql.to_string(),
+            kind,
+            understood: true,
+        },
+        None => classify(driver.dialect(), sql),
+    }
+}
+
 /// The statements that need confirmation on this connection (empty = run freely).
 pub fn needing_confirmation(conn: &Connection, statements: &[String]) -> Vec<Classified> {
     let (scope, _) = policy(conn);
@@ -239,7 +254,7 @@ pub fn needing_confirmation(conn: &Connection, statements: &[String]) -> Vec<Cla
     }
     statements
         .iter()
-        .map(|s| classify(conn.driver, s))
+        .map(|s| classify_for(conn.driver, s))
         .filter(|c| scope == Scope::Everything || c.kind == Kind::Write)
         .collect()
 }
@@ -251,7 +266,7 @@ pub fn read_only_violations(conn: &Connection, statements: &[String]) -> Vec<Cla
     }
     statements
         .iter()
-        .map(|s| classify(conn.driver, s))
+        .map(|s| classify_for(conn.driver, s))
         .filter(|c| c.kind == Kind::Write)
         .collect()
 }
@@ -260,93 +275,96 @@ pub fn read_only_violations(conn: &Connection, statements: &[String]) -> Vec<Cla
 mod tests {
     use super::*;
 
-    fn k(driver: Driver, sql: &str) -> Kind {
+    fn k(driver: Dialect, sql: &str) -> Kind {
         classify(driver, sql).kind
     }
 
     #[test]
     fn reads() {
         assert_eq!(
-            k(Driver::Postgres, "SELECT * FROM t WHERE id = 1"),
+            k(Dialect::Postgres, "SELECT * FROM t WHERE id = 1"),
             Kind::Read
         );
         assert_eq!(
-            k(Driver::Postgres, "WITH x AS (SELECT 1) SELECT * FROM x"),
+            k(Dialect::Postgres, "WITH x AS (SELECT 1) SELECT * FROM x"),
             Kind::Read
         );
-        assert_eq!(k(Driver::Postgres, "EXPLAIN SELECT 1"), Kind::Read);
-        assert_eq!(k(Driver::Mysql, "SHOW TABLES"), Kind::Read);
-        assert_eq!(k(Driver::Mysql, "DESCRIBE users"), Kind::Read);
-        assert_eq!(k(Driver::Sqlite, "PRAGMA table_info('t')"), Kind::Read);
-        assert_eq!(k(Driver::Sqlite, "PRAGMA user_version"), Kind::Read);
-        assert_eq!(k(Driver::Postgres, "SELECT 1 UNION SELECT 2"), Kind::Read);
+        assert_eq!(k(Dialect::Postgres, "EXPLAIN SELECT 1"), Kind::Read);
+        assert_eq!(k(Dialect::Mysql, "SHOW TABLES"), Kind::Read);
+        assert_eq!(k(Dialect::Mysql, "DESCRIBE users"), Kind::Read);
+        assert_eq!(k(Dialect::Sqlite, "PRAGMA table_info('t')"), Kind::Read);
+        assert_eq!(k(Dialect::Sqlite, "PRAGMA user_version"), Kind::Read);
+        assert_eq!(k(Dialect::Postgres, "SELECT 1 UNION SELECT 2"), Kind::Read);
     }
 
     #[test]
     fn writes() {
-        assert_eq!(k(Driver::Postgres, "UPDATE t SET a = 1"), Kind::Write);
-        assert_eq!(k(Driver::Postgres, "DELETE FROM t"), Kind::Write);
-        assert_eq!(k(Driver::Mysql, "INSERT INTO t VALUES (1)"), Kind::Write);
-        assert_eq!(k(Driver::Postgres, "DROP TABLE t"), Kind::Write);
-        assert_eq!(k(Driver::Postgres, "TRUNCATE t"), Kind::Write);
+        assert_eq!(k(Dialect::Postgres, "UPDATE t SET a = 1"), Kind::Write);
+        assert_eq!(k(Dialect::Postgres, "DELETE FROM t"), Kind::Write);
+        assert_eq!(k(Dialect::Mysql, "INSERT INTO t VALUES (1)"), Kind::Write);
+        assert_eq!(k(Dialect::Postgres, "DROP TABLE t"), Kind::Write);
+        assert_eq!(k(Dialect::Postgres, "TRUNCATE t"), Kind::Write);
         assert_eq!(
             k(
-                Driver::Postgres,
+                Dialect::Postgres,
                 "WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d"
             ),
             Kind::Write
         );
         assert_eq!(
-            k(Driver::Postgres, "SELECT * INTO backup FROM t"),
+            k(Dialect::Postgres, "SELECT * INTO backup FROM t"),
             Kind::Write
         );
         assert_eq!(
-            k(Driver::Postgres, "EXPLAIN ANALYZE DELETE FROM t"),
+            k(Dialect::Postgres, "EXPLAIN ANALYZE DELETE FROM t"),
             Kind::Write
         );
         assert_eq!(
             k(
-                Driver::Postgres,
+                Dialect::Postgres,
                 "EXPLAIN (ANALYZE, BUFFERS) DELETE FROM orders"
             ),
             Kind::Write
         );
         assert_eq!(
-            k(Driver::Postgres, "EXPLAIN DELETE FROM orders"),
+            k(Dialect::Postgres, "EXPLAIN DELETE FROM orders"),
             Kind::Write
         );
-        assert_eq!(k(Driver::Mysql, "SET @@GLOBAL.read_only = 0"), Kind::Write);
+        assert_eq!(k(Dialect::Mysql, "SET @@GLOBAL.read_only = 0"), Kind::Write);
         assert_eq!(
-            k(Driver::Mysql, "SET GLOBAL max_connections = 1"),
+            k(Dialect::Mysql, "SET GLOBAL max_connections = 1"),
             Kind::Write
         );
         assert_eq!(
-            k(Driver::Mysql, "SET PERSIST max_connections = 1"),
+            k(Dialect::Mysql, "SET PERSIST max_connections = 1"),
             Kind::Write
         );
-        assert_eq!(k(Driver::Sqlite, "PRAGMA foreign_keys = OFF"), Kind::Write);
+        assert_eq!(k(Dialect::Sqlite, "PRAGMA foreign_keys = OFF"), Kind::Write);
     }
 
     #[test]
     fn session_statements_and_unparseable() {
-        assert_eq!(k(Driver::Postgres, "SET search_path TO app"), Kind::Session);
-        assert_eq!(k(Driver::Mysql, "USE shop"), Kind::Session);
-        assert_eq!(k(Driver::Postgres, "BEGIN"), Kind::Session);
-        assert_eq!(k(Driver::Mysql, "SET @x = 1"), Kind::Session);
+        assert_eq!(
+            k(Dialect::Postgres, "SET search_path TO app"),
+            Kind::Session
+        );
+        assert_eq!(k(Dialect::Mysql, "USE shop"), Kind::Session);
+        assert_eq!(k(Dialect::Postgres, "BEGIN"), Kind::Session);
+        assert_eq!(k(Dialect::Mysql, "SET @x = 1"), Kind::Session);
         // MySQL runs what sqlparser treats as comments.
         assert_eq!(
-            classify(Driver::Mysql, "SELECT 1 --1; DELETE FROM t").kind,
+            classify(Dialect::Mysql, "SELECT 1 --1; DELETE FROM t").kind,
             Kind::Write
         );
         assert_eq!(
-            classify(Driver::Mysql, "/*!DELETE FROM t WHERE*/ (SELECT 1)").kind,
+            classify(Dialect::Mysql, "/*!DELETE FROM t WHERE*/ (SELECT 1)").kind,
             Kind::Write
         );
-        assert_eq!(k(Driver::Mysql, "SELECT 1 -- a real comment"), Kind::Read);
-        let c = classify(Driver::Postgres, "VACUUM FULL ANALYZE !!!");
+        assert_eq!(k(Dialect::Mysql, "SELECT 1 -- a real comment"), Kind::Read);
+        let c = classify(Dialect::Postgres, "VACUUM FULL ANALYZE !!!");
         assert_eq!((c.kind, c.understood), (Kind::Write, false));
         // The parser can't read bare identifiers in PRAGMA: fail safe, ask for confirmation.
-        let p = classify(Driver::Sqlite, "PRAGMA table_info(t)");
+        let p = classify(Dialect::Sqlite, "PRAGMA table_info(t)");
         assert_eq!((p.kind, p.understood), (Kind::Write, false));
     }
 

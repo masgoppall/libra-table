@@ -5,7 +5,7 @@ use sqlx::{Executor, SqliteConnection};
 use crate::db::sql::{qualified, quote_ident};
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::context::{sqlite_objects, sqlite_table_sql};
 use super::plan::{Ctx, Exec, Plan, Rebuild, Step, SQLITE_COPY_MARKER};
@@ -76,7 +76,7 @@ async fn preview_rebuild(
     objects.retain(|o| {
         let drop = format!(
             "DROP INDEX {}",
-            qualified(Driver::Sqlite, &r.schema, &o.name)
+            qualified(Dialect::Sqlite, &r.schema, &o.name)
         );
         !plan
             .steps
@@ -89,8 +89,8 @@ async fn preview_rebuild(
 fn foreign_key_check(schema: &str, table: &str) -> String {
     format!(
         "PRAGMA {}.foreign_key_check({})",
-        quote_ident(Driver::Sqlite, schema),
-        quote_ident(Driver::Sqlite, table)
+        quote_ident(Dialect::Sqlite, schema),
+        quote_ident(Dialect::Sqlite, table)
     )
 }
 
@@ -145,6 +145,7 @@ pub async fn apply(
             run_all!(&mut *tx);
             tx.commit().await?;
         }
+        (DbPool::Engine(_), _) => return Err(crate::db::engine::sqlx_only()),
     }
     Ok(statements.len())
 }

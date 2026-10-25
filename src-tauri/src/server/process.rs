@@ -10,7 +10,7 @@ use sqlx::Row;
 
 use crate::db::{value, DbPool};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -43,16 +43,16 @@ pub enum ProcessAction {
 
 /// The statement that runs for `action` on process `id`. It is shown as is in the
 /// confirmation; `id` is a number, so there is nothing to quote.
-pub fn action_sql(driver: Driver, action: ProcessAction, id: i64) -> AppResult<String> {
+pub fn action_sql(driver: Dialect, action: ProcessAction, id: i64) -> AppResult<String> {
     if id <= 0 {
         return Err(AppError::validation("Invalid process id."));
     }
     Ok(match (driver, action) {
-        (Driver::Postgres, ProcessAction::Cancel) => format!("SELECT pg_cancel_backend({id})"),
-        (Driver::Postgres, ProcessAction::Kill) => format!("SELECT pg_terminate_backend({id})"),
-        (Driver::Mysql, ProcessAction::Cancel) => format!("KILL QUERY {id}"),
-        (Driver::Mysql, ProcessAction::Kill) => format!("KILL {id}"),
-        (Driver::Sqlite, _) => return Err(no_process_list()),
+        (Dialect::Postgres, ProcessAction::Cancel) => format!("SELECT pg_cancel_backend({id})"),
+        (Dialect::Postgres, ProcessAction::Kill) => format!("SELECT pg_terminate_backend({id})"),
+        (Dialect::Mysql, ProcessAction::Cancel) => format!("KILL QUERY {id}"),
+        (Dialect::Mysql, ProcessAction::Kill) => format!("KILL {id}"),
+        (Dialect::Sqlite, _) => return Err(no_process_list()),
     })
 }
 
@@ -89,7 +89,7 @@ pub async fn list(pool: &DbPool, own_ids: &[i64]) -> AppResult<Vec<ProcessInfo>>
                 .await?;
             Ok(rows.iter().map(|r| mysql_row(r, me, own_ids)).collect())
         }
-        DbPool::Sqlite(_) => Err(no_process_list()),
+        DbPool::Sqlite(_) | DbPool::Engine(_) => Err(no_process_list()),
     }
 }
 
@@ -164,7 +164,8 @@ fn number(v: &Value) -> Option<i64> {
 /// Runs a cancel or kill. Postgres answers `false` when the process is gone or not
 /// ours to stop; that becomes an error so the UI doesn't report success.
 pub async fn run_action(pool: &DbPool, action: ProcessAction, id: i64) -> AppResult<()> {
-    let sql = action_sql(pool.driver(), action, id)?;
+    let dialect = pool.dialect().ok_or_else(crate::db::engine::sqlx_only)?;
+    let sql = action_sql(dialect, action, id)?;
     match pool {
         DbPool::Postgres(p) => {
             let done: bool = sqlx::query_scalar(&sql).fetch_one(p).await?;
@@ -177,7 +178,7 @@ pub async fn run_action(pool: &DbPool, action: ProcessAction, id: i64) -> AppRes
         DbPool::Mysql(p) => {
             sqlx::query(&sql).execute(p).await?;
         }
-        DbPool::Sqlite(_) => return Err(no_process_list()),
+        DbPool::Sqlite(_) | DbPool::Engine(_) => return Err(no_process_list()),
     }
     Ok(())
 }
@@ -188,14 +189,14 @@ mod tests {
 
     #[test]
     fn action_statements_per_driver() {
-        let pg = |a| action_sql(Driver::Postgres, a, 42).unwrap();
+        let pg = |a| action_sql(Dialect::Postgres, a, 42).unwrap();
         assert_eq!(pg(ProcessAction::Cancel), "SELECT pg_cancel_backend(42)");
         assert_eq!(pg(ProcessAction::Kill), "SELECT pg_terminate_backend(42)");
-        let my = |a| action_sql(Driver::Mysql, a, 7).unwrap();
+        let my = |a| action_sql(Dialect::Mysql, a, 7).unwrap();
         assert_eq!(my(ProcessAction::Cancel), "KILL QUERY 7");
         assert_eq!(my(ProcessAction::Kill), "KILL 7");
-        assert!(action_sql(Driver::Sqlite, ProcessAction::Kill, 1).is_err());
-        assert!(action_sql(Driver::Mysql, ProcessAction::Kill, 0).is_err());
+        assert!(action_sql(Dialect::Sqlite, ProcessAction::Kill, 1).is_err());
+        assert!(action_sql(Dialect::Mysql, ProcessAction::Kill, 0).is_err());
     }
 
     #[test]

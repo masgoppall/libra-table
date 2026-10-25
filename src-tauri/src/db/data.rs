@@ -6,13 +6,14 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::db::engine::TableRef;
 use crate::db::filter::{inline_preview, order_by, FilterBuilder, FilterRow, FilterSql, SortSpec};
 use crate::db::meta::{primary_key, ColumnInfo};
 use crate::db::sql::{qualified, quote_ident};
 use crate::db::value;
 use crate::db::{bind_all, DbPool};
-use crate::error::AppResult;
-use crate::models::Driver;
+use crate::error::{AppError, AppResult};
+use crate::models::Dialect;
 use crate::state::Session;
 
 pub const MAX_PAGE_SIZE: u32 = 5000;
@@ -77,11 +78,11 @@ fn col_types(cols: &[ColumnInfo]) -> Vec<(String, String)> {
         .collect()
 }
 
-pub(crate) fn select_list(driver: Driver, cols: &[ColumnInfo]) -> String {
+pub(crate) fn select_list(driver: Dialect, cols: &[ColumnInfo]) -> String {
     cols.iter()
         .map(|c| {
             let q = quote_ident(driver, &c.name);
-            if driver == Driver::Postgres && !value::pg::natively_decoded(&c.data_type) {
+            if driver == Dialect::Postgres && !value::pg::natively_decoded(&c.data_type) {
                 format!("{q}::text AS {q}")
             } else {
                 q
@@ -92,7 +93,7 @@ pub(crate) fn select_list(driver: Driver, cols: &[ColumnInfo]) -> String {
 }
 
 pub fn build_filter(
-    driver: Driver,
+    driver: Dialect,
     cols: &[ColumnInfo],
     rows: &[FilterRow],
     only: Option<usize>,
@@ -116,7 +117,7 @@ pub fn select_sql(
     req: &PageRequest,
     paged: bool,
 ) -> AppResult<(String, Vec<String>)> {
-    let driver = session.driver();
+    let driver = session.dialect();
     let filter = build_filter(driver, cols, &req.filters, req.apply_only)?;
     let types = col_types(cols);
     let order = order_by(driver, &types, &req.sort)?;
@@ -144,9 +145,18 @@ pub fn select_sql(
 pub async fn fetch_page(session: &Session, req: &PageRequest) -> AppResult<PageResult> {
     let cols = session.columns(&req.schema, &req.table).await?;
     let page_size = page_size(session, req);
-    let query = FilterSql::from(select_sql(session, &cols, req, true)?);
     let started = Instant::now();
-    let rows = fetch_rows(&session.pool, &query).await?;
+    let (rows, sql) = match &session.pool {
+        DbPool::Engine(e) => {
+            let page = e.fetch_page(table_ref(req, &cols), req, page_size).await?;
+            (page.rows, page.query)
+        }
+        pool => {
+            let query = FilterSql::from(select_sql(session, &cols, req, true)?);
+            let rows = fetch_rows(pool, &query).await?;
+            (rows, inline_preview(session.dialect(), &query))
+        }
+    };
     Ok(PageResult {
         primary_key: primary_key(&cols),
         has_more: rows.len() as u32 == page_size,
@@ -154,9 +164,22 @@ pub async fn fetch_page(session: &Session, req: &PageRequest) -> AppResult<PageR
         rows,
         page: req.page,
         page_size,
-        sql: inline_preview(session.driver(), &query),
+        sql,
         elapsed_ms: started.elapsed().as_millis() as u64,
     })
+}
+
+/// The request's table for an engine call.
+pub fn table_ref<'a>(req: &'a PageRequest, cols: &'a [ColumnInfo]) -> TableRef<'a> {
+    TableRef {
+        schema: &req.schema,
+        table: &req.table,
+        columns: cols,
+    }
+}
+
+fn not_for_engines() -> AppError {
+    AppError::internal("This query path is only for the built-in drivers.")
 }
 
 /// Runs a SELECT with its binds and decodes the rows for the grid.
@@ -175,12 +198,16 @@ async fn fetch_rows(pool: &DbPool, query: &FilterSql) -> AppResult<Vec<Vec<Value
         DbPool::Postgres(p) => fetch!(p, value::pg::row),
         DbPool::Mysql(p) => fetch!(p, value::mysql::row),
         DbPool::Sqlite(p) => fetch!(p, value::sqlite::row),
+        DbPool::Engine(_) => return Err(not_for_engines()),
     })
 }
 
 pub async fn count_rows(session: &Session, req: &PageRequest) -> AppResult<RowCount> {
-    let driver = session.driver();
+    let driver = session.dialect();
     let cols = session.columns(&req.schema, &req.table).await?;
+    if let DbPool::Engine(e) = &session.pool {
+        return e.count_rows(table_ref(req, &cols), req).await;
+    }
     let filter = build_filter(driver, &cols, &req.filters, req.apply_only)?;
     if filter.is_empty() {
         if let Some(est) = estimate_rows(&session.pool, &req.schema, &req.table).await? {
@@ -229,7 +256,7 @@ async fn estimate_rows(pool: &DbPool, schema: &str, table: &str) -> AppResult<Op
             .fetch_optional(p)
             .await?
             .flatten(),
-        DbPool::Sqlite(_) => None,
+        DbPool::Sqlite(_) | DbPool::Engine(_) => None,
     })
 }
 
@@ -255,13 +282,17 @@ async fn capped_count(pool: &DbPool, table: &str, filter: &FilterSql) -> AppResu
         DbPool::Postgres(p) => count!(p),
         DbPool::Mysql(p) => count!(p),
         DbPool::Sqlite(p) => count!(p),
+        DbPool::Engine(_) => return Err(not_for_engines()),
     })
 }
 
 /// SQL preview for the filter bar: this row, and all checked rows (FLT-5).
 pub async fn preview_filter(session: &Session, req: &PageRequest) -> AppResult<FilterPreview> {
-    let driver = session.driver();
+    let driver = session.dialect();
     let cols = session.columns(&req.schema, &req.table).await?;
+    if let DbPool::Engine(e) = &session.pool {
+        return e.preview_filter(table_ref(req, &cols), req);
+    }
     let all = build_filter(driver, &cols, &req.filters, None)?;
     let row = match req.apply_only {
         Some(i) => Some(inline_preview(

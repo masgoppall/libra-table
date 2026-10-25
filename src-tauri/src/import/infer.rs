@@ -5,7 +5,7 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -164,7 +164,7 @@ impl Infer {
     }
 
     /// A column type for `driver`, from the names the table designer suggests.
-    pub fn sql_type(&self, driver: Driver) -> String {
+    pub fn sql_type(&self, driver: Dialect) -> String {
         let kind = self.kind();
         let decimal = format!(
             "decimal({},{})",
@@ -172,9 +172,9 @@ impl Infer {
             self.scale
         );
         let s = |pg: &str, my: &str, lite: &str| match driver {
-            Driver::Postgres => pg.to_string(),
-            Driver::Mysql => my.to_string(),
-            Driver::Sqlite => lite.to_string(),
+            Dialect::Postgres => pg.to_string(),
+            Dialect::Mysql => my.to_string(),
+            Dialect::Sqlite => lite.to_string(),
         };
         match kind {
             Kind::Integer => s("integer", "int", "INTEGER"),
@@ -245,12 +245,15 @@ mod tests {
     #[test]
     fn types_per_driver() {
         let money = infer(&[Some("12.50"), Some("1234.5")]);
-        assert_eq!(money.sql_type(Driver::Mysql), "decimal(6,2)");
-        assert_eq!(money.sql_type(Driver::Postgres), "numeric(6,2)");
-        assert_eq!(money.sql_type(Driver::Sqlite), "NUMERIC");
+        assert_eq!(money.sql_type(Dialect::Mysql), "decimal(6,2)");
+        assert_eq!(money.sql_type(Dialect::Postgres), "numeric(6,2)");
+        assert_eq!(money.sql_type(Dialect::Sqlite), "NUMERIC");
         let long = "x".repeat(300);
-        assert_eq!(infer(&[Some(&long)]).sql_type(Driver::Mysql), "longtext");
-        assert_eq!(infer(&[Some("ok")]).sql_type(Driver::Mysql), "varchar(255)");
-        assert_eq!(infer(&[Some("1")]).sql_type(Driver::Postgres), "integer");
+        assert_eq!(infer(&[Some(&long)]).sql_type(Dialect::Mysql), "longtext");
+        assert_eq!(
+            infer(&[Some("ok")]).sql_type(Dialect::Mysql),
+            "varchar(255)"
+        );
+        assert_eq!(infer(&[Some("1")]).sql_type(Dialect::Postgres), "integer");
     }
 }

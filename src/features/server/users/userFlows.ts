@@ -75,11 +75,11 @@ export async function setPassword(ws: Workspace, db: Db, grantee: Grantee): Prom
 export function dropGrantee(ws: Workspace, db: Db, grantee: Grantee): Promise<boolean> {
   const label = granteeLabel(grantee);
   const change: UserChange =
-    ws.info.driver === "postgres"
+    ws.info.dialect === "postgres"
       ? { kind: "drop_role", name: grantee.name }
       : { kind: "drop_user", user: grantee.name, host: grantee.host ?? "%" };
   return runUserChange(ws, db, change, {
-    title: ws.info.driver === "postgres" ? "Drop role" : "Drop user",
+    title: ws.info.dialect === "postgres" ? "Drop role" : "Drop user",
     okLabel: "Drop",
     danger: true,
     typeToConfirm: grantee.name,

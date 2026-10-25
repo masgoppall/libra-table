@@ -7,7 +7,7 @@ use libratable_lib::db::ddl::{self, SchemaChange};
 use libratable_lib::db::filter::FilterRow;
 use libratable_lib::db::{meta, open_pool, DbPool};
 use libratable_lib::error::AppError;
-use libratable_lib::models::{Connection, Driver};
+use libratable_lib::models::{Connection, Dialect};
 use libratable_lib::state::Session;
 use serde_json::{json, Value};
 
@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 pub const TEST_DB: &str = "libratable_test";
 pub const OTHER_DB: &str = "libratable_test_other";
 
-pub fn connection(driver: Driver, settings: Value) -> Connection {
+pub fn connection(driver: Dialect, settings: Value) -> Connection {
     let mut v = json!({ "id": "test-conn", "name": "Test", "driver": driver });
     v["db"] = settings;
     serde_json::from_value(v).unwrap()
@@ -83,6 +83,7 @@ pub async fn exec_sql(pool: &DbPool, sql: &str) {
         DbPool::Sqlite(p) => {
             sqlx::raw_sql(sql).execute(p).await.unwrap();
         }
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -112,7 +113,7 @@ pub async fn count(session: &Session, schema: &str, table: &str) -> u64 {
 pub async fn ddl_apply(s: &Session, change: Value) -> Result<Vec<String>, AppError> {
     let change: SchemaChange = serde_json::from_value(change).expect("schema change JSON");
     let ctx = ddl::context(&s.pool, &change).await?;
-    let plan = ddl::build(s.driver(), &change, &ctx)?;
+    let plan = ddl::build(s.dialect(), &change, &ctx)?;
     let preview = ddl::preview(&s.pool, &plan, &change, &ctx).await?;
     ddl::apply(&s.pool, &plan, &change, &ctx).await?;
     s.clear_cache();

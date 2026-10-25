@@ -44,6 +44,8 @@ pub enum CancelTarget {
     Sqlite {
         handle: usize,
     },
+    /// An engine driver stops its own statement (`Engine::cancel`).
+    Engine(crate::db::engine::SharedEngine),
 }
 
 pub struct RunningQuery {

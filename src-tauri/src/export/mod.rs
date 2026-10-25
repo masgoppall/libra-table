@@ -13,7 +13,8 @@ use futures::TryStreamExt;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 
-use crate::db::data::{select_sql, PageRequest};
+use crate::db::data::{select_sql, table_ref, PageRequest};
+use crate::db::engine::{RowSink, SharedEngine};
 use crate::db::value::{self, ColumnMeta};
 use crate::db::{bind_all, DbPool};
 use crate::error::{AppError, AppResult};
@@ -94,7 +95,7 @@ struct Plan {
 async fn plan(session: &Session, source: &Source) -> AppResult<Plan> {
     match source {
         Source::Query { sql } => {
-            let stmts = crate::db::split::split(session.driver(), sql);
+            let stmts = crate::db::split::split(session.dialect(), sql);
             if stmts.len() != 1 {
                 return Err(AppError::validation("Export one statement at a time."));
             }
@@ -126,15 +127,18 @@ async fn plan(session: &Session, source: &Source) -> AppResult<Plan> {
 }
 
 /// Runs the export. `progress(rows)` is called periodically and once at the end.
-pub async fn run<F: Fn(u64)>(
+pub async fn run<F: Fn(u64) + Sync>(
     session: &Session,
     req: &ExportRequest,
     cancel: &CancellationToken,
     progress: F,
 ) -> AppResult<u64> {
+    if let DbPool::Engine(e) = &session.pool {
+        return run_engine(session, e, req, cancel, progress).await;
+    }
     let plan = plan(session, &req.source).await?;
     let path = Path::new(&req.path);
-    let driver = session.driver();
+    let driver = session.dialect();
     let mut sink = Sink::open(path, req.format, &req.options, driver, &plan.default_table)?;
     let mut writer = Writer {
         sink: &mut sink,
@@ -148,6 +152,56 @@ pub async fn run<F: Fn(u64)>(
         writer.header(cols)?;
     }
     let result = stream(session, &plan, &mut writer).await;
+    let count = writer.count;
+    if let Err(e) = result {
+        drop(sink);
+        let _ = std::fs::remove_file(path);
+        return Err(e);
+    }
+    sink.finish()?;
+    progress(count);
+    Ok(count)
+}
+
+/// Exports from an engine driver: the engine reads the rows, the sink writes them.
+async fn run_engine<F: Fn(u64) + Sync>(
+    session: &Session,
+    engine: &SharedEngine,
+    req: &ExportRequest,
+    cancel: &CancellationToken,
+    progress: F,
+) -> AppResult<u64> {
+    let path = Path::new(&req.path);
+    let default_table = match &req.source {
+        Source::Query { .. } => "exported",
+        Source::Table { request, .. } => request.table.as_str(),
+    };
+    let dialect = session.dialect();
+    let mut sink = Sink::open(path, req.format, &req.options, dialect, default_table)?;
+    let mut writer = Writer {
+        sink: &mut sink,
+        header: req.options.header,
+        wrote_header: false,
+        count: 0,
+        cancel,
+        progress: &progress,
+    };
+    let result = match &req.source {
+        Source::Query { sql } => {
+            let stmts = crate::engines::split(session.connection.driver, sql);
+            match stmts.as_slice() {
+                [one] => engine.export_query(&one.text, &mut writer).await,
+                _ => Err(AppError::validation("Export one statement at a time.")),
+            }
+        }
+        Source::Table { request, page_only } => {
+            let cols = session.columns(&request.schema, &request.table).await?;
+            let t = table_ref(request, &cols);
+            engine
+                .export_table(t, request, *page_only, &mut writer)
+                .await
+        }
+    };
     let count = writer.count;
     if let Err(e) = result {
         drop(sink);
@@ -176,6 +230,19 @@ impl<F: Fn(u64)> Writer<'_, F> {
         Ok(())
     }
 
+    /// One decoded row; the header comes first.
+    fn values(&mut self, values: Vec<serde_json::Value>) -> AppResult<()> {
+        if self.cancel.is_cancelled() {
+            return Err(AppError::cancelled());
+        }
+        self.sink.row(&values)?;
+        self.count += 1;
+        if self.count % PROGRESS_EVERY == 0 {
+            (self.progress)(self.count);
+        }
+        Ok(())
+    }
+
     fn row<R: sqlx::Row>(
         &mut self,
         row: &R,
@@ -193,6 +260,16 @@ impl<F: Fn(u64)> Writer<'_, F> {
             (self.progress)(self.count);
         }
         Ok(())
+    }
+}
+
+impl<F: Fn(u64) + Sync> RowSink for Writer<'_, F> {
+    fn columns(&mut self, columns: &[ColumnMeta]) -> AppResult<()> {
+        self.header(columns)
+    }
+
+    fn row(&mut self, values: Vec<serde_json::Value>) -> AppResult<()> {
+        self.values(values)
     }
 }
 
@@ -221,6 +298,7 @@ async fn stream<F: Fn(u64)>(
         DbPool::Postgres(p) => stream_rows!(p, value::pg::row),
         DbPool::Mysql(p) => stream_rows!(p, value::mysql::row),
         DbPool::Sqlite(p) => stream_rows!(p, value::sqlite::row),
+        DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
     }
     Ok(())
 }

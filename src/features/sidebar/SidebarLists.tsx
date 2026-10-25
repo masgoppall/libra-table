@@ -56,7 +56,11 @@ export function DatabaseSection(props: {
       count={props.matches.length}
       collapsed={props.collapsed.isCollapsed("databases")}
       onToggle={() => props.collapsed.toggle("databases")}
-      action={<AddButton title="New database" onClick={() => createDatabaseFlow(ws)} />}
+      action={
+        ws.caps.createDatabase && (
+          <AddButton title="New database" onClick={() => createDatabaseFlow(ws)} />
+        )
+      }
     >
       {props.matches.map(({ item: d, match }) => (
         <div
@@ -131,12 +135,16 @@ export function ObjectSections(props: {
   return (
     <>
       <SideSection
-        label="Tables"
+        label={ws.caps.kind === "document" ? "Collections" : "Tables"}
         count={tables.length}
         collapsed={props.collapsed.isCollapsed("tables")}
         onToggle={() => props.collapsed.toggle("tables")}
         onMenu={(e) => props.menu.open(e, tablesMenu(ws))}
-        action={<AddButton title={withShortcut("New table", "new-table")} onClick={newTable} />}
+        action={
+          ws.caps.createTable && (
+            <AddButton title={withShortcut("New table", "new-table")} onClick={newTable} />
+          )
+        }
       >
         {tables.length ? (
           tables.map(render)

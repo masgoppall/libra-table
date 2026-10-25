@@ -1,6 +1,6 @@
 // Small hooks over the store, so components subscribe only to what they show.
 
-import { type ConnectionView, type Workspace } from "@/types";
+import { type ConnectionView, type Driver, type DriverEntry, type Workspace } from "@/types";
 import { useStore } from "./index";
 
 export function useConnection(id: string): ConnectionView | undefined {
@@ -16,6 +16,11 @@ export function useIsTabVisible(connectionId: string, tabId: string): boolean {
   return useStore(
     (s) => s.view === connectionId && s.workspaces[connectionId]?.activeTabId === tabId,
   );
+}
+
+/** The picker entry of a driver (fields, secret label…); undefined until loaded. */
+export function useDriverEntry(driver: Driver): DriverEntry | undefined {
+  return useStore((s) => s.drivers.find((d) => d.id === driver));
 }
 
 export function useSettings() {

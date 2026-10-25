@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use libratable_lib::db::DbPool;
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::server::process::{self, ProcessAction, ProcessInfo};
 use libratable_lib::server::tools::{self, args};
 use libratable_lib::server::users::{self, Grantee};
@@ -31,7 +31,7 @@ pub async fn run(admin: String) {
             .unwrap();
     }
     let scenario = async {
-        let s = session(Driver::Postgres, &admin, DB, None).await;
+        let s = session(Dialect::Postgres, &admin, DB, None).await;
         exec(
             &s.pool,
             "CREATE TABLE items (id int PRIMARY KEY, name text); \
@@ -219,7 +219,7 @@ async fn backup_restore(s: &Session, admin: &str) {
         return;
     };
     let dir = tempfile::tempdir().unwrap();
-    let target = session(Driver::Postgres, admin, RESTORE_DB, None).await;
+    let target = session(Dialect::Postgres, admin, RESTORE_DB, None).await;
     let count = "SELECT count(*) FROM items";
 
     // Plain SQL → psql.
@@ -234,7 +234,7 @@ async fn backup_restore(s: &Session, admin: &str) {
     let text = std::fs::read_to_string(&plain).unwrap();
     assert!(text.contains("CREATE TABLE public.items"));
     assert_eq!(
-        tools::restore_tool(Driver::Postgres, &plain).unwrap(),
+        tools::restore_tool(Dialect::Postgres, &plain).unwrap(),
         "psql"
     );
     let psql = tool(&target, "psql").await.expect("psql next to pg_dump");
@@ -258,7 +258,7 @@ async fn backup_restore(s: &Session, admin: &str) {
     };
     backup(s, &req, &dump).await;
     assert_eq!(
-        tools::restore_tool(Driver::Postgres, &custom).unwrap(),
+        tools::restore_tool(Dialect::Postgres, &custom).unwrap(),
         "pg_restore"
     );
     let pg_restore = tool(&target, "pg_restore").await.expect("pg_restore");

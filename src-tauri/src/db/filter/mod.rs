@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::sql::{quote_ident, Placeholder};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 use operators::supported;
 use values::LIKE_ESCAPE;
 
@@ -81,7 +81,7 @@ fn need_value(v: &str) -> AppResult<String> {
 ///   (`format_type` on Postgres; used to cast text binds to the column type).
 /// * `only`: apply just this row (the per-row "Apply" button); otherwise all enabled rows.
 pub struct FilterBuilder<'a> {
-    driver: Driver,
+    driver: Dialect,
     columns: &'a [(String, String)],
     types: HashMap<&'a str, &'a str>,
     ph: Placeholder,
@@ -89,7 +89,7 @@ pub struct FilterBuilder<'a> {
 }
 
 impl<'a> FilterBuilder<'a> {
-    pub fn new(driver: Driver, columns: &'a [(String, String)], first_placeholder: usize) -> Self {
+    pub fn new(driver: Dialect, columns: &'a [(String, String)], first_placeholder: usize) -> Self {
         let types = columns
             .iter()
             .map(|(n, t)| (n.as_str(), t.as_str()))
@@ -178,9 +178,9 @@ impl<'a> FilterBuilder<'a> {
     /// The column as text, for operators that compare text (LIKE family, Any column).
     fn text_expr(&self, col: &str) -> String {
         match self.driver {
-            Driver::Postgres => format!("{col}::text"),
-            Driver::Mysql => col.to_string(),
-            Driver::Sqlite => col.to_string(),
+            Dialect::Postgres => format!("{col}::text"),
+            Dialect::Mysql => col.to_string(),
+            Dialect::Sqlite => col.to_string(),
         }
     }
 
@@ -189,7 +189,7 @@ impl<'a> FilterBuilder<'a> {
         self.binds.push(value);
         let p = self.ph.next_param();
         match (self.driver, ty) {
-            (Driver::Postgres, Some(t)) if !t.is_empty() => format!("{p}::{t}"),
+            (Dialect::Postgres, Some(t)) if !t.is_empty() => format!("{p}::{t}"),
             _ => p,
         }
     }
@@ -211,7 +211,7 @@ impl<'a> FilterBuilder<'a> {
     ) -> AppResult<String> {
         // Any column compares as text. On MySQL a bare `int_col = 'abc'` would convert
         // 'abc' to 0 and match every zero, so cast explicitly there.
-        let text = if as_text && self.driver == Driver::Mysql {
+        let text = if as_text && self.driver == Dialect::Mysql {
             format!("CAST({col} AS CHAR)")
         } else {
             self.text_expr(col)
@@ -288,8 +288,8 @@ impl<'a> FilterBuilder<'a> {
         };
         let p = self.like_param(pattern);
         Ok(match (self.driver, case) {
-            (Driver::Postgres, Case::Insensitive) => format!("{text} {not}ILIKE {p}"),
-            (Driver::Mysql, Case::Sensitive) => format!("CAST({text} AS BINARY) {not}LIKE {p}"),
+            (Dialect::Postgres, Case::Insensitive) => format!("{text} {not}ILIKE {p}"),
+            (Dialect::Mysql, Case::Sensitive) => format!("CAST({text} AS BINARY) {not}LIKE {p}"),
             _ => format!("{text} {not}LIKE {p}"),
         })
     }
@@ -322,7 +322,7 @@ fn raw_sql(value: &str) -> AppResult<Option<String>> {
 
 /// ORDER BY fragment (without the keywords) for validated column names (GRD-3).
 pub fn order_by(
-    driver: Driver,
+    driver: Dialect,
     columns: &[(String, String)],
     sort: &[SortSpec],
 ) -> AppResult<String> {
@@ -345,7 +345,7 @@ pub fn order_by(
 
 /// Renders a fragment with its binds inlined as quoted literals. For the preview only;
 /// never executed.
-pub fn inline_preview(driver: Driver, fsql: &FilterSql) -> String {
+pub fn inline_preview(driver: Dialect, fsql: &FilterSql) -> String {
     let binds: Vec<Option<String>> = fsql.binds.iter().cloned().map(Some).collect();
     crate::db::sql::inline_binds(driver, &fsql.sql, &binds)
 }

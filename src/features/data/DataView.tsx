@@ -66,11 +66,15 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const ts = tableState.state;
 
   const relations = useTableRelations(id, db, schema, table, ws.refreshKey);
-  const columns = useGridColumns(ws.info.driver, result, relations);
+  const columns = useGridColumns(ws.info.dialect, result, relations);
   const primaryKey = result?.primaryKey ?? [];
   const readOnlyConn = !!conn?.options.readOnly;
-  const editable = primaryKey.length > 0 && !readOnlyConn;
-  const readOnlyNote = readOnlyConn ? "Read-only connection" : "Read-only · no primary key";
+  const editable = primaryKey.length > 0 && !readOnlyConn && ws.caps.editRows;
+  const readOnlyNote = readOnlyConn
+    ? "Read-only connection"
+    : ws.caps.editRows
+      ? "Read-only · no primary key"
+      : "Read-only";
   const baseRows = result?.rows.length ?? 0;
 
   // `request` is defined below; the filters only call it on demand (SQL preview).
@@ -109,6 +113,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
 
   const addRow = () => {
     if (readOnlyConn) return toastInfo("This connection is read-only.", READ_ONLY_HINT);
+    if (!ws.caps.editRows) return toastInfo("Editing rows isn't available for this database.");
     if (!editable)
       return toastInfo("This table has no primary key, so it is read-only here.", NO_PK_HINT);
     const r = baseRows + pending.inserts.length;
@@ -141,7 +146,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
 
   const quickLook = useQuickLook({ connectionId: id, db, schema, table }, result);
   const cells = useCellActions({
-    driver: ws.info.driver,
+    driver: ws.info.dialect,
     qualifiedTable: `${schema}.${table}`,
     columns,
     relations,
@@ -153,7 +158,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     onEdit,
     filterBy: filters.filterByValue,
     deleteRows: deleteSelected,
-    quickLook: (r, c) => quickLook.show(r, c, getCell(r, c)),
+    quickLook: ws.caps.quickLook ? (r, c) => quickLook.show(r, c, getCell(r, c)) : undefined,
     openReference: (ref, value) => openReferencedRow(ws, tab, ref, value),
     menu,
   });
@@ -260,7 +265,9 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
             onCopy={() => void cells.copy("tsv")}
             hidden={controls.hidden}
             onHeaderContextMenu={controls.openHeaderMenu}
-            onQuickLook={(r, c) => quickLook.show(r, c, getCell(r, c))}
+            onQuickLook={
+              ws.caps.quickLook ? (r, c) => quickLook.show(r, c, getCell(r, c)) : undefined
+            }
             onDeleteRows={deleteSelected}
             rowNumberOffset={page * pageSize}
             emptyText={filters.activeCount ? "No rows match the filters." : "This table is empty."}

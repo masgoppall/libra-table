@@ -7,7 +7,9 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::db::exec::{self, StatementResult};
-use crate::db::split::{self, Statement};
+use crate::db::split::Statement;
+use crate::db::DbPool;
+use crate::engines;
 use crate::error::AppError;
 use crate::models::Driver;
 use crate::state::{AppState, CancelTarget, RunningQuery, Session};
@@ -19,7 +21,7 @@ const MAX_ROW_LIMIT: u32 = 100_000;
 
 #[tauri::command]
 pub fn split_statements(driver: Driver, sql: String) -> Vec<Statement> {
-    split::split(driver, &sql)
+    engines::split(driver, &sql)
 }
 
 #[derive(Serialize)]
@@ -39,7 +41,7 @@ pub async fn run_query(
     confirmed: bool,
 ) -> Cmd<RunResponse> {
     let s = state.session_in(&id, database.as_deref()).await?;
-    let stmts: Vec<String> = split::split(s.driver(), &sql)
+    let stmts: Vec<String> = engines::split(s.connection.driver, &sql)
         .into_iter()
         .map(|st| st.text)
         .collect();
@@ -76,6 +78,20 @@ async fn run_registered(
     cancelled: &Arc<AtomicBool>,
 ) -> Cmd<Vec<StatementResult>> {
     let limit = s.connection.options.query_row_limit.clamp(1, MAX_ROW_LIMIT) as usize;
+    if let DbPool::Engine(e) = &s.pool {
+        let running = RunningQuery {
+            target: CancelTarget::Engine(e.clone()),
+            cancelled: cancelled.clone(),
+        };
+        state
+            .running
+            .lock()
+            .unwrap()
+            .insert(query_id.to_string(), running);
+        let results = e.run(stmts, limit, cancelled).await;
+        state.running.lock().unwrap().remove(query_id);
+        return Ok(results);
+    }
     let mut slot = s.editor.lock().await;
     let target = exec::prepare(s, &mut slot).await?;
     let running = RunningQuery {

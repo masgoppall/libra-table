@@ -8,11 +8,12 @@ use std::time::Duration;
 use sqlx::pool::PoolConnection;
 use sqlx::{MySql, Postgres, Sqlite};
 
+use crate::db::engine;
 use crate::db::meta::{self, ColumnInfo};
 use crate::db::objects::{self, SchemaObject};
 use crate::db::{open_pool, DbPool, Target};
 use crate::error::AppResult;
-use crate::models::{Connection, Driver};
+use crate::models::{Connection, Dialect};
 use crate::ssh::Tunnel;
 
 /// The dedicated connection the query editor runs on, so session state
@@ -81,8 +82,18 @@ impl Session {
         }
     }
 
-    pub fn driver(&self) -> Driver {
-        self.connection.driver
+    /// The SQL dialect scripts are split and classified with.
+    pub fn dialect(&self) -> Dialect {
+        self.connection.driver.dialect()
+    }
+
+    /// The dialect of a built-in (sqlx) driver; engine drivers get an `unsupported`
+    /// error naming `what` (server tools, DDL, imports… are sqlx-only).
+    pub fn sqlx_dialect(&self, what: &str) -> AppResult<Dialect> {
+        self.connection
+            .driver
+            .sqlx_dialect()
+            .ok_or_else(|| engine::unsupported(self.connection.driver, what))
     }
 
     /// This session when `database` is empty or its own; otherwise a session for that
@@ -92,7 +103,7 @@ impl Session {
         let Some(db) = database.filter(|d| !d.is_empty() && *d != self.database) else {
             return Ok(self.clone());
         };
-        if self.driver() == Driver::Sqlite {
+        if !crate::drivers::features(self.connection.driver).switch_database {
             return Ok(self.clone());
         }
         let mut children = self.children.lock().await;

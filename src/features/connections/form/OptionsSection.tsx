@@ -1,4 +1,5 @@
 import { Check } from "@/components/Check";
+import { isFileDriver } from "@/domain/connection";
 import { type ConnectionFormState } from "./useConnectionForm";
 
 const DEFAULT_PAGE_SIZE = 300;
@@ -29,7 +30,7 @@ export function OptionsSection({ form }: { form: ConnectionFormState }) {
             setOptions({ queryRowLimit: Number(e.target.value) || DEFAULT_ROW_LIMIT })
           }
         />
-        {c.driver !== "sqlite" && (
+        {!isFileDriver(c.driver) && (
           <Check
             checked={c.options.showSystemSchemas}
             onChange={(showSystemSchemas) => setOptions({ showSystemSchemas })}

@@ -106,7 +106,7 @@ export function BackupOptions(props: {
   set: Set;
 }) {
   const { ws, r, set } = props;
-  const pg = ws.info.driver === "postgres";
+  const pg = ws.info.dialect === "postgres";
   const here = props.database === ws.database;
   const pgSchema = here ? ws.schema : defaultSchema("postgres", props.database);
   const schema = pg ? pgSchema : props.database;

@@ -5,12 +5,12 @@
 use crate::db::meta::ColumnInfo;
 use crate::db::sql::{qualified, quote_ident, Placeholder};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 /// Postgres and MySQL allow 65,535 parameters per statement, SQLite 32,766 (3.32+).
-fn max_params(driver: Driver) -> usize {
+fn max_params(driver: Dialect) -> usize {
     match driver {
-        Driver::Sqlite => 32_000,
+        Dialect::Sqlite => 32_000,
         _ => 65_000,
     }
 }
@@ -27,7 +27,7 @@ struct TargetColumn {
 /// The table an import writes to and the columns it fills, in mapping order.
 #[derive(Debug, Clone)]
 pub struct Target {
-    driver: Driver,
+    driver: Dialect,
     table: String,
     columns: Vec<TargetColumn>,
 }
@@ -41,7 +41,7 @@ impl Target {
     /// `names` are the target columns; `catalog` describes the table's columns (only
     /// name and type are used).
     pub fn new(
-        driver: Driver,
+        driver: Dialect,
         schema: &str,
         table: &str,
         names: &[String],
@@ -63,10 +63,10 @@ impl Target {
             columns.push(TargetColumn {
                 quoted: quote_ident(driver, name),
                 cast: match driver {
-                    Driver::Postgres => format!("::{}", col.data_type),
+                    Dialect::Postgres => format!("::{}", col.data_type),
                     _ => String::new(),
                 },
-                boolish: driver != Driver::Postgres && is_boolish(&col.data_type),
+                boolish: driver != Dialect::Postgres && is_boolish(&col.data_type),
             });
         }
         Ok(Self {
@@ -158,7 +158,7 @@ mod tests {
     fn builds_multi_row_inserts_with_casts() {
         let cat = vec![col("id", "integer"), col("name", "text")];
         let t = Target::new(
-            Driver::Postgres,
+            Dialect::Postgres,
             "public",
             "p",
             &names(&["id", "name"]),
@@ -171,14 +171,14 @@ mod tests {
              ($1::integer, $2::text), ($3::integer, $4::text)"
         );
         assert!(t.template(500).ends_with("($3::integer, $4::text), …"));
-        let m = Target::new(Driver::Mysql, "shop", "p", &names(&["name"]), &cat).unwrap();
+        let m = Target::new(Dialect::Mysql, "shop", "p", &names(&["name"]), &cat).unwrap();
         assert_eq!(m.sql(2), "INSERT INTO `shop`.`p` (`name`) VALUES (?), (?)");
     }
 
     #[test]
     fn binds_follow_the_mapping_and_convert_booleans() {
         let cat = vec![col("flag", "tinyint(1)"), col("name", "varchar(10)")];
-        let t = Target::new(Driver::Mysql, "", "p", &names(&["flag", "name"]), &cat).unwrap();
+        let t = Target::new(Dialect::Mysql, "", "p", &names(&["flag", "name"]), &cat).unwrap();
         let rows = vec![
             vec![Some("true".into()), Some("true".into())],
             vec![None, Some("x".into())],
@@ -198,7 +198,7 @@ mod tests {
     fn caps_rows_by_parameter_limit() {
         let cat: Vec<ColumnInfo> = (0..100).map(|i| col(&format!("c{i}"), "TEXT")).collect();
         let all: Vec<String> = cat.iter().map(|c| c.name.clone()).collect();
-        let t = Target::new(Driver::Sqlite, "main", "t", &all, &cat).unwrap();
+        let t = Target::new(Dialect::Sqlite, "main", "t", &all, &cat).unwrap();
         assert_eq!(t.rows_per_statement(1000), 320);
         assert_eq!(t.rows_per_statement(50), 50);
         assert_eq!(t.rows_per_statement(0), 1);
@@ -207,8 +207,8 @@ mod tests {
     #[test]
     fn rejects_unknown_and_duplicate_columns() {
         let cat = vec![col("a", "text")];
-        assert!(Target::new(Driver::Sqlite, "main", "t", &names(&["b"]), &cat).is_err());
-        assert!(Target::new(Driver::Sqlite, "main", "t", &names(&["a", "a"]), &cat).is_err());
-        assert!(Target::new(Driver::Sqlite, "main", "t", &[], &cat).is_err());
+        assert!(Target::new(Dialect::Sqlite, "main", "t", &names(&["b"]), &cat).is_err());
+        assert!(Target::new(Dialect::Sqlite, "main", "t", &names(&["a", "a"]), &cat).is_err());
+        assert!(Target::new(Dialect::Sqlite, "main", "t", &[], &cat).is_err());
     }
 }

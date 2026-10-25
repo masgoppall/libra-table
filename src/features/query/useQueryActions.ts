@@ -40,8 +40,9 @@ export interface QueryActionDeps {
 }
 
 export function useQueryActions(d: QueryActionDeps) {
-  const driver = d.ws.info.driver;
-  const split = (text: string) => api.splitStatements(driver, text);
+  const driver = d.ws.info.dialect;
+  // Split in the driver's own language (Redis commands, MongoDB calls…), not just SQL.
+  const split = (text: string) => api.splitStatements(d.ws.info.driver, text);
 
   /** The selection if any, else the statement under the cursor. */
   const target = async (view: EditorView): Promise<Target | null> => {

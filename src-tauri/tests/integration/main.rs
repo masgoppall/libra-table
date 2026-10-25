@@ -11,7 +11,7 @@ mod data;
 mod multi_db;
 mod schema;
 
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use serde_json::json;
 
 use common::{connection, session_for, OTHER_DB, TEST_DB};
@@ -25,7 +25,7 @@ async fn sqlite_end_to_end() {
     let path = dir.path().join("test.db");
     std::fs::File::create(&path).unwrap();
     let conn = connection(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         json!({ "filePath": path.display().to_string() }),
     );
     let session = session_for(conn, "main", None).await;
@@ -35,7 +35,7 @@ async fn sqlite_end_to_end() {
 #[tokio::test]
 async fn postgres_end_to_end() {
     let server = Server {
-        driver: Driver::Postgres,
+        driver: Dialect::Postgres,
         admin_env: "LIBRATABLE_TEST_PG_URL",
         sleep_sql: "SELECT pg_sleep(10)",
         force: " WITH (FORCE)",
@@ -46,7 +46,7 @@ async fn postgres_end_to_end() {
 #[tokio::test]
 async fn mysql_end_to_end() {
     let server = Server {
-        driver: Driver::Mysql,
+        driver: Dialect::Mysql,
         admin_env: "LIBRATABLE_TEST_MYSQL_URL",
         sleep_sql: "SELECT SLEEP(10)",
         force: "",
@@ -56,7 +56,7 @@ async fn mysql_end_to_end() {
 
 /// A Postgres or MySQL server reached through an admin URL.
 struct Server {
-    driver: Driver,
+    driver: Dialect,
     admin_env: &'static str,
     /// A query that runs long enough to be cancelled.
     sleep_sql: &'static str,
@@ -99,17 +99,17 @@ impl Server {
 
     async fn admin_exec(&self, admin: &str, sql: &str) {
         match self.driver {
-            Driver::Postgres => {
+            Dialect::Postgres => {
                 let pool = sqlx::PgPool::connect(admin).await.unwrap();
                 sqlx::query(sql).execute(&pool).await.unwrap();
                 pool.close().await;
             }
-            Driver::Mysql => {
+            Dialect::Mysql => {
                 let pool = sqlx::MySqlPool::connect(admin).await.unwrap();
                 sqlx::query(sql).execute(&pool).await.unwrap();
                 pool.close().await;
             }
-            Driver::Sqlite => unreachable!("SQLite has no server"),
+            Dialect::Sqlite => unreachable!("SQLite has no server"),
         }
     }
 }

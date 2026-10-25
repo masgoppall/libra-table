@@ -11,7 +11,7 @@ import { copyText } from "@/lib/clipboard";
 import { copyRows } from "@/lib/copyRows";
 import { formatCount, formatDuration, plural } from "@/lib/format";
 import { toastSuccess } from "@/services/errors";
-import { type Driver, type StatementResult } from "@/types";
+import { type Dialect, type StatementResult } from "@/types";
 import { ExplainView } from "./ExplainView";
 import { ResultTabs } from "./ResultTabs";
 import { type QueryRunner } from "./useQueryRunner";
@@ -108,7 +108,7 @@ function EmptyResults() {
 
 export function ResultsPane(props: {
   runner: QueryRunner;
-  driver: Driver;
+  driver: Dialect;
   rowLimit: number;
   onExport: (sql: string) => void;
 }) {

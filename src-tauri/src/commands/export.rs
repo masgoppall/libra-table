@@ -7,7 +7,6 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
-use crate::db::split;
 use crate::error::AppError;
 use crate::export::{self, ExportRequest};
 use crate::state::{AppState, Session};
@@ -40,7 +39,7 @@ pub async fn start_export(
     }
     // Exporting a query result runs the query again: safe mode applies (SAFE-2).
     if let export::Source::Query { sql } = &request.source {
-        let stmts: Vec<String> = split::split(s.driver(), sql)
+        let stmts: Vec<String> = crate::engines::split(s.connection.driver, sql)
             .into_iter()
             .map(|st| st.text)
             .collect();

@@ -2,7 +2,7 @@
 //!
 //! All network I/O, secrets and file writes live here in Rust; the React UI calls the
 //! commands in `commands/` and listens to events (`export-progress`, `tool-progress`,
-//! `console-log`, `deep-link`, `menu`).
+//! `console-log`, `deep-link`, `menu`, `close-requested`).
 
 pub mod app_lock;
 pub mod commands;
@@ -10,6 +10,8 @@ pub mod connections;
 pub mod console;
 pub mod db;
 pub mod diagram;
+pub mod drivers;
+pub mod engines;
 pub mod error;
 pub mod export;
 pub mod import;
@@ -22,6 +24,7 @@ pub mod setup;
 pub mod ssh;
 pub mod state;
 pub mod storage;
+pub mod window;
 
 use tauri::{Emitter, Manager};
 
@@ -35,6 +38,7 @@ pub fn run() {
         .on_menu_event(|app, event| {
             let _ = app.emit("menu", event.id().0.as_str());
         })
+        .on_window_event(window::on_event)
         .setup(|app| {
             let state = setup::build_state(app)?;
             let shortcuts = state.settings.lock().unwrap().shortcuts.clone();

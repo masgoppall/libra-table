@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use crate::db::engine::TableRef;
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 
@@ -96,6 +97,7 @@ pub async fn list_databases(pool: &DbPool, show_system: bool) -> AppResult<Vec<S
         DbPool::Postgres(p) => postgres::databases(p).await,
         DbPool::Mysql(p) => mysql::databases(p, show_system).await,
         DbPool::Sqlite(p) => sqlite::databases(p).await,
+        DbPool::Engine(e) => e.databases(show_system).await,
     }
 }
 
@@ -105,6 +107,7 @@ pub async fn list_schemas(pool: &DbPool, show_system: bool) -> AppResult<Vec<Str
         // A MySQL schema is a database.
         DbPool::Mysql(p) => mysql::databases(p, show_system).await,
         DbPool::Sqlite(p) => sqlite::databases(p).await,
+        DbPool::Engine(e) => e.schemas(show_system).await,
     }
 }
 
@@ -113,6 +116,7 @@ pub async fn list_objects(pool: &DbPool, schema: &str) -> AppResult<Vec<ObjectIn
         DbPool::Postgres(p) => postgres::objects(p, schema).await,
         DbPool::Mysql(p) => mysql::objects(p, schema).await,
         DbPool::Sqlite(p) => sqlite::objects(p, schema).await,
+        DbPool::Engine(e) => e.objects(schema).await,
     }
 }
 
@@ -121,6 +125,7 @@ pub async fn list_columns(pool: &DbPool, schema: &str, table: &str) -> AppResult
         DbPool::Postgres(p) => postgres::columns(p, schema, table).await?,
         DbPool::Mysql(p) => mysql::columns(p, schema, table).await?,
         DbPool::Sqlite(p) => sqlite::columns(p, schema, table).await?,
+        DbPool::Engine(e) => e.columns(schema, table).await?,
     };
     if cols.is_empty() {
         return Err(AppError::not_found(format!(
@@ -150,6 +155,14 @@ pub async fn table_structure(
         DbPool::Postgres(p) => postgres::structure(p, schema, table, columns).await,
         DbPool::Mysql(p) => mysql::structure(p, schema, table, columns).await,
         DbPool::Sqlite(p) => sqlite::structure(p, schema, table, columns).await,
+        DbPool::Engine(e) => {
+            let t = TableRef {
+                schema,
+                table,
+                columns: &columns,
+            };
+            e.structure(t).await
+        }
     }
 }
 
@@ -187,6 +200,7 @@ pub async fn completion(
         DbPool::Postgres(p) => postgres::completion_tables(p, schema).await?,
         DbPool::Mysql(p) => mysql::completion_tables(p, schema).await?,
         DbPool::Sqlite(p) => sqlite::completion_tables(p, schema, COMPLETION_TABLE_LIMIT).await?,
+        DbPool::Engine(e) => e.completion_tables(schema).await?,
     };
     while tables.len() > COMPLETION_TABLE_LIMIT {
         let last = tables.keys().next_back().cloned().unwrap();

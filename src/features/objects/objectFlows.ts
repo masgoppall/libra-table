@@ -40,7 +40,7 @@ export async function editInQueryTab(ws: Workspace, o: SchemaObjectRef, schema =
 
 /** Postgres can cascade to dependent objects; null when the user cancels. */
 async function askCascade(ws: Workspace, o: SchemaObjectRef): Promise<boolean | null> {
-  if (ws.info.driver !== "postgres") return false;
+  if (ws.info.dialect !== "postgres") return false;
   const what = KIND_LABEL[o.kind];
   const r = await store.get().dialog({
     kind: "confirm",

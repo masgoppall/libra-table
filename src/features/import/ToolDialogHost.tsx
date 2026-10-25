@@ -12,7 +12,7 @@ export function ToolDialogHost({ ws }: { ws: Workspace }) {
   if (!dialog || dialog.connectionId !== ws.connectionId) return null;
   switch (dialog.kind) {
     case "import":
-      return <ImportWizard dialog={dialog} driver={ws.info.driver} onClose={close} />;
+      return <ImportWizard dialog={dialog} driver={ws.info.dialect} onClose={close} />;
     case "sql-file":
       return <SqlFileDialog dialog={dialog} onClose={close} />;
     case "export-tables":

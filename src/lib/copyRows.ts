@@ -1,13 +1,13 @@
 // Rows → clipboard text in the formats of the grid's "Copy as" menu (GRD-6).
 
-import { type Cell, type Driver } from "@/types";
+import { type Cell, type Dialect } from "@/types";
 import { cellText } from "./cells";
 import { qualifiedName, quoteIdent, sqlLiteral } from "./sql";
 
 export type CopyFormat = "tsv" | "csv" | "json" | "sql" | "markdown";
 
 export interface CopyOptions {
-  driver: Driver;
+  driver: Dialect;
   /** Dotted table name for INSERT statements. */
   table?: string;
   header?: boolean;

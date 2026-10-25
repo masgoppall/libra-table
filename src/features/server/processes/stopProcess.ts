@@ -15,7 +15,7 @@ export async function stopProcess(
 ): Promise<boolean> {
   const id = ws.connectionId;
   const conn = store.connection(id);
-  const w = stopWording(ws.info.driver, p, action);
+  const w = stopWording(ws.info.dialect, p, action);
   try {
     const statements = await api.previewProcessAction(id, p.id, action);
     const prod = isProduction(conn);

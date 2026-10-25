@@ -23,6 +23,7 @@ export type ErrorKind =
   | "io"
   | "keychain"
   | "cancelled"
+  | "unsupported"
   | "internal";
 
 export type ErrorLayer = "ssh" | "database" | "app";

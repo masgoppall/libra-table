@@ -17,7 +17,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 use crate::state::Session;
 
 use args::{BackupRequest, RestoreRequest};
@@ -76,7 +76,7 @@ fn install_hint(tool: &str) -> &'static str {
 /// Finds `tool` for a server of `server_version`. `custom` is the user's saved path.
 pub async fn resolve(
     tool: &str,
-    driver: Driver,
+    driver: Dialect,
     server_version: &str,
     custom: Option<&str>,
 ) -> ToolChoice {
@@ -125,38 +125,38 @@ pub async fn resolve(
 }
 
 /// The tool a backup on `driver` uses (SQLite needs none).
-pub fn backup_tool(driver: Driver) -> Option<&'static str> {
+pub fn backup_tool(driver: Dialect) -> Option<&'static str> {
     match driver {
-        Driver::Postgres => Some("pg_dump"),
-        Driver::Mysql => Some("mysqldump"),
-        Driver::Sqlite => None,
+        Dialect::Postgres => Some("pg_dump"),
+        Dialect::Mysql => Some("mysqldump"),
+        Dialect::Sqlite => None,
     }
 }
 
 /// The restore tool before a file is chosen.
-pub fn restore_tool_default(driver: Driver) -> AppResult<&'static str> {
+pub fn restore_tool_default(driver: Dialect) -> AppResult<&'static str> {
     match driver {
-        Driver::Postgres => Ok("psql"),
-        Driver::Mysql => Ok("mysql"),
-        Driver::Sqlite => Err(AppError::validation(
+        Dialect::Postgres => Ok("psql"),
+        Dialect::Mysql => Ok("mysql"),
+        Dialect::Sqlite => Err(AppError::validation(
             "An SQLite backup is a database file: open it as a connection instead.",
         )),
     }
 }
 
 /// The tool a restore of the file at `path` uses: psql or pg_restore by its format.
-pub fn restore_tool(driver: Driver, path: &str) -> AppResult<&'static str> {
+pub fn restore_tool(driver: Dialect, path: &str) -> AppResult<&'static str> {
     restore_tool_default(driver)?;
     let mut head = [0u8; 5];
     let n = std::io::Read::read(&mut std::fs::File::open(path)?, &mut head)?;
     Ok(args::restore_tool(driver, &head[..n]))
 }
 
-pub fn client_tool(driver: Driver) -> &'static str {
+pub fn client_tool(driver: Dialect) -> &'static str {
     match driver {
-        Driver::Postgres => "psql",
-        Driver::Mysql => "mysql",
-        Driver::Sqlite => "sqlite3",
+        Dialect::Postgres => "psql",
+        Dialect::Mysql => "mysql",
+        Dialect::Sqlite => "sqlite3",
     }
 }
 
@@ -176,8 +176,8 @@ fn require_path(path: &str) -> AppResult<()> {
 
 fn backup_job(s: &Session, r: &BackupRequest, c: &ToolChoice) -> AppResult<Job> {
     let e = Endpoint::of(s);
-    let args = match s.driver() {
-        Driver::Postgres => args::pg_dump(&e, r),
+    let args = match s.dialect() {
+        Dialect::Postgres => args::pg_dump(&e, r),
         _ => {
             let server_mariadb = s.server_version.contains("MariaDB");
             let tool = (c.major.unwrap_or(0), c.mariadb);

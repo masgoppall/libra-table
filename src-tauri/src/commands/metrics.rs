@@ -33,8 +33,8 @@ pub async fn run_metric_query(
     variables: Vec<Variable>,
 ) -> Cmd<StatementResult> {
     let s = state.session_in(&id, database.as_deref()).await?;
-    let sql = metrics::substitute(s.driver(), &sql, &variables)?;
-    let stmts = metrics::read_statements(s.driver(), &sql)?;
+    let sql = metrics::substitute(s.dialect(), &sql, &variables)?;
+    let stmts = metrics::read_statements(s.dialect(), &sql)?;
     // Only reads get here, so safe mode has nothing to confirm; it stays the gate.
     confirm_safe_mode(&state, &s, &stmts, false)?;
     metrics::run_widget_query(&s, stmts).await

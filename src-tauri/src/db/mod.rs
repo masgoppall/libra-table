@@ -6,6 +6,7 @@ pub mod changes;
 pub mod choices;
 pub mod data;
 pub mod ddl;
+pub mod engine;
 pub mod exec;
 pub mod filter;
 pub mod meta;

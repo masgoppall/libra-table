@@ -1,6 +1,7 @@
 // Safe mode, read-only, startup query and keep-alive (TablePlus connection "advanced").
 
 import { Check } from "@/components/Check";
+import { builtInDialect, isFileDriver } from "@/domain/connection";
 import { KEEP_ALIVE_CHOICES, SAFE_MODES } from "@/domain/safeMode";
 import { type SafeMode } from "@/types";
 import { FieldNote } from "./fields";
@@ -38,10 +39,14 @@ export function SafetySection({ form }: { form: ConnectionFormState }) {
         className="input mono startup-query"
         rows={2}
         value={o.startupQuery}
-        placeholder={c.driver === "mysql" ? "SET time_zone = '+00:00';" : "SET search_path TO app;"}
+        placeholder={
+          builtInDialect(c.driver) === "mysql"
+            ? "SET time_zone = '+00:00';"
+            : "SET search_path TO app;"
+        }
         onChange={(e) => setOptions({ startupQuery: e.target.value })}
       />
-      {c.driver !== "sqlite" && (
+      {!isFileDriver(c.driver) && (
         <>
           <label>Keep alive</label>
           <select

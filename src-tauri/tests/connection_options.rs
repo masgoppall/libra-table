@@ -35,6 +35,7 @@ async fn exec(pool: &DbPool, sql: &str) -> Result<(), sqlx::Error> {
         DbPool::Postgres(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
         DbPool::Mysql(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
         DbPool::Sqlite(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 

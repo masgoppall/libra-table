@@ -47,7 +47,7 @@ pub async fn column_choices(
                 out.insert(column, mysql_enum_values(&column_type));
             }
         }
-        DbPool::Sqlite(_) => {}
+        DbPool::Sqlite(_) | DbPool::Engine(_) => {}
     }
     Ok(out)
 }

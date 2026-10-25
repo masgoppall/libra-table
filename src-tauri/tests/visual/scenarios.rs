@@ -8,7 +8,7 @@ use libratable_lib::export::{Format, Options};
 use libratable_lib::import::sqlrun::{self, SqlFileRequest};
 use libratable_lib::import::{self, FileFormat, ImportSummary, OnError, TxScope};
 use libratable_lib::metrics::{self, VarKind, Variable};
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::state::Session;
 use tokio_util::sync::CancellationToken;
 
@@ -16,7 +16,7 @@ use crate::files::{exec, int, request, tables_sql, text, write};
 
 pub async fn run(s: Arc<Session>, schema: String) {
     let dir = tempfile::tempdir().unwrap();
-    exec(&s.pool, tables_sql(s.driver())).await;
+    exec(&s.pool, tables_sql(s.dialect())).await;
     import_csv(&s, &schema, dir.path()).await;
     import_json(&s, &schema, dir.path()).await;
     import_errors(&s, &schema, dir.path()).await;
@@ -145,9 +145,9 @@ async fn schema_diagram(s: &Session, schema: &str) {
     assert_eq!(fk.ref_columns, vec!["id".to_string()]);
 }
 
-fn sql_script(driver: Driver) -> String {
+fn sql_script(driver: Dialect) -> String {
     let mut sql = String::new();
-    if driver == Driver::Mysql {
+    if driver == Dialect::Mysql {
         sql.push_str("/*!40101 SET NAMES utf8mb4 */;\n");
     }
     sql.push_str(
@@ -157,19 +157,19 @@ fn sql_script(driver: Driver) -> String {
          INSERT INTO notes VALUES (2, 'c');\n",
     );
     match driver {
-        Driver::Postgres => sql.push_str("COPY notes (id, body) FROM stdin;\n3\tcopied\n\\.\n"),
-        Driver::Mysql => sql.push_str(
+        Dialect::Postgres => sql.push_str("COPY notes (id, body) FROM stdin;\n3\tcopied\n\\.\n"),
+        Dialect::Mysql => sql.push_str(
             "DELIMITER ;;\nCREATE TRIGGER notes_bi BEFORE INSERT ON notes FOR EACH ROW \
              BEGIN\n  SET NEW.body = UPPER(NEW.body);\nEND ;;\nDELIMITER ;\n\
              INSERT INTO notes VALUES (3, 'low');\n",
         ),
-        Driver::Sqlite => sql.push_str("INSERT INTO notes VALUES (3, 'x');\n"),
+        Dialect::Sqlite => sql.push_str("INSERT INTO notes VALUES (3, 'x');\n"),
     }
     sql
 }
 
 async fn sql_file(s: &Session, dir: &std::path::Path) {
-    let path = write(dir, "script.sql", &sql_script(s.driver()));
+    let path = write(dir, "script.sql", &sql_script(s.dialect()));
     let req = SqlFileRequest {
         path: path.display().to_string(),
         stop_on_error: false,
@@ -177,13 +177,13 @@ async fn sql_file(s: &Session, dir: &std::path::Path) {
     let token = CancellationToken::new();
     let sum = sqlrun::run(s, &req, &token, |_| {}).await.unwrap();
     assert_eq!(sum.failed, 1, "{sum:?}");
-    let offset = u64::from(s.driver() == Driver::Mysql);
+    let offset = u64::from(s.dialect() == Dialect::Mysql);
     assert_eq!(
         (sum.errors[0].index, sum.errors[0].line),
         (3 + offset, 3 + offset)
     );
     assert_eq!(int(&s.pool, "SELECT count(*) FROM notes").await, 3);
-    if s.driver() == Driver::Mysql {
+    if s.dialect() == Dialect::Mysql {
         let body = text(&s.pool, "SELECT body FROM notes WHERE id = 3").await;
         assert_eq!(body.as_deref(), Some("LOW"));
     }
@@ -218,7 +218,7 @@ async fn export_two_tables(s: &Session, schema: &str, dir: &std::path::Path) {
 }
 
 async fn widget_queries(s: &Session) {
-    let d = s.driver();
+    let d = s.dialect();
     let run = |sql: &str| metrics::read_statements(d, sql);
     let r = metrics::run_widget_query(s, run("SELECT count(*) AS n FROM authors").unwrap())
         .await

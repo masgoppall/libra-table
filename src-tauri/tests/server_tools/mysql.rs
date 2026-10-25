@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::server::process::{self, ProcessAction, ProcessInfo};
 use libratable_lib::server::tools::args;
 use libratable_lib::server::users::{self, Grantee};
@@ -30,7 +30,7 @@ pub async fn run(admin: String) {
             .unwrap();
     }
     let scenario = async {
-        let s = session(Driver::Mysql, &admin, DB, None).await;
+        let s = session(Dialect::Mysql, &admin, DB, None).await;
         exec(
             &s.pool,
             "CREATE TABLE items (id int PRIMARY KEY, name text); \
@@ -166,8 +166,8 @@ async fn accounts(s: &Session) {
 /// MYSQL_PWD, and its quote and backslash survived the escaping.
 async fn backup_restore(admin_session: &Session, admin: &str) {
     let login = Some((USER, PASSWORD));
-    let s = session(Driver::Mysql, admin, DB, login).await;
-    let target = session(Driver::Mysql, admin, RESTORE_DB, login).await;
+    let s = session(Dialect::Mysql, admin, DB, login).await;
+    let target = session(Dialect::Mysql, admin, RESTORE_DB, login).await;
     if let (Some(dump), Some(client)) = (tool(&s, "mysqldump").await, tool(&s, "mysql").await) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("db.sql").display().to_string();

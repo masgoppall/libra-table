@@ -89,6 +89,7 @@ pub async fn schema_diagram(pool: &DbPool, schema: &str) -> AppResult<SchemaDiag
         DbPool::Postgres(p) => postgres::load(p, schema).await?,
         DbPool::Mysql(p) => mysql::load(p, schema).await?,
         DbPool::Sqlite(p) => sqlite::load(p, schema).await?,
+        DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
     };
     let mut tables = group(columns);
     let truncated = tables.len() > MAX_TABLES;

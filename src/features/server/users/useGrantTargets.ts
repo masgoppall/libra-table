@@ -8,7 +8,7 @@ import { type TargetFields } from "./userModel";
 
 export function useGrantTargets(ws: Workspace, db: Db, fields: TargetFields) {
   const id = ws.connectionId;
-  const pg = ws.info.driver === "postgres";
+  const pg = ws.info.dialect === "postgres";
   const [databases, setDatabases] = useState<string[]>([]);
   const [schemas, setSchemas] = useState<string[]>([]);
   const [tables, setTables] = useState<string[]>([]);

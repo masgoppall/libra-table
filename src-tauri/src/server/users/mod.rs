@@ -16,7 +16,7 @@ use sqlx::Executor;
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 pub use privileges::{privilege_options, PrivilegeOption};
 
@@ -186,11 +186,11 @@ impl Stmt {
 }
 
 pub async fn list(pool: &DbPool) -> AppResult<UserList> {
-    let driver = pool.driver();
+    let driver = pool.dialect().ok_or_else(crate::db::engine::sqlx_only)?;
     let (roles, accounts) = match pool {
         DbPool::Postgres(p) => (postgres::list(p).await?, Vec::new()),
         DbPool::Mysql(p) => (Vec::new(), mysql::list(p).await?),
-        DbPool::Sqlite(_) => return Err(no_users()),
+        DbPool::Sqlite(_) | DbPool::Engine(_) => return Err(no_users()),
     };
     Ok(UserList {
         roles,
@@ -204,7 +204,7 @@ pub async fn grants(pool: &DbPool, grantee: &Grantee) -> AppResult<Vec<String>> 
     match pool {
         DbPool::Postgres(p) => postgres::grants(p, &grantee.name).await,
         DbPool::Mysql(p) => mysql::grants(p, grantee).await,
-        DbPool::Sqlite(_) => Err(no_users()),
+        DbPool::Sqlite(_) | DbPool::Engine(_) => Err(no_users()),
     }
 }
 
@@ -221,7 +221,7 @@ pub async fn plan(pool: &DbPool, change: &UserChange) -> AppResult<Vec<Stmt>> {
         }
         (DbPool::Postgres(_), _) => postgres::plan(change, None),
         (DbPool::Mysql(_), _) => mysql::plan(change, quoting),
-        (DbPool::Sqlite(_), _) => Err(no_users()),
+        (DbPool::Sqlite(_) | DbPool::Engine(_), _) => Err(no_users()),
     }
 }
 
@@ -242,7 +242,7 @@ pub async fn apply(pool: &DbPool, stmts: &[Stmt]) -> AppResult<()> {
                 (&mut *conn).execute(sqlx::raw_sql(&s.run)).await?;
             }
         }
-        DbPool::Sqlite(_) => return Err(no_users()),
+        DbPool::Sqlite(_) | DbPool::Engine(_) => return Err(no_users()),
     }
     Ok(())
 }
@@ -270,7 +270,7 @@ fn check_password(p: &str) -> AppResult<()> {
 }
 
 /// Grantee, target and privileges must fit the driver.
-fn check_grant(driver: Driver, privileges: &[String], target: &GrantTarget) -> AppResult<()> {
+fn check_grant(driver: Dialect, privileges: &[String], target: &GrantTarget) -> AppResult<()> {
     let allowed = privileges::allowed(driver, target.kind()).ok_or_else(|| {
         AppError::validation(format!(
             "{} can't grant on that kind of object.",

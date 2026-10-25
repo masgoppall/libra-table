@@ -9,7 +9,7 @@ use sqlx::{MySqlPool, Row};
 
 use crate::db::sql::{mysql_literal, qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     fk_definition, group_columns, kind_label, ColumnInfo, ForeignKeyInfo, IndexInfo, ObjectInfo,
@@ -17,7 +17,7 @@ use super::{
 };
 
 const SYSTEM_DATABASES: &[&str] = &["information_schema", "mysql", "performance_schema", "sys"];
-const D: Driver = Driver::Mysql;
+const D: Dialect = Dialect::Mysql;
 
 const DATABASES: &str =
     "SELECT CAST(SCHEMA_NAME AS CHAR) FROM information_schema.SCHEMATA ORDER BY SCHEMA_NAME";

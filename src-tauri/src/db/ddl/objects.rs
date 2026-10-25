@@ -7,7 +7,7 @@ use crate::db::objects::{ObjectKind, ObjectRef};
 use crate::db::sql::{literal, qualified, quote_ident};
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::clauses::{bad, need_name, sql};
 use super::plan::{Ctx, Step};
@@ -75,7 +75,7 @@ fn one_routine(mut found: Vec<String>, object: &ObjectRef) -> AppResult<String> 
 
 /// The statements of the object changes (the other variants are handled in `plan`).
 pub(super) fn steps(
-    driver: Driver,
+    driver: Dialect,
     change: &SchemaChange,
     ctx: &Ctx,
     steps: &mut Vec<Step>,
@@ -114,8 +114,8 @@ pub(super) fn steps(
     Ok(())
 }
 
-fn need_postgres(driver: Driver, kind: ObjectKind) -> AppResult<()> {
-    if driver == Driver::Postgres {
+fn need_postgres(driver: Dialect, kind: ObjectKind) -> AppResult<()> {
+    if driver == Dialect::Postgres {
         Ok(())
     } else {
         Err(no_such(kind))
@@ -127,13 +127,13 @@ fn no_such(kind: ObjectKind) -> AppError {
 }
 
 fn drop_object(
-    driver: Driver,
+    driver: Dialect,
     schema: &str,
     object: &ObjectRef,
     cascade: bool,
     ctx: &Ctx,
 ) -> AppResult<String> {
-    use Driver::{Mysql, Postgres, Sqlite};
+    use Dialect::{Mysql, Postgres, Sqlite};
     use ObjectKind::*;
     need_name("The object", &object.name)?;
     let target = qualified(driver, schema, &object.name);
@@ -190,7 +190,7 @@ mod tests {
         serde_json::from_value(v).unwrap()
     }
 
-    fn one(driver: Driver, c: serde_json::Value, ctx: &Ctx) -> AppResult<String> {
+    fn one(driver: Dialect, c: serde_json::Value, ctx: &Ctx) -> AppResult<String> {
         let plan = build(driver, &change(c), ctx)?;
         match plan.steps.as_slice() {
             [Step::Sql(s)] => Ok(s.clone()),
@@ -211,13 +211,13 @@ mod tests {
         let mut c = drop("function", "add");
         c["cascade"] = json!(true);
         assert_eq!(
-            one(Driver::Postgres, c, &ctx).unwrap(),
+            one(Dialect::Postgres, c, &ctx).unwrap(),
             r#"DROP FUNCTION "app"."add"(a integer, b text) CASCADE"#
         );
         // Without the catalog lookup there is nothing to splice in.
-        assert!(one(Driver::Postgres, drop("procedure", "p"), &Ctx::default()).is_err());
+        assert!(one(Dialect::Postgres, drop("procedure", "p"), &Ctx::default()).is_err());
         assert_eq!(
-            one(Driver::Mysql, drop("procedure", "p"), &Ctx::default()).unwrap(),
+            one(Dialect::Mysql, drop("procedure", "p"), &Ctx::default()).unwrap(),
             "DROP PROCEDURE `app`.`p`"
         );
     }
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn drops_other_objects_per_driver() {
         let none = Ctx::default();
-        let pg = |c| one(Driver::Postgres, c, &none).unwrap();
+        let pg = |c| one(Dialect::Postgres, c, &none).unwrap();
         assert_eq!(pg(drop("sequence", "ids")), r#"DROP SEQUENCE "app"."ids""#);
         assert_eq!(
             pg(drop("materialized_view", "totals")),
@@ -235,11 +235,11 @@ mod tests {
         trg["object"]["table"] = json!("people");
         assert_eq!(pg(trg.clone()), r#"DROP TRIGGER "audit" ON "app"."people""#);
         assert_eq!(
-            one(Driver::Sqlite, trg.clone(), &none).unwrap(),
+            one(Dialect::Sqlite, trg.clone(), &none).unwrap(),
             r#"DROP TRIGGER "app"."audit""#
         );
         assert_eq!(
-            one(Driver::Mysql, trg, &none).unwrap(),
+            one(Dialect::Mysql, trg, &none).unwrap(),
             "DROP TRIGGER `app`.`audit`"
         );
         let domain = Ctx {
@@ -247,17 +247,17 @@ mod tests {
             ..Ctx::default()
         };
         assert_eq!(
-            one(Driver::Postgres, drop("type", "pos"), &domain).unwrap(),
+            one(Dialect::Postgres, drop("type", "pos"), &domain).unwrap(),
             r#"DROP DOMAIN "app"."pos""#
         );
         assert_eq!(
-            one(Driver::Mysql, drop("event", "nightly"), &none).unwrap(),
+            one(Dialect::Mysql, drop("event", "nightly"), &none).unwrap(),
             "DROP EVENT `app`.`nightly`"
         );
         // Kinds the driver doesn't have are refused.
-        assert!(one(Driver::Sqlite, drop("function", "f"), &none).is_err());
-        assert!(one(Driver::Mysql, drop("sequence", "s"), &none).is_err());
-        assert!(one(Driver::Postgres, drop("trigger", "t"), &none).is_err());
+        assert!(one(Dialect::Sqlite, drop("function", "f"), &none).is_err());
+        assert!(one(Dialect::Mysql, drop("sequence", "s"), &none).is_err());
+        assert!(one(Dialect::Postgres, drop("trigger", "t"), &none).is_err());
     }
 
     #[test]
@@ -268,15 +268,15 @@ mod tests {
             "concurrently": true
         });
         assert_eq!(
-            one(Driver::Postgres, refresh.clone(), &none).unwrap(),
+            one(Dialect::Postgres, refresh.clone(), &none).unwrap(),
             r#"REFRESH MATERIALIZED VIEW CONCURRENTLY "app"."totals""#
         );
-        assert!(one(Driver::Mysql, refresh, &none).is_err());
+        assert!(one(Dialect::Mysql, refresh, &none).is_err());
         let reset = json!({
             "kind": "reset_sequence", "schema": "app", "name": "it's", "value": 100
         });
         assert_eq!(
-            one(Driver::Postgres, reset, &none).unwrap(),
+            one(Dialect::Postgres, reset, &none).unwrap(),
             r#"SELECT setval('"app"."it''s"', 100, false)"#
         );
     }

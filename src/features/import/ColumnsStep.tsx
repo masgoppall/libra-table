@@ -3,7 +3,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { Check } from "@/components/Check";
-import { type Driver } from "@/types";
+import { type Dialect } from "@/types";
 import { TypeSuggestions } from "../structure/TypeSuggestions";
 import { type ImportOptions, type NewTableColumn } from "./importModel";
 import { type ImportWizardState } from "./useImportWizard";
@@ -56,7 +56,7 @@ function Mapping({ w }: { w: ImportWizardState }) {
   );
 }
 
-function NewTable({ w, driver }: { w: ImportWizardState; driver: Driver }) {
+function NewTable({ w, driver }: { w: ImportWizardState; driver: Dialect }) {
   const set = (i: number, patch: Partial<NewTableColumn>) =>
     w.setNewColumns(w.newColumns.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   return (
@@ -154,7 +154,7 @@ function RunOptions(props: { o: ImportOptions; set: (o: ImportOptions) => void }
   );
 }
 
-export function ColumnsStep({ w, driver }: { w: ImportWizardState; driver: Driver }) {
+export function ColumnsStep({ w, driver }: { w: ImportWizardState; driver: Dialect }) {
   return (
     <>
       {w.isNew ? <NewTable w={w} driver={driver} /> : <Mapping w={w} />}

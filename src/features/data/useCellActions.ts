@@ -7,12 +7,12 @@ import { copyText } from "@/lib/clipboard";
 import { copyRows, type CopyFormat } from "@/lib/copyRows";
 import { plural } from "@/lib/format";
 import { toastSuccess } from "@/services/errors";
-import { type Cell, type CellInput, type Driver, type GridValue } from "@/types";
+import { type Cell, type CellInput, type Dialect, type GridValue } from "@/types";
 import { cellMenu } from "./cellMenu";
 import { referenceOf, type TableRelations } from "./useTableRelations";
 
 export interface CellActionsContext {
-  driver: Driver;
+  driver: Dialect;
   qualifiedTable: string;
   columns: GridColumn[];
   relations: TableRelations;
@@ -24,7 +24,7 @@ export interface CellActionsContext {
   onEdit: (r: number, c: number, v: CellInput) => void;
   filterBy: (column: string, v: Cell) => void;
   deleteRows: () => void;
-  quickLook: (r: number, c: number) => void;
+  quickLook?: (r: number, c: number) => void;
   openReference: (ref: { table: string; column: string }, value: Cell) => void;
   menu: ContextMenuApi;
 }
@@ -58,7 +58,7 @@ export function useCellActions(x: CellActionsContext) {
         setValue: (v) => x.onEdit(r, c, v),
         filterBy: (v) => x.filterBy(column, v),
         deleteRows: x.deleteRows,
-        quickLook: () => x.quickLook(r, c),
+        quickLook: x.quickLook && (() => x.quickLook?.(r, c)),
         reference:
           ref && target !== null
             ? { table: ref.table, open: () => x.openReference(ref, target) }

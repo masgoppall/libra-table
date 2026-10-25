@@ -8,14 +8,14 @@ use sqlx::PgPool;
 
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::{
     group_columns, kind_label, ColumnInfo, ForeignKeyInfo, IndexInfo, ObjectInfo, TableStructure,
 };
 
 const SYSTEM_SCHEMAS: &[&str] = &["pg_catalog", "information_schema"];
-const D: Driver = Driver::Postgres;
+const D: Dialect = Dialect::Postgres;
 
 const DATABASES: &str = "SELECT datname::text FROM pg_database \
     WHERE datallowconn AND NOT datistemplate ORDER BY datname";

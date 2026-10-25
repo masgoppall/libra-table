@@ -8,7 +8,7 @@ use super::source::{self, CsvEvent, Record};
 use super::sqlfile::{Piece, StatementReader};
 use super::{preview_file, CsvOptions, Encoding, FileFormat, Kind, SourceSpec};
 use crate::db::split;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 fn csv_events(text: &[u8], o: &CsvOptions) -> Vec<CsvEvent> {
     let mut out = Vec::new();
@@ -151,7 +151,7 @@ fn preview_infers_types_from_files() {
         format,
         csv: CsvOptions::default(),
     };
-    let p = preview_file(&spec(&csv, FileFormat::Csv), Driver::Postgres).unwrap();
+    let p = preview_file(&spec(&csv, FileFormat::Csv), Dialect::Postgres).unwrap();
     let kinds: Vec<Kind> = p.columns.iter().map(|c| c.kind).collect();
     assert_eq!(
         kinds,
@@ -166,7 +166,7 @@ fn preview_infers_types_from_files() {
         r#"[{"id": 1, "tags": ["a"]}, {"id": 2, "ok": true}]"#,
     )
     .unwrap();
-    let p = preview_file(&spec(&json, FileFormat::Json), Driver::Mysql).unwrap();
+    let p = preview_file(&spec(&json, FileFormat::Json), Dialect::Mysql).unwrap();
     let names: Vec<&str> = p.columns.iter().map(|c| c.name.as_str()).collect();
     assert_eq!(names, vec!["id", "tags", "ok"]);
     let types: Vec<&str> = p
@@ -177,7 +177,7 @@ fn preview_infers_types_from_files() {
     assert_eq!(types, vec!["int", "json", "tinyint(1)"]);
 }
 
-fn pieces(sql: &str, driver: Driver, split_at: usize) -> Vec<Piece> {
+fn pieces(sql: &str, driver: Dialect, split_at: usize) -> Vec<Piece> {
     StatementReader::with_split_at(Cursor::new(sql.as_bytes().to_vec()), driver, split_at)
         .map(Result::unwrap)
         .collect()
@@ -201,14 +201,17 @@ fn sql_file_streams_like_a_whole_split() {
         ));
     }
     sql.push_str("CREATE FUNCTION f() RETURNS int AS $$ BEGIN RETURN 1; END $$ LANGUAGE plpgsql;");
-    let whole: Vec<String> = split::split(Driver::Postgres, &sql)
+    let whole: Vec<String> = split::split(Dialect::Postgres, &sql)
         .into_iter()
         .map(|s| s.text)
         .collect();
     for split_at in [1, 7, 64, 1 << 20] {
-        assert_eq!(statements(&pieces(&sql, Driver::Postgres, split_at)), whole);
+        assert_eq!(
+            statements(&pieces(&sql, Dialect::Postgres, split_at)),
+            whole
+        );
     }
-    let p = pieces(&sql, Driver::Postgres, 16);
+    let p = pieces(&sql, Dialect::Postgres, 16);
     let Piece::Statement { index, line, .. } = &p[2] else {
         panic!()
     };
@@ -220,7 +223,7 @@ fn sql_file_mysql_delimiters() {
     let sql = "/*!40101 SET NAMES utf8 */;\nDELIMITER ;;\n\
                CREATE TRIGGER t1 BEFORE INSERT ON x FOR EACH ROW BEGIN\n  SET NEW.a = 1;\nEND ;;\n\
                DELIMITER ;\nSELECT 1;\n";
-    let st = statements(&pieces(sql, Driver::Mysql, 8));
+    let st = statements(&pieces(sql, Dialect::Mysql, 8));
     assert_eq!(st.len(), 3);
     assert_eq!(st[0], "/*!40101 SET NAMES utf8 */");
     assert!(st[1].starts_with("CREATE TRIGGER") && st[1].ends_with("END"));
@@ -231,7 +234,7 @@ fn sql_file_mysql_delimiters() {
 fn sql_file_postgres_copy_and_meta_commands() {
     let sql = "\\connect shop\nCREATE TABLE t (a int, b text);\n\
                COPY public.t (a, b) FROM stdin;\n1\tx;y\n2\t\\N\n\\.\nSELECT 2;\n";
-    let p = pieces(sql, Driver::Postgres, 4);
+    let p = pieces(sql, Dialect::Postgres, 4);
     assert_eq!(
         statements(&p),
         vec!["CREATE TABLE t (a int, b text)", "SELECT 2"]
@@ -250,7 +253,7 @@ fn sql_file_postgres_copy_and_meta_commands() {
     );
     assert_eq!(p[copy + 1], Piece::CopyData(b"1\tx;y\n2\t\\N\n".to_vec()));
     assert_eq!(p[copy + 2], Piece::CopyEnd);
-    let mut r = StatementReader::new(Cursor::new(sql.as_bytes().to_vec()), Driver::Postgres);
+    let mut r = StatementReader::new(Cursor::new(sql.as_bytes().to_vec()), Dialect::Postgres);
     r.by_ref().for_each(drop);
     assert_eq!(r.skipped_commands, 1);
 }

@@ -6,7 +6,8 @@ use tauri::State;
 
 use crate::db::changes::{self, Change, CommitResult, Stmt};
 use crate::db::data::{self, FilterPreview, PageRequest, PageResult, RowCount};
-use crate::db::{cell, choices};
+use crate::db::engine::TableRef;
+use crate::db::{cell, choices, DbPool};
 use crate::state::{AppState, Session};
 
 use super::{confirm_production, record_history, Cmd, Outcome, Timer};
@@ -52,10 +53,18 @@ async fn statements(
     changes: &[Change],
 ) -> Cmd<(Vec<Stmt>, Vec<String>)> {
     let cols = s.columns(schema, table).await?;
-    let stmts = changes::Builder::new(s.driver(), schema, table, &cols).build(changes)?;
+    if let DbPool::Engine(e) = &s.pool {
+        let t = TableRef {
+            schema,
+            table,
+            columns: &cols,
+        };
+        return Ok((Vec::new(), e.preview_changes(t, changes)?));
+    }
+    let stmts = changes::Builder::new(s.dialect(), schema, table, &cols).build(changes)?;
     let previews = stmts
         .iter()
-        .map(|st| changes::preview(s.driver(), st))
+        .map(|st| changes::preview(s.dialect(), st))
         .collect();
     Ok((stmts, previews))
 }
@@ -93,7 +102,18 @@ pub async fn commit_changes(
     }
     confirm_production(&state, &s, &previews, confirmed)?;
     let timer = Timer::start();
-    let result = changes::apply(&s.pool, &stmts).await;
+    let result = match &s.pool {
+        DbPool::Engine(e) => {
+            let cols = s.columns(&schema, &table).await?;
+            let t = TableRef {
+                schema: &schema,
+                table: &table,
+                columns: &cols,
+            };
+            e.apply_changes(t, &changes).await
+        }
+        _ => changes::apply(&s.pool, &stmts).await,
+    };
     let outcome = match &result {
         Ok(n) => Outcome {
             status: "ok",
@@ -125,6 +145,15 @@ pub async fn fetch_cell(
     column: String,
 ) -> Cmd<cell::CellContent> {
     let s = state.session_in(&id, database.as_deref()).await?;
+    if let DbPool::Engine(e) = &s.pool {
+        let cols = s.columns(&schema, &table).await?;
+        let t = TableRef {
+            schema: &schema,
+            table: &table,
+            columns: &cols,
+        };
+        return e.fetch_cell(t, &pk, &column).await;
+    }
     cell::fetch_cell(&s, &schema, &table, &pk, &column).await
 }
 
@@ -138,5 +167,14 @@ pub async fn column_choices(
     table: String,
 ) -> Cmd<BTreeMap<String, Vec<String>>> {
     let s = state.session_in(&id, database.as_deref()).await?;
+    if let DbPool::Engine(e) = &s.pool {
+        let cols = s.columns(&schema, &table).await?;
+        let t = TableRef {
+            schema: &schema,
+            table: &table,
+            columns: &cols,
+        };
+        return e.column_choices(t).await;
+    }
     choices::column_choices(&s.pool, &schema, &table).await
 }

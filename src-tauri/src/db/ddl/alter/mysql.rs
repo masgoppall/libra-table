@@ -3,7 +3,7 @@
 
 use crate::db::sql::{literal_for, qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::super::clauses::{
     column_def, comment_of, create_index, fk_clause, quoted_list, same_default, same_type, sql,
@@ -11,7 +11,7 @@ use super::super::clauses::{
 use super::super::plan::{Ctx, Step};
 use super::super::spec::{AlterOp, ColumnSpec};
 
-const D: Driver = Driver::Mysql;
+const D: Dialect = Dialect::Mysql;
 
 pub(super) fn alter(
     schema: &str,

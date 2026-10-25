@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::db::{self, DbPool, Target};
 use crate::error::{AppError, AppResult};
-use crate::models::{Connection, Driver, PromptedSecrets};
+use crate::models::{Connection, Dialect, PromptedSecrets};
 use crate::ssh::{self, KeySource, OpenError, Tunnel, TunnelParams};
 use crate::state::{AppState, Session};
 use crate::storage::secrets::SecretKind;
@@ -41,8 +41,8 @@ pub async fn connect(
         }
     }
     let version = pool.server_version().await.unwrap_or_default();
-    let database = match c.driver {
-        Driver::Sqlite => "main".to_string(),
+    let database = match c.driver.sqlx_dialect() {
+        Some(Dialect::Sqlite) => "main".to_string(),
         _ => current_database(&pool)
             .await
             .unwrap_or_else(|_| c.db.database.clone()),
@@ -153,6 +153,7 @@ fn info(s: &Session) -> ConnectInfo {
     ConnectInfo {
         connection_id: s.connection.id.clone(),
         driver: s.connection.driver,
+        dialect: s.connection.driver.dialect(),
         database: s.database.clone(),
         server_version: s.server_version.clone(),
         through_tunnel: s.tunnel.is_some(),
@@ -171,6 +172,7 @@ async fn current_database(pool: &DbPool) -> AppResult<String> {
             .await?
             .unwrap_or_default(),
         DbPool::Sqlite(_) => "main".into(),
+        DbPool::Engine(e) => e.current_database().await?,
     })
 }
 

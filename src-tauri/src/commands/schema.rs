@@ -29,7 +29,7 @@ async fn ddl_session(
 /// The plan for `change` and the exact statements it runs.
 async fn plan(s: &Session, change: &SchemaChange) -> Cmd<(Ctx, Plan, Vec<String>)> {
     let ctx = ddl::context(&s.pool, change).await?;
-    let plan = ddl::build(s.driver(), change, &ctx)?;
+    let plan = ddl::build(s.dialect(), change, &ctx)?;
     let statements = ddl::preview(&s.pool, &plan, change, &ctx).await?;
     Ok((ctx, plan, statements))
 }

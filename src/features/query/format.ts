@@ -2,9 +2,9 @@
 // imported (formatDialect), and only the lazily loaded query chunk imports this file.
 
 import { type DialectOptions, formatDialect, mysql, postgresql, sqlite } from "sql-formatter";
-import { type Driver } from "@/types";
+import { type Dialect } from "@/types";
 
-const DIALECTS: Record<Driver, DialectOptions> = { postgres: postgresql, mysql, sqlite };
+const DIALECTS: Record<Dialect, DialectOptions> = { postgres: postgresql, mysql, sqlite };
 
 /** Keeps `:name` variables and the driver's own placeholders intact. */
 const PARAMS = {
@@ -14,7 +14,7 @@ const PARAMS = {
 };
 
 /** Throws when the text can't be parsed (the message says where). */
-export function formatSql(text: string, driver: Driver): string {
+export function formatSql(text: string, driver: Dialect): string {
   return formatDialect(text, {
     dialect: DIALECTS[driver],
     keywordCase: "upper",

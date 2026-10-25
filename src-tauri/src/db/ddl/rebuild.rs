@@ -12,13 +12,13 @@ use sqlparser::tokenizer::Token;
 use crate::db::meta::ForeignKeyInfo;
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::clauses::{bad, column_def, fk_clause, quoted_list, SQLITE_AUTOINCREMENT_RULE};
 use super::plan::Rebuild;
 use super::spec::{AlterOp, ColumnSpec, ForeignKeySpec};
 
-const D: Driver = Driver::Sqlite;
+const D: Dialect = Dialect::Sqlite;
 
 /// Name of the new table while it is being filled.
 const TMP_PREFIX: &str = "_libratable_new_";

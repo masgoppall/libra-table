@@ -87,7 +87,7 @@ export const createWorkspacesSlice: StateCreator<AppState, [], [], WorkspacesSli
     },
 
     switchDatabase: (id, database) =>
-      patch(id, (ws) => ({ database, schema: defaultSchema(ws.info.driver, database) })),
+      patch(id, (ws) => ({ database, schema: defaultSchema(ws.info.dialect, database) })),
 
     toggleSidebar: (id) => patch(id, (ws) => ({ sidebarHidden: !ws.sidebarHidden })),
 

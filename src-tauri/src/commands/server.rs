@@ -21,7 +21,7 @@ fn own_ids(state: &AppState, s: &Session) -> Vec<i64> {
         .filter_map(|r| match &r.target {
             CancelTarget::Postgres { pid, .. } => Some(*pid as i64),
             CancelTarget::Mysql { id, .. } => Some(*id as i64),
-            CancelTarget::Sqlite { .. } => None,
+            CancelTarget::Sqlite { .. } | CancelTarget::Engine(_) => None,
         })
         .collect();
     if let Ok(editor) = s.editor.try_lock() {
@@ -49,7 +49,7 @@ pub async fn preview_process_action(
     action: ProcessAction,
 ) -> Cmd<Vec<String>> {
     let s = state.session(&id).await?;
-    Ok(vec![process::action_sql(s.driver(), action, process_id)?])
+    Ok(vec![process::action_sql(s.dialect(), action, process_id)?])
 }
 
 #[tauri::command]
@@ -61,7 +61,7 @@ pub async fn run_process_action(
     confirmed: bool,
 ) -> Cmd<()> {
     let s = state.session(&id).await?;
-    let sql = process::action_sql(s.driver(), action, process_id)?;
+    let sql = process::action_sql(s.dialect(), action, process_id)?;
     confirm_production(&state, &s, std::slice::from_ref(&sql), confirmed)?;
     let timer = Timer::start();
     let result = process::run_action(&s.pool, action, process_id).await;

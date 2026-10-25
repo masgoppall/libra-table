@@ -35,6 +35,7 @@ impl Conn {
             DbPool::Postgres(p) => Conn::Postgres(p.acquire().await?),
             DbPool::Mysql(p) => Conn::Mysql(p.acquire().await?),
             DbPool::Sqlite(p) => Conn::Sqlite(p.acquire().await?),
+            DbPool::Engine(_) => return Err(crate::db::engine::sqlx_only()),
         })
     }
 

@@ -1,10 +1,10 @@
 // Defaults and suggestions for the table designer, per driver.
 
-import { type ColumnInfo, type ColumnSpec, type Driver } from "@/types";
+import { type ColumnInfo, type ColumnSpec, type Dialect } from "@/types";
 
 export const FK_ACTIONS = ["NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT"];
 
-export const SQL_TYPES: Record<Driver, string[]> = {
+export const SQL_TYPES: Record<Dialect, string[]> = {
   postgres: [
     "integer",
     "bigint",
@@ -59,7 +59,7 @@ export const SQL_TYPES: Record<Driver, string[]> = {
   sqlite: ["INTEGER", "TEXT", "REAL", "NUMERIC", "BLOB", "BOOLEAN", "DATETIME", "VARCHAR(255)"],
 };
 
-export const SQL_DEFAULTS: Record<Driver, string[]> = {
+export const SQL_DEFAULTS: Record<Dialect, string[]> = {
   postgres: ["NULL", "0", "''", "now()", "CURRENT_DATE", "gen_random_uuid()", "true", "false"],
   mysql: ["NULL", "0", "''", "CURRENT_TIMESTAMP", "(uuid())", "1"],
   sqlite: ["NULL", "0", "''", "CURRENT_TIMESTAMP", "(datetime('now'))", "1"],
@@ -79,7 +79,7 @@ export function columnSpec(c: ColumnInfo): ColumnSpec {
 }
 
 /** The first column of a new table is an auto-increment id; later ones are text. */
-export function blankColumn(driver: Driver, first: boolean): ColumnSpec {
+export function blankColumn(driver: Dialect, first: boolean): ColumnSpec {
   const base = { default: null, unique: false, comment: null };
   if (first) {
     const dataType = driver === "sqlite" ? "INTEGER" : "bigint";

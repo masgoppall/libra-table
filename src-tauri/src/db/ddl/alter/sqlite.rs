@@ -3,7 +3,7 @@
 
 use crate::db::sql::{qualified, quote_ident};
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::super::clauses::{
     bad, column_def, comment_of, create_index, need_name, same_default, same_type, sql,
@@ -11,7 +11,7 @@ use super::super::clauses::{
 use super::super::plan::{Rebuild, Step};
 use super::super::spec::{AlterOp, ColumnSpec};
 
-const D: Driver = Driver::Sqlite;
+const D: Dialect = Dialect::Sqlite;
 
 fn needs_rebuild(op: &AlterOp) -> bool {
     match op {

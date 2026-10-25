@@ -7,7 +7,7 @@ use std::sync::Arc;
 use serde::Serialize;
 
 use crate::error::AppResult;
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::infer::{Infer, Kind};
 use super::run::RowError;
@@ -81,7 +81,7 @@ impl Sample {
         self.names = names;
     }
 
-    fn finish(self, driver: Driver, total_bytes: u64) -> FilePreview {
+    fn finish(self, driver: Dialect, total_bytes: u64) -> FilePreview {
         let columns = self
             .names
             .into_iter()
@@ -104,7 +104,7 @@ impl Sample {
 }
 
 /// Reads the start of the file. Blocking: call it off the async runtime.
-pub fn preview_file(spec: &SourceSpec, driver: Driver) -> AppResult<FilePreview> {
+pub fn preview_file(spec: &SourceSpec, driver: Dialect) -> AppResult<FilePreview> {
     let (reader, size) = source::open(&spec.path, Arc::new(AtomicU64::new(0)))?;
     let mut sample = Sample::default();
     match spec.format {

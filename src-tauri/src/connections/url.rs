@@ -15,7 +15,8 @@ use url::Url;
 
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    Connection, ConnectionOptions, DbSettings, Driver, SshSettings, Tag, TlsMode, TlsSettings,
+    Connection, ConnectionOptions, DbSettings, Dialect, Driver, SshSettings, Tag, TlsMode,
+    TlsSettings,
 };
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -122,7 +123,8 @@ fn parse_server_url(input: &str) -> AppResult<ConnectionDraft> {
         .map_err(|e| AppError::validation(format!("Invalid connection URL: {e}")))?;
     let driver = match u.scheme() {
         "postgresql" | "postgres" => Driver::Postgres,
-        "mysql" | "mariadb" => Driver::Mysql,
+        "mysql" => Driver::Mysql,
+        "mariadb" => Driver::Mariadb,
         other => {
             return Err(AppError::validation(format!(
                 "Unsupported URL scheme \"{other}\"."
@@ -250,9 +252,9 @@ pub fn to_url(c: &Connection) -> String {
         TlsMode::VerifyCa => "verify-ca",
         TlsMode::VerifyFull => "verify-full",
     };
-    match c.driver {
-        Driver::Sqlite => format!("sqlite://{}", c.db.file_path),
-        Driver::Postgres if c.ssh.enabled => {
+    match c.driver.sqlx_dialect() {
+        _ if c.driver.is_file() => format!("{}://{}", scheme(c.driver), c.db.file_path),
+        Some(Dialect::Postgres) if c.ssh.enabled => {
             let ssh_user = if c.ssh.user.is_empty() {
                 String::new()
             } else {
@@ -264,8 +266,41 @@ pub fn to_url(c: &Connection) -> String {
                 c.ssh.host
             )
         }
-        Driver::Postgres => format!("postgresql://{user}{host}{port}/{db}?sslmode={sslmode}"),
-        Driver::Mysql => format!("mysql://{user}{host}{port}/{db}"),
+        Some(Dialect::Postgres) => {
+            format!("postgresql://{user}{host}{port}/{db}?sslmode={sslmode}")
+        }
+        Some(Dialect::Mysql) => format!("{}://{user}{host}{port}/{db}", scheme(c.driver)),
+        _ => match c.extra("url") {
+            "" => format!("{}://{user}{host}{port}/{db}", scheme(c.driver)),
+            url => url.to_string(),
+        },
+    }
+}
+
+/// The URL scheme "Copy as URL" uses for a driver.
+fn scheme(driver: Driver) -> &'static str {
+    match driver {
+        Driver::Postgres => "postgresql",
+        Driver::Mariadb => "mariadb",
+        Driver::Mysql => "mysql",
+        Driver::Sqlite => "sqlite",
+        Driver::Duckdb => "duckdb",
+        Driver::Cockroach => "cockroachdb",
+        Driver::Redshift => "redshift",
+        Driver::Greenplum => "greenplum",
+        Driver::Vertica => "vertica",
+        Driver::Libsql => "libsql",
+        Driver::CloudflareD1 => "d1",
+        Driver::Mssql => "sqlserver",
+        Driver::Oracle => "oracle",
+        Driver::Clickhouse => "clickhouse",
+        Driver::Cassandra => "cassandra",
+        Driver::Snowflake => "snowflake",
+        Driver::Bigquery => "bigquery",
+        Driver::Redis => "redis",
+        Driver::Mongodb => "mongodb",
+        Driver::Dynamodb => "dynamodb",
+        Driver::Elasticsearch => "elasticsearch",
     }
 }
 

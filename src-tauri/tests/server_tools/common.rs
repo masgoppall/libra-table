@@ -7,7 +7,7 @@ use std::sync::Arc;
 use futures::FutureExt;
 use libratable_lib::db::{open_pool, DbPool};
 use libratable_lib::error::AppResult;
-use libratable_lib::models::{Connection, Driver};
+use libratable_lib::models::{Connection, Dialect};
 use libratable_lib::server::tools::run::Progress;
 use libratable_lib::server::tools::{self, args, ToolChoice};
 use libratable_lib::server::users::{self, UserChange};
@@ -26,7 +26,7 @@ pub fn url_parts(url: &str) -> (String, u16, String, Option<String>) {
     )
 }
 
-pub fn connection(driver: Driver, settings: Value) -> Connection {
+pub fn connection(driver: Dialect, settings: Value) -> Connection {
     let mut v = json!({ "id": "srv-test", "name": "Server tools test", "driver": driver });
     v["db"] = settings;
     serde_json::from_value(v).unwrap()
@@ -34,7 +34,7 @@ pub fn connection(driver: Driver, settings: Value) -> Connection {
 
 /// A session on `database` of the server behind `admin`, as `user` when given.
 pub async fn session(
-    driver: Driver,
+    driver: Dialect,
     admin: &str,
     database: &str,
     login: Option<(&str, &str)>,
@@ -68,6 +68,7 @@ pub async fn exec(pool: &DbPool, sql: &str) {
         DbPool::Postgres(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
         DbPool::Mysql(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
         DbPool::Sqlite(p) => sqlx::raw_sql(sql).execute(p).await.map(|_| ()),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     };
     r.unwrap_or_else(|e| panic!("{sql}: {e}"));
 }
@@ -77,6 +78,7 @@ pub async fn scalar_i64(pool: &DbPool, sql: &str) -> i64 {
         DbPool::Postgres(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Mysql(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
         DbPool::Sqlite(p) => sqlx::query_scalar(sql).fetch_one(p).await.unwrap(),
+        DbPool::Engine(_) => unreachable!("the tests use built-in drivers"),
     }
 }
 
@@ -97,7 +99,7 @@ pub async fn change(s: &Session, change: Value, secret: Option<&str>) -> Vec<Str
 
 /// The tool, or None (and a note) when it isn't installed here.
 pub async fn tool(s: &Session, name: &str) -> Option<ToolChoice> {
-    let choice = tools::resolve(name, s.driver(), &s.server_version, None).await;
+    let choice = tools::resolve(name, s.dialect(), &s.server_version, None).await;
     if choice.path.is_none() {
         eprintln!("skipped: {name} not found ({:?})", choice.warning);
         return None;

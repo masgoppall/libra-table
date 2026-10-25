@@ -7,29 +7,57 @@
 use serde::Serialize;
 use tauri::State;
 
-use crate::db::filter::{self, OperatorInfo};
+use crate::db::filter::OperatorInfo;
 use crate::db::meta::{self, ColumnInfo, CompletionSchema, ObjectInfo, TableStructure};
+use crate::drivers::{self, DriverInfo, Features, Kind};
 use crate::models::Driver;
 use crate::state::AppState;
 
 use super::Cmd;
 
+/// What the workspace of a driver can show and do.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Capabilities {
     operators: Vec<OperatorInfo>,
-    has_schemas: bool,
-    switch_database: bool,
+    kind: Kind,
+    sql_dialect: Option<&'static str>,
+    query_language: &'static str,
+    /// Postgres: databases contain schemas. MySQL: schema == database. SQLite: attached dbs.
+    #[serde(flatten)]
+    features: Features,
 }
 
 #[tauri::command]
 pub fn driver_capabilities(driver: Driver) -> Capabilities {
+    let info = drivers::info(driver);
     Capabilities {
-        operators: filter::operators(driver),
-        // Postgres: databases contain schemas. MySQL: schema == database. SQLite: attached dbs.
-        has_schemas: driver == Driver::Postgres,
-        switch_database: driver != Driver::Sqlite,
+        operators: drivers::operators(driver),
+        kind: info.kind,
+        sql_dialect: info.sql_dialect,
+        query_language: info.query_language,
+        features: drivers::features(driver),
     }
+}
+
+/// The driver picker: every driver with its form fields and whether it is ready.
+#[tauri::command]
+pub fn list_drivers() -> Vec<DriverEntry> {
+    drivers::list()
+        .into_iter()
+        .map(|info| DriverEntry {
+            ready: drivers::features(info.id).ready,
+            info,
+        })
+        .collect()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriverEntry {
+    #[serde(flatten)]
+    info: DriverInfo,
+    ready: bool,
 }
 
 #[tauri::command]

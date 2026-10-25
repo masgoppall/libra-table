@@ -7,13 +7,14 @@ import { showError } from "@/services/errors";
 import { store, tabDb } from "@/store";
 import { type ObjectInfo, type SavedQuery, type Workspace } from "@/types";
 
+/** Postgres-style schemas, SQLite files, or an engine with schemas (e.g. BigQuery datasets). */
 export function hasSchemaPicker(ws: Workspace): boolean {
-  return ws.info.driver === "postgres" || ws.info.driver === "sqlite";
+  return ws.info.dialect === "postgres" || ws.info.dialect === "sqlite" || ws.caps.hasSchemas;
 }
 
 /** MySQL without a default database: pick one first. */
 export function needsDatabase(ws: Workspace): boolean {
-  return ws.info.driver === "mysql" && !ws.database;
+  return ws.info.dialect === "mysql" && !ws.database;
 }
 
 async function listAll(ws: Workspace) {

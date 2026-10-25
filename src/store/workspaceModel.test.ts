@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type Workspace, type WorkspaceTab } from "@/types";
 import * as m from "./workspaceModel";
+import { pgCapabilities } from "@/test/drivers";
 
 const tab = (id: string, extra: Partial<WorkspaceTab> = {}): WorkspaceTab => ({
   id,
@@ -16,11 +17,12 @@ function ws(tabs: WorkspaceTab[], activeTabId: string | null = tabs[0]?.id ?? nu
     info: {
       connectionId: "c",
       driver: "postgres",
+      dialect: "postgres",
       database: "app",
       serverVersion: "16",
       throughTunnel: false,
     },
-    caps: { operators: [], hasSchemas: true, switchDatabase: true },
+    caps: pgCapabilities(),
     database: "app",
     schema: "public",
     tabs,

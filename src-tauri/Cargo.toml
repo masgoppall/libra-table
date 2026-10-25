@@ -64,8 +64,24 @@ base64 = "0.22"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 sqlparser = "0.52"
 
+# Cloud drivers (Snowflake, BigQuery, DynamoDB) over HTTPS. ring signs the BigQuery
+# service-account JWT (already linked by rustls); flate2 unpacks Snowflake result chunks.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+ring = "0.17"
+flate2 = "1"
+# Redis: tokio + rustls (no OpenSSL); 0.32 keeps the crate's rust-version at 1.82.
+redis = { version = "0.32", default-features = false, features = [
+  "aio",
+  "tokio-comp",
+  "tokio-rustls-comp",
+  "tls-rustls-insecure",
+  "connection-manager",
+] }
+
 [dev-dependencies]
 tempfile = "3"
+# Throwaway RSA keys for the BigQuery JWT tests.
+rsa = "0.9"
 
 [profile.release]
 codegen-units = 1
@@ -78,4 +94,9 @@ opt-level = 3
 [profile.dev.package.pbkdf2]
 opt-level = 3
 [profile.dev.package.hmac]
+opt-level = 3
+# RSA key generation in the BigQuery tests.
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+[profile.dev.package.rsa]
 opt-level = 3

@@ -13,11 +13,11 @@ mod scenarios;
 use std::sync::Arc;
 
 use libratable_lib::db::open_pool;
-use libratable_lib::models::{Connection, Driver};
+use libratable_lib::models::{Connection, Dialect};
 use libratable_lib::state::Session;
 use serde_json::{json, Value};
 
-fn connection(driver: Driver, settings: Value) -> Connection {
+fn connection(driver: Dialect, settings: Value) -> Connection {
     let mut v = json!({ "id": "vis-conn", "name": "Visual test", "driver": driver });
     v["db"] = settings;
     serde_json::from_value(v).unwrap()
@@ -44,7 +44,7 @@ async fn sqlite_import_and_visualization() {
     let path = dir.path().join("vis.db");
     std::fs::File::create(&path).unwrap();
     let conn = connection(
-        Driver::Sqlite,
+        Dialect::Sqlite,
         json!({ "filePath": path.display().to_string() }),
     );
     let s = session_for(conn, "main", None).await;
@@ -54,7 +54,7 @@ async fn sqlite_import_and_visualization() {
 #[tokio::test]
 async fn postgres_import_and_visualization() {
     Server {
-        driver: Driver::Postgres,
+        driver: Dialect::Postgres,
         admin_env: "LIBRATABLE_TEST_PG_URL",
         database: "libratable_vis_pg",
         force: " WITH (FORCE)",
@@ -67,7 +67,7 @@ async fn postgres_import_and_visualization() {
 async fn mysql_import_and_visualization() {
     let db = "libratable_vis_mysql";
     Server {
-        driver: Driver::Mysql,
+        driver: Dialect::Mysql,
         admin_env: "LIBRATABLE_TEST_MYSQL_URL",
         database: db,
         force: "",
@@ -77,7 +77,7 @@ async fn mysql_import_and_visualization() {
 }
 
 struct Server {
-    driver: Driver,
+    driver: Dialect,
     admin_env: &'static str,
     database: &'static str,
     force: &'static str,
@@ -115,17 +115,17 @@ impl Server {
 
     async fn admin_exec(&self, admin: &str, sql: &str) {
         match self.driver {
-            Driver::Postgres => {
+            Dialect::Postgres => {
                 let pool = sqlx::PgPool::connect(admin).await.unwrap();
                 sqlx::query(sql).execute(&pool).await.unwrap();
                 pool.close().await;
             }
-            Driver::Mysql => {
+            Dialect::Mysql => {
                 let pool = sqlx::MySqlPool::connect(admin).await.unwrap();
                 sqlx::query(sql).execute(&pool).await.unwrap();
                 pool.close().await;
             }
-            Driver::Sqlite => unreachable!("SQLite has no server"),
+            Dialect::Sqlite => unreachable!("SQLite has no server"),
         }
     }
 }

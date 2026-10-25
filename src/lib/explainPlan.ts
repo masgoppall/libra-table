@@ -2,7 +2,7 @@
 // SQLite from EXPLAIN QUERY PLAN rows (id, parent, notused, detail). MySQL plans are
 // shown as the table (or text tree, with ANALYZE) the server returns.
 
-import { type Cell, type Driver, type PlanNode } from "@/types";
+import { type Cell, type Dialect, type PlanNode } from "@/types";
 
 export interface PlanTree {
   roots: PlanNode[];
@@ -11,10 +11,10 @@ export interface PlanTree {
 }
 
 /** ANALYZE runs the statement; SQLite has no such option. */
-export const canAnalyze = (driver: Driver) => driver !== "sqlite";
+export const canAnalyze = (driver: Dialect) => driver !== "sqlite";
 
 /** The EXPLAIN statement for `statement` (a trailing `;` is dropped). */
-export function explainSql(driver: Driver, statement: string, analyze: boolean): string {
+export function explainSql(driver: Dialect, statement: string, analyze: boolean): string {
   const st = statement.trim().replace(/;+\s*$/, "");
   switch (driver) {
     case "postgres":

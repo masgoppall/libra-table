@@ -33,7 +33,7 @@ async function prompt(
 }
 
 export function createDatabaseFlow(ws: Workspace) {
-  if (ws.info.driver === "sqlite") {
+  if (ws.info.dialect === "sqlite") {
     toastInfo(
       "An SQLite database is a file.",
       "Create a new file from New connection → SQLite → Create new file.",
@@ -214,7 +214,7 @@ export async function truncateTable(ws: Workspace, schema: string, table: string
 
 /** Postgres asks about CASCADE first; null when the user cancels. */
 async function askCascade(ws: Workspace, kind: string, table: string): Promise<boolean | null> {
-  if (ws.info.driver !== "postgres") return false;
+  if (ws.info.dialect !== "postgres") return false;
   const r = await store.get().dialog({
     kind: "confirm",
     title: `Drop ${kind} ${table}`,

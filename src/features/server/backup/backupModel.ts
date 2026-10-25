@@ -2,7 +2,7 @@
 // how progress reads.
 
 import { formatBytes } from "@/lib/format";
-import { type BackupRequest, type Driver, type DumpFormat, type RestoreRequest } from "@/types";
+import { type BackupRequest, type Dialect, type DumpFormat, type RestoreRequest } from "@/types";
 
 export function defaultBackup(): BackupRequest {
   return {
@@ -26,7 +26,7 @@ export function defaultRestore(): RestoreRequest {
   return { path: "", stopOnError: true, singleTransaction: false, clean: false, noOwner: false };
 }
 
-export function backupExtension(driver: Driver, format: DumpFormat): string {
+export function backupExtension(driver: Dialect, format: DumpFormat): string {
   if (driver === "sqlite") return "db";
   return driver === "postgres" && format === "custom" ? "dump" : "sql";
 }
@@ -43,7 +43,7 @@ export function backupFileName(database: string, ext: string, now = new Date()):
 }
 
 /** File types the restore picker offers. */
-export function restoreFilters(driver: Driver): { name: string; extensions: string[] }[] {
+export function restoreFilters(driver: Dialect): { name: string; extensions: string[] }[] {
   const sql = { name: "SQL script", extensions: ["sql"] };
   if (driver !== "postgres") return [sql];
   return [{ name: "SQL script or pg_dump archive", extensions: ["sql", "dump", "backup"] }, sql];

@@ -2,7 +2,13 @@
 
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { newConnection } from "@/domain/connection";
-import { type ColumnInfo, type ConnectInfo, type ConnectionView, type Settings } from "@/types";
+import {
+  type ColumnInfo,
+  type ConnectInfo,
+  type ConnectionView,
+  type OperatorInfo,
+  type Settings,
+} from "@/types";
 import {
   objectHandlers,
   type ObjectsState,
@@ -11,6 +17,7 @@ import {
   splitStatements,
 } from "./fakeObjects";
 import { serverHandlers } from "./fakeServer";
+import { DRIVERS, pgCapabilities } from "./drivers";
 import { FakeTools } from "./fakeTools";
 
 /** Arguments as the command received them (shape depends on the command). */
@@ -36,7 +43,7 @@ export function connectionView(
   };
 }
 
-export const OPERATORS = [
+export const OPERATORS: OperatorInfo[] = [
   { id: "eq", label: "=", valueKind: "single", placeholder: "value" },
   { id: "contains", label: "Contains", valueKind: "single", placeholder: "text" },
   { id: "is_null", label: "IS NULL", valueKind: "none", placeholder: "" },
@@ -109,6 +116,7 @@ const SETTINGS: Settings = {
 const info = (id: string): ConnectInfo => ({
   connectionId: id,
   driver: "postgres",
+  dialect: "postgres",
   database: "app",
   serverVersion: "16.4",
   throughTunnel: false,
@@ -211,6 +219,7 @@ export class FakeBackend {
     ...this.tools.handlers,
     list_connections: () => ({ connections: this.connections, groups: [] }),
     console_entries: () => this.console,
+    set_window_view: () => null,
     passcode_set: () => this.passcode !== null,
     verify_passcode: (a) => a.code === this.passcode,
     "plugin:dialog|save": () => this.savePath,
@@ -222,7 +231,8 @@ export class FakeBackend {
       this.workspace = a.workspace;
       return null;
     },
-    driver_capabilities: () => ({ operators: OPERATORS, hasSchemas: true, switchDatabase: true }),
+    driver_capabilities: () => pgCapabilities(OPERATORS),
+    list_drivers: () => DRIVERS,
     connect: (a) => {
       const step = this.connectScript.shift();
       return step ? step(a) : info(a.id);

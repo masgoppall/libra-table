@@ -7,7 +7,7 @@ use sqlx::MySqlPool;
 use crate::db::sql::{literal, mysql_literal, quote_ident};
 use crate::db::value;
 use crate::error::{AppError, AppResult};
-use crate::models::Driver;
+use crate::models::Dialect;
 
 use super::privileges::MY_GLOBAL_COLUMNS;
 use super::{check_grant, check_password, require, GrantTarget, Grantee, MysqlAccount, Stmt};
@@ -96,8 +96,8 @@ fn account(user: &str, host: &str) -> String {
     let host = if host.trim().is_empty() { "%" } else { host };
     format!(
         "{}@{}",
-        quote_ident(Driver::Mysql, user),
-        quote_ident(Driver::Mysql, host)
+        quote_ident(Dialect::Mysql, user),
+        quote_ident(Dialect::Mysql, host)
     )
 }
 
@@ -168,8 +168,8 @@ pub fn plan(change: &UserChange, quoting: Quoting) -> AppResult<Vec<Stmt>> {
 
 fn grant_head(privileges: &[String], target: &GrantTarget, g: &Grantee) -> AppResult<String> {
     require(&g.name, "user name")?;
-    check_grant(Driver::Mysql, privileges, target)?;
-    let q = |n: &str| quote_ident(Driver::Mysql, n);
+    check_grant(Dialect::Mysql, privileges, target)?;
+    let q = |n: &str| quote_ident(Dialect::Mysql, n);
     let on = match target {
         GrantTarget::Global => "*.*".to_string(),
         GrantTarget::Database { name } => format!("{}.*", q(name)),

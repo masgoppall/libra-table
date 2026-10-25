@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::models::Driver;
+use crate::models::Dialect;
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 
@@ -173,14 +173,14 @@ pub async fn candidates(tool: &str, dirs: &[PathBuf]) -> Vec<ToolCandidate> {
 /// at least the server's (pg_dump refuses servers newer than itself), else the newest
 /// there is. Returns its index and a warning, if any.
 pub fn pick(
-    driver: Driver,
+    driver: Dialect,
     cands: &[ToolCandidate],
     server: Option<(u32, bool)>,
 ) -> (Option<usize>, Option<String>) {
     let Some((want, mariadb)) = server else {
         return (if cands.is_empty() { None } else { Some(0) }, None);
     };
-    let flavor_ok = |c: &ToolCandidate| driver != Driver::Mysql || c.mariadb == mariadb;
+    let flavor_ok = |c: &ToolCandidate| driver != Dialect::Mysql || c.mariadb == mariadb;
     let same: Vec<usize> = (0..cands.len()).filter(|&i| flavor_ok(&cands[i])).collect();
     let pool: Vec<usize> = if same.is_empty() {
         (0..cands.len()).collect()
@@ -252,25 +252,25 @@ mod tests {
     #[test]
     fn picks_the_closest_version_not_older_than_the_server() {
         let pg = vec![cand(14, false), cand(18, false), cand(16, false)];
-        assert_eq!(pick(Driver::Postgres, &pg, Some((15, false))).0, Some(2));
+        assert_eq!(pick(Dialect::Postgres, &pg, Some((15, false))).0, Some(2));
         assert_eq!(
-            pick(Driver::Postgres, &pg, Some((18, false))),
+            pick(Dialect::Postgres, &pg, Some((18, false))),
             (Some(1), None)
         );
-        let (i, warn) = pick(Driver::Postgres, &pg, Some((19, false)));
+        let (i, warn) = pick(Dialect::Postgres, &pg, Some((19, false)));
         assert_eq!(i, Some(1));
         assert!(warn.unwrap().contains("older than the server"));
-        assert_eq!(pick(Driver::Postgres, &[], Some((16, false))).0, None);
+        assert_eq!(pick(Dialect::Postgres, &[], Some((16, false))).0, None);
     }
 
     #[test]
     fn prefers_the_server_flavor() {
         let my = vec![cand(9, false), cand(10, true), cand(8, false)];
-        assert_eq!(pick(Driver::Mysql, &my, Some((10, true))).0, Some(1));
-        assert_eq!(pick(Driver::Mysql, &my, Some((8, false))).0, Some(2));
+        assert_eq!(pick(Dialect::Mysql, &my, Some((10, true))).0, Some(1));
+        assert_eq!(pick(Dialect::Mysql, &my, Some((8, false))).0, Some(2));
         // Only the other flavor installed: still offered.
         let only = vec![cand(9, false)];
-        assert_eq!(pick(Driver::Mysql, &only, Some((10, true))).0, Some(0));
+        assert_eq!(pick(Dialect::Mysql, &only, Some((10, true))).0, Some(0));
     }
 
     #[test]

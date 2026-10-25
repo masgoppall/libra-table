@@ -3,7 +3,7 @@
 // dollar-quoted bodies, and never as part of `::type`, `:=` or an array slice `a[1:n]`.
 // Values become SQL literals (quoted like the rest of the app); see `renderValue`.
 
-import { type Driver, type QueryVariable } from "@/types";
+import { type Dialect, type QueryVariable } from "@/types";
 import { sqlLiteral } from "./sql";
 
 export interface VariableUse {
@@ -61,7 +61,7 @@ function skipDollar(sql: string, i: number): number | null {
   return end < 0 ? sql.length : end + m[0].length;
 }
 
-function isLineComment(sql: string, i: number, driver: Driver): boolean {
+function isLineComment(sql: string, i: number, driver: Dialect): boolean {
   if (driver === "mysql" && sql[i] === "#") return true;
   if (!sql.startsWith("--", i)) return false;
   // MySQL needs whitespace (or the end) after `--`.
@@ -69,7 +69,7 @@ function isLineComment(sql: string, i: number, driver: Driver): boolean {
 }
 
 /** Skips whatever starts at `i` that can't hold a variable; null if nothing does. */
-function skipNonCode(sql: string, i: number, driver: Driver): number | null {
+function skipNonCode(sql: string, i: number, driver: Dialect): number | null {
   const c = sql[i];
   if (c === "'") {
     // Postgres E'…' strings take backslash escapes (but `LIKE'…'` is not one).
@@ -87,7 +87,7 @@ function skipNonCode(sql: string, i: number, driver: Driver): number | null {
 }
 
 /** Every `:name` in `sql`, in order. */
-export function findVariables(sql: string, driver: Driver): VariableUse[] {
+export function findVariables(sql: string, driver: Dialect): VariableUse[] {
   const uses: VariableUse[] = [];
   let i = 0;
   while (i < sql.length) {
@@ -113,12 +113,12 @@ export function findVariables(sql: string, driver: Driver): VariableUse[] {
 }
 
 /** Variable names in order of first use. */
-export function variableNames(sql: string, driver: Driver): string[] {
+export function variableNames(sql: string, driver: Dialect): string[] {
   return [...new Set(findVariables(sql, driver).map((u) => u.name))];
 }
 
 /** The SQL for one value. Throws (with a message for the user) if it isn't valid. */
-export function renderValue(driver: Driver, v: QueryVariable): string {
+export function renderValue(driver: Dialect, v: QueryVariable): string {
   const value = v.value.trim();
   switch (v.mode) {
     case "null":
@@ -137,7 +137,7 @@ export function renderValue(driver: Driver, v: QueryVariable): string {
 }
 
 /** `sql` with every variable replaced by its value. Throws if one has no value. */
-export function substituteVariables(sql: string, driver: Driver, values: QueryVariable[]): string {
+export function substituteVariables(sql: string, driver: Dialect, values: QueryVariable[]): string {
   const byName = new Map(values.map((v) => [v.name, v]));
   let out = sql;
   for (const use of findVariables(sql, driver).reverse()) {

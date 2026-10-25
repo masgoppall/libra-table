@@ -4,7 +4,7 @@ import { FileUp } from "lucide-react";
 import { useEffect } from "react";
 import { Modal } from "@/components/Modal";
 import { type ToolDialog } from "@/store";
-import { type Driver } from "@/types";
+import { type Dialect } from "@/types";
 import { ColumnsStep } from "./ColumnsStep";
 import { RunStep } from "./RunStep";
 import { SourceStep } from "./SourceStep";
@@ -77,7 +77,7 @@ function Footer({ w, onClose }: { w: ImportWizardState; onClose: () => void }) {
 
 export function ImportWizard(props: {
   dialog: Extract<ToolDialog, { kind: "import" }>;
-  driver: Driver;
+  driver: Dialect;
   onClose: () => void;
 }) {
   const w = useImportWizard(props.dialog, props.driver);

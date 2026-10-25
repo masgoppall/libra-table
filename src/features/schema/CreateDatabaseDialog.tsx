@@ -45,7 +45,7 @@ export function CreateDatabaseDialog({ ws, onClose }: { ws: Workspace; onClose: 
   const [sql, setSql] = useState<string[]>([]);
   const [error, setError] = useState<AppError | null>(null);
   const [busy, setBusy] = useState(false);
-  const pg = ws.info.driver === "postgres";
+  const pg = ws.info.dialect === "postgres";
   const trimmed = name.trim();
   const change: SchemaChange = {
     kind: "create_database",

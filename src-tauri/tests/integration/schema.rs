@@ -3,7 +3,7 @@
 //! primary keys, rename / duplicate / truncate / drop.
 
 use libratable_lib::db::meta::{self, ColumnInfo, TableStructure};
-use libratable_lib::models::Driver;
+use libratable_lib::models::Dialect;
 use libratable_lib::state::Session;
 use serde_json::{json, Value};
 
@@ -11,21 +11,21 @@ use crate::common::{count, ddl_apply, exec_sql, object_names, spec};
 
 /// Quoted `schema.table` for raw SQL in the tests.
 struct Names<'a> {
-    driver: Driver,
+    driver: Dialect,
     schema: &'a str,
 }
 
 impl Names<'_> {
     fn table(&self, name: &str) -> String {
         match self.driver {
-            Driver::Mysql => format!("`{}`.`{name}`", self.schema),
+            Dialect::Mysql => format!("`{}`.`{name}`", self.schema),
             _ => format!("\"{}\".\"{name}\"", self.schema),
         }
     }
 }
 
-fn int_type(driver: Driver) -> &'static str {
-    if driver == Driver::Sqlite {
+fn int_type(driver: Dialect) -> &'static str {
+    if driver == Dialect::Sqlite {
         "INTEGER"
     } else {
         "integer"
@@ -50,7 +50,7 @@ async fn structure(session: &Session, schema: &str, table: &str) -> TableStructu
 
 pub async fn run(session: &Session, schema: &str) {
     let names = Names {
-        driver: session.driver(),
+        driver: session.dialect(),
         schema,
     };
     create_tables(session, schema, &names).await;
@@ -60,7 +60,7 @@ pub async fn run(session: &Session, schema: &str) {
 }
 
 async fn create_tables(session: &Session, schema: &str, names: &Names<'_>) {
-    let driver = session.driver();
+    let driver = session.dialect();
     let int = int_type(driver);
     let id = json!({
         "name": "id", "dataType": int, "nullable": false,
@@ -75,7 +75,7 @@ async fn create_tables(session: &Session, schema: &str, names: &Names<'_>) {
     )
     .await
     .expect("create orgs");
-    let comment = if driver == Driver::Sqlite {
+    let comment = if driver == Dialect::Sqlite {
         Value::Null
     } else {
         json!("People in orgs")
@@ -108,7 +108,7 @@ async fn create_tables(session: &Session, schema: &str, names: &Names<'_>) {
         names.table("members")
     );
     exec_sql(&session.pool, &seed).await;
-    if driver != Driver::Mysql {
+    if driver != Dialect::Mysql {
         let view = format!(
             "CREATE VIEW {} AS SELECT id, org_id FROM {}",
             names.table("member_orgs"),
@@ -134,7 +134,7 @@ async fn create_tables(session: &Session, schema: &str, names: &Names<'_>) {
 /// Change a type, nullability and default, rename, add and drop columns in one go.
 /// On SQLite this rebuilds the table (with the view and the FK depending on it).
 async fn alter_members(session: &Session, schema: &str) {
-    let driver = session.driver();
+    let driver = session.dialect();
     let s = structure(session, schema, "members").await;
     let (score, note) = (column(&s, "score"), column(&s, "note"));
     let mut score_new = spec(score);
@@ -158,7 +158,7 @@ async fn alter_members(session: &Session, schema: &str) {
     )
     .await
     .unwrap_or_else(|e| panic!("alter members: {e:?}"));
-    if driver == Driver::Sqlite {
+    if driver == Dialect::Sqlite {
         assert_eq!(preview[0], "PRAGMA foreign_keys = OFF", "{preview:#?}");
         let rebuild = "CREATE TABLE \"main\".\"_libratable_new_members\"";
         assert!(
@@ -197,7 +197,7 @@ async fn alter_members(session: &Session, schema: &str) {
     );
     assert!(has_org_index(&s), "index survives: {:?}", s.indexes);
     assert_eq!(count(session, schema, "members").await, 3, "rows survive");
-    if driver != Driver::Mysql {
+    if driver != Dialect::Mysql {
         let n = count(session, schema, "member_orgs").await;
         assert_eq!(n, 3, "the view still works");
     }
@@ -277,7 +277,7 @@ async fn table_operations(session: &Session, schema: &str) {
         .await
         .unwrap_or_else(|e| panic!("drop {name}: {e:?}"));
     }
-    if session.driver() != Driver::Mysql {
+    if session.dialect() != Dialect::Mysql {
         let p = ddl_apply(
             session,
             json!({ "kind": "drop_table", "schema": schema, "name": "member_orgs" }),
