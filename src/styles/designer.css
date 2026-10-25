@@ -1,0 +1,182 @@
+/* Table designer (structure tab). */
+
+.designer {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.designer-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  margin: 4px 0 0;
+}
+.designer-meta {
+  margin-bottom: 2px;
+}
+.designer-add {
+  margin-top: 2px;
+}
+.edit-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.edit-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--bg-2);
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.edit-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.edit-table tr:last-child td {
+  border-bottom: none;
+}
+.edit-table td.num {
+  text-align: right;
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.edit-table th.center,
+.edit-table td.center {
+  text-align: center;
+}
+.edit-table tr.added td {
+  background: var(--inserted);
+}
+.edit-table tr.changed td {
+  background: var(--edited);
+}
+.edit-table tr.dropped td {
+  background: var(--deleted);
+}
+.edit-table tr.dropped input:not([type="checkbox"]) {
+  text-decoration: line-through;
+}
+.cell-input {
+  width: 100%;
+  min-width: 80px;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  outline: none;
+}
+.cell-input:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--bg);
+}
+.cell-input:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: var(--ring);
+}
+.cell-input.invalid {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+.cell-input:disabled {
+  color: var(--text-3);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: var(--bg);
+  font-size: 11.5px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.chip:hover {
+  border-color: var(--accent);
+}
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.chip-n {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.designer-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  flex: none;
+}
+.sql-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sql-box-head {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.sql-box pre {
+  margin: 0;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  max-height: 60vh;
+  overflow: auto;
+}
+table.plain {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+table.plain th,
+table.plain td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.plain th {
+  color: var(--text-2);
+  font-weight: 600;
+  background: var(--bg-2);
+}

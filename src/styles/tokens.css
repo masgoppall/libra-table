@@ -1,0 +1,120 @@
+/* LibraTable — one design system for light and dark: color, type and size tokens. */
+
+:root {
+  --fs: 13px;
+  --bg: #ffffff;
+  --bg-2: #f7f7f8;
+  --bg-3: #efeff1;
+  --bg-hover: #f1f1f3;
+  --chrome: #f3f3f5;
+  --panel: #fafafb;
+  --border: #e6e6ea;
+  --border-strong: #d4d4da;
+  --text: #18181b;
+  --text-2: #55565e;
+  --text-3: #8a8b93;
+  --accent: #3e63dd;
+  --accent-hover: #3358d4;
+  --accent-weak: #edf2fe;
+  --accent-soft: #d2deff;
+  --accent-text: #3a5bc7;
+  --danger: #dc3e42;
+  --danger-weak: #fdebec;
+  --warn: #c2620a;
+  --warn-weak: #fff1e1;
+  --ok: #2b9a66;
+  --ok-weak: #e6f6ec;
+  --violet: #8e4ec6;
+  --null: #a3a4ab;
+  --sel: #e1e9fe;
+  --sel-strong: #c8d6fd;
+  --edited: #fff6cc;
+  --inserted: #e3f6ea;
+  --deleted: #fdeaea;
+  --row-alt: #fbfbfc;
+  --shadow-sm: 0 1px 2px rgba(16, 18, 27, 0.06);
+  --shadow: 0 10px 32px -6px rgba(16, 18, 27, 0.18), 0 2px 6px rgba(16, 18, 27, 0.06);
+  --shadow-lg: 0 24px 60px -12px rgba(16, 18, 27, 0.3), 0 4px 12px rgba(16, 18, 27, 0.08);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161618;
+    --bg-2: #1c1c1f;
+    --bg-3: #26262a;
+    --bg-hover: #222226;
+    --chrome: #131315;
+    --panel: #19191b;
+    --border: #2b2b30;
+    --border-strong: #3a3a40;
+    --text: #ededef;
+    --text-2: #a8a9b1;
+    --text-3: #75767e;
+    --accent: #5b7fff;
+    --accent-hover: #6e8dff;
+    --accent-weak: #1c2340;
+    --accent-soft: #283565;
+    --accent-text: #9db1ff;
+    --danger: #ff6369;
+    --danger-weak: #3b1c1e;
+    --warn: #ffa057;
+    --warn-weak: #3a2716;
+    --ok: #3dd68c;
+    --ok-weak: #16301f;
+    --violet: #bf7af0;
+    --null: #6c6d75;
+    --sel: #1f2a4f;
+    --sel-strong: #283a70;
+    --edited: #3d3517;
+    --inserted: #183323;
+    --deleted: #3f1d1f;
+    --row-alt: #19191c;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 10px 32px -6px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161618;
+  --bg-2: #1c1c1f;
+  --bg-3: #26262a;
+  --bg-hover: #222226;
+  --chrome: #131315;
+  --panel: #19191b;
+  --border: #2b2b30;
+  --border-strong: #3a3a40;
+  --text: #ededef;
+  --text-2: #a8a9b1;
+  --text-3: #75767e;
+  --accent: #5b7fff;
+  --accent-hover: #6e8dff;
+  --accent-weak: #1c2340;
+  --accent-soft: #283565;
+  --accent-text: #9db1ff;
+  --danger: #ff6369;
+  --danger-weak: #3b1c1e;
+  --warn: #ffa057;
+  --warn-weak: #3a2716;
+  --ok: #3dd68c;
+  --ok-weak: #16301f;
+  --violet: #bf7af0;
+  --null: #6c6d75;
+  --sel: #1f2a4f;
+  --sel-strong: #283a70;
+  --edited: #3d3517;
+  --inserted: #183323;
+  --deleted: #3f1d1f;
+  --row-alt: #19191c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 10px 32px -6px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}

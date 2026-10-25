@@ -1,0 +1,242 @@
+/* Workspace frame and the schema browser sidebar. */
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+.sidebar {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  min-height: 0;
+}
+.workspace.production .sidebar {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+.side-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+.side-resize:hover {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 10px 8px;
+}
+.db-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.db-switch:hover {
+  border-color: var(--border-strong);
+}
+.db-switch-icon {
+  color: var(--accent);
+  flex: none;
+}
+.db-switch-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.side-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+.side-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.side-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12.5px;
+}
+.side-mode {
+  height: 20px;
+  min-width: 24px;
+  padding: 0 5px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+.sidebar-list {
+  flex: 1;
+  overflow: auto;
+  padding: 2px 0 10px;
+}
+.side-group + .side-group {
+  margin-top: 4px;
+}
+.side-section {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px 0 10px;
+  font-size: 10.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.side-section:hover {
+  color: var(--text-2);
+}
+.side-count {
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.side-section-action {
+  opacity: 0;
+  display: flex;
+}
+.side-section:hover .side-section-action {
+  opacity: 1;
+}
+.side-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  margin: 0 6px;
+  padding: 0 8px 0 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text);
+}
+.side-item.db {
+  padding-left: 10px;
+}
+.side-item:hover {
+  background: var(--bg-3);
+}
+.side-item.active {
+  background: var(--accent-weak);
+  color: var(--accent-text);
+}
+.side-item.current {
+  font-weight: 600;
+}
+.side-item.current .side-icon.db {
+  color: var(--accent);
+}
+.side-item .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.side-item mark,
+.palette-item mark {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+}
+.side-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--text-3);
+}
+.side-caret:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.side-icon {
+  flex: none;
+  color: var(--text-3);
+}
+.side-icon.table {
+  color: var(--accent);
+}
+.side-icon.view {
+  color: var(--violet);
+}
+.side-icon.query {
+  color: var(--ok);
+}
+.side-tag {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bg-3);
+}
+.side-hint {
+  padding: 4px 16px 6px 30px;
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: normal;
+}
+.side-col {
+  display: flex;
+  gap: 6px;
+  height: 22px;
+  align-items: center;
+  padding: 0 14px 0 34px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.side-col-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side-col .type {
+  margin-left: auto;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+  padding-left: 8px;
+}
+.sidebar-foot {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}

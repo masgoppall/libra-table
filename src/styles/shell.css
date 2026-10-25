@@ -1,0 +1,159 @@
+/* Title bar, connection tabs and the main area. */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 42px;
+  flex: none;
+  padding-right: 10px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+}
+.traffic-space {
+  width: 80px;
+  flex: none;
+  align-self: stretch;
+}
+.toptabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toptabs::-webkit-scrollbar {
+  display: none;
+}
+.topbar-fill {
+  flex: 1;
+  align-self: stretch;
+  min-width: 24px;
+}
+.toptab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  max-width: 240px;
+  flex: none;
+  color: var(--text-2);
+  background: transparent;
+  font-size: 12.5px;
+  position: relative;
+}
+.toptab.home-tab {
+  padding: 0 10px;
+}
+.toptab:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.toptab.active {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+  font-weight: 500;
+}
+.toptab.production.active {
+  box-shadow:
+    inset 0 2px 0 var(--danger),
+    var(--shadow-sm);
+}
+.toptab .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toptab-db {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.toptab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.toptab:hover .toptab-close,
+.toptab.active .toptab-close {
+  opacity: 1;
+}
+.toptab-close:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.topbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  width: 220px;
+  padding: 0 6px 0 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-3);
+  font-size: 12px;
+  cursor: pointer;
+}
+.topbar-search span {
+  flex: 1;
+  text-align: left;
+}
+.topbar-search:hover {
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+.topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.topbar-btn:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.home-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge.read-only {
+  background: color-mix(in srgb, var(--text-3) 18%, transparent);
+  color: var(--text-2);
+}

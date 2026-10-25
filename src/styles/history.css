@@ -1,0 +1,20 @@
+/* Query history tab. */
+
+.history-list {
+  flex: 1;
+  overflow: auto;
+}
+.history-item {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.history-item:hover {
+  background: var(--bg-2);
+}
+.history-item pre {
+  margin: 5px 0 0;
+  max-height: 84px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

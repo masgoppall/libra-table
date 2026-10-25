@@ -1,0 +1,133 @@
+/* SQL editor tab and its results. */
+
+.db-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.db-select svg {
+  color: var(--accent);
+}
+.db-select select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  max-width: 200px;
+}
+.editor-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.editor-pane {
+  min-height: 80px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.editor-pane .cm-editor {
+  height: 100%;
+}
+.editor-pane .cm-editor.cm-focused {
+  outline: none;
+}
+.splitter {
+  height: 6px;
+  margin-top: -3px;
+  margin-bottom: -3px;
+  cursor: row-resize;
+  position: relative;
+  z-index: 3;
+}
+.splitter:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.results {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.running {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  color: var(--text-2);
+}
+.results-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-2);
+  padding: 20px;
+  text-align: center;
+}
+.result-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 5px 8px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  overflow-x: auto;
+  flex: none;
+}
+.result-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  color: var(--text-2);
+  white-space: nowrap;
+  font-size: 12px;
+}
+.result-tab:hover {
+  color: var(--text);
+}
+.result-tab.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+  margin-bottom: -1px;
+}
+.result-tab.error {
+  color: var(--danger);
+}
+.result-count {
+  font-size: 10.5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.message {
+  padding: 16px;
+}
+.message.done {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ok);
+  font-weight: 500;
+}
+.message.done .sql-preview {
+  font-weight: 400;
+  color: var(--text-2);
+}

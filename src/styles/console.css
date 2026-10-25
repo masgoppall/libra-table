@@ -1,0 +1,49 @@
+/* Console log panel at the bottom of the window. */
+
+.console-panel {
+  flex: none;
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  min-height: 0;
+}
+.console-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.console-search {
+  max-width: 280px;
+}
+.console-list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+.console-entry {
+  display: grid;
+  grid-template-columns: 210px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 3px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+.console-entry.slow .console-meta {
+  color: var(--warn);
+}
+.console-meta {
+  color: var(--text-3);
+  font-size: 11px;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.console-sql {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

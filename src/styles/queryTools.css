@@ -1,0 +1,107 @@
+/* Query editor tools: run marks, explain plans, append mode, variables. */
+
+.cm-run-flash {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+.cm-run-gutter {
+  width: 14px;
+}
+.cm-run-error,
+.cm-run-error-spacer {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  color: var(--danger);
+  font-size: 10px;
+  cursor: help;
+}
+
+.split-btn {
+  display: inline-flex;
+}
+.split-btn > .btn:first-child:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.split-btn > .btn + .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+  width: 22px;
+}
+
+.result-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-bottom: 4px;
+}
+.result-tools .btn.on {
+  background: var(--accent-weak);
+  color: var(--accent-text);
+}
+.result-close {
+  display: inline-flex;
+  color: var(--text-3);
+  border-radius: 3px;
+}
+.result-close:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.plan {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 0;
+  font-size: 12.5px;
+}
+.plan-text {
+  margin: 0;
+  padding: 10px 14px;
+  white-space: pre;
+}
+.plan-timing {
+  padding: 0 14px 6px;
+  font-size: 12px;
+}
+.plan-row {
+  padding: 4px 14px 4px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.plan-row:hover {
+  background: var(--bg-hover);
+}
+.plan-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.plan-arrow {
+  color: var(--text-3);
+}
+.plan-measures {
+  display: inline-flex;
+  gap: 12px;
+  color: var(--text-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.plan-actual {
+  color: var(--ok);
+}
+.plan-detail {
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+
+.variables-form {
+  grid-template-columns: auto 1fr;
+}
+.variables-form .select {
+  width: 110px;
+}

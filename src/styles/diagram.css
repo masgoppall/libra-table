@@ -1,0 +1,98 @@
+/* ER diagram tab: SVG tables and connectors, colors from the theme tokens. */
+
+.diagram-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.diagram-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--bg-2);
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 22px 22px;
+  cursor: grab;
+}
+body.dragging-grab,
+body.dragging-grab * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.diagram-svg {
+  display: block;
+  font-family: var(--sans);
+}
+.diagram-zoom {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.diagram-table {
+  cursor: move;
+  transition: opacity 0.12s;
+}
+.diagram-table.dim {
+  opacity: 0.35;
+}
+.diagram-box {
+  fill: var(--bg);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.diagram-table.focus .diagram-box {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.diagram-head {
+  fill: var(--bg-3);
+}
+.diagram-table.focus .diagram-head {
+  fill: var(--accent-weak);
+}
+.diagram-title {
+  fill: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.diagram-col {
+  fill: var(--text-2);
+  font-size: 12px;
+}
+.diagram-col.required {
+  fill: var(--text);
+}
+.diagram-type {
+  fill: var(--text-3);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+.diagram-key {
+  font-size: 9px;
+  font-weight: 700;
+}
+.diagram-key.pk {
+  fill: var(--warn);
+}
+.diagram-key.fk {
+  fill: var(--accent-text);
+}
+.diagram-edge {
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1.4;
+  transition: opacity 0.12s;
+}
+.diagram-edge.focus {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.diagram-edge.dim {
+  opacity: 0.2;
+}
+.diagram-arrow {
+  fill: var(--text-3);
+}

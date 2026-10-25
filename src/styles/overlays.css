@@ -1,0 +1,137 @@
+/* Context menus and toasts. */
+
+.menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+  animation: pop 0.08s ease-out;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border-radius: 5px;
+  cursor: default;
+  font-size: 12.5px;
+}
+.menu-icon {
+  display: flex;
+  width: 16px;
+  color: var(--text-2);
+}
+.menu-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  padding-left: 12px;
+}
+.menu-item:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.menu-item:hover .menu-icon,
+.menu-item:hover .menu-hint {
+  color: #fff;
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.menu-item.danger .menu-icon {
+  color: var(--danger);
+}
+.menu-item.danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+.menu-item.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 370px;
+}
+.toast {
+  padding: 10px 10px 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  animation: slide-in 0.16s ease-out;
+}
+.toast svg:first-child {
+  flex: none;
+  margin-top: 1px;
+}
+.toast-message {
+  font-weight: 500;
+  word-break: break-word;
+}
+.toast .detail-text {
+  color: var(--text-2);
+  font-size: 12px;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

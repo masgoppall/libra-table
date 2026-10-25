@@ -1,0 +1,84 @@
+/* Small layout helpers used across screens (instead of inline styles). */
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.row.tight,
+.col.tight {
+  gap: 4px;
+}
+.break-all {
+  word-break: break-all;
+}
+.inline-icon {
+  vertical-align: -2px;
+}
+.icon-gap {
+  display: inline-block;
+  width: 10px;
+}
+.pad-sm {
+  padding: 12px;
+}
+.color-input {
+  width: 34px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+.port-input {
+  width: 80px;
+}
+.num-input {
+  width: 90px;
+}
+.num-input.wide {
+  width: 100px;
+}
+.size-value {
+  width: 44px;
+}
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+.grid-body {
+  position: relative;
+}
+.sort-mark {
+  gap: 0;
+  margin-left: auto;
+}
+.edit-table th.col-num {
+  width: 28px;
+}
+.edit-table th.col-action {
+  width: 34px;
+}
+.comment-input {
+  max-width: 520px;
+}
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 420px;
+}
+.search-field > svg {
+  position: absolute;
+  left: 8px;
+}
+.search-field > .input {
+  width: 100%;
+  padding-left: 26px;
+}
+.history-meta {
+  font-size: 12px;
+}
+.history-error {
+  color: var(--danger);
+  font-size: 12px;
+}

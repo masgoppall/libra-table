@@ -1,0 +1,75 @@
+/* Import wizard, SQL file runner and multi-table export. */
+
+.import-steps {
+  display: inline-flex;
+  gap: 12px;
+}
+.import-steps .current {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.import-null {
+  width: 90px;
+}
+.import-preview,
+.import-errors {
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 8px;
+}
+.import-preview .edit-table td {
+  padding: 4px 8px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.import-preview td.null {
+  color: var(--null);
+  font-style: italic;
+}
+.import-kind {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent-weak);
+  color: var(--accent-text);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+.import-map td.ellipsis {
+  max-width: 200px;
+}
+.import-map .select {
+  width: 100%;
+}
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.export-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.export-tables-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 12px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-2);
+}

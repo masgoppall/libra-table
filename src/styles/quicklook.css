@@ -1,0 +1,59 @@
+/* Quick Look and the JSON tree. */
+
+.quicklook-text {
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.quicklook-image {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: var(--radius);
+  background: repeating-conic-gradient(var(--panel) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px;
+}
+.json-tree {
+  max-height: 60vh;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.json-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.json-branch {
+  cursor: pointer;
+}
+.json-children {
+  padding-left: 16px;
+  border-left: 1px dashed var(--border);
+  margin-left: 5px;
+}
+.json-key {
+  color: var(--text-2);
+}
+.json-string {
+  color: var(--ok);
+}
+.json-number {
+  color: var(--accent);
+}
+.json-boolean,
+.json-null {
+  color: var(--warn);
+}

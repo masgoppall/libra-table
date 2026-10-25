@@ -1,0 +1,41 @@
+/* Filter rows above the data grid. */
+
+.filters {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: none;
+}
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter-row.off .select,
+.filter-row.off .input {
+  opacity: 0.55;
+}
+.filter-row .select.col-select {
+  width: 170px;
+}
+.filter-row .select.op-select {
+  width: 180px;
+}
+.filter-row .input.value {
+  flex: 1;
+}
+.filter-foot {
+  margin-top: 2px;
+}
+.sql-preview {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
