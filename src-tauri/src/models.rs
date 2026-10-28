@@ -364,11 +364,14 @@ impl Connection {
 pub struct Group {
     pub id: String,
     pub name: String,
-    /// Always null in the MVP (one level of groups).
+    /// The group this one sits in (groups nest like folders); None at the top level.
     #[serde(default)]
     pub parent_id: Option<String>,
     #[serde(default)]
     pub collapsed: bool,
+    /// A custom icon chosen in the group dialog: a small `data:image/…` URL.
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 /// How a form changes one secret. Empty strings are valid passwords, so "keep" and

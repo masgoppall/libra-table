@@ -6,6 +6,7 @@ import {
   type ColumnInfo,
   type ConnectInfo,
   type ConnectionView,
+  type Group,
   type OperatorInfo,
   type Settings,
 } from "@/types";
@@ -126,6 +127,7 @@ export class FakeBackend {
   calls: Call[] = [];
   workspace: Args = {};
   databases = ["app", "analytics"];
+  groups: Group[] = [];
   connections: ConnectionView[] = [
     connectionView({ id: "c-local", name: "Local Postgres" }),
     connectionView({
@@ -217,9 +219,16 @@ export class FakeBackend {
   private handlers: Record<string, (args: Args) => unknown> = {
     ...serverHandlers,
     ...this.tools.handlers,
-    list_connections: () => ({ connections: this.connections, groups: [] }),
+    list_connections: () => ({ connections: this.connections, groups: this.groups }),
+    save_group: (a) => {
+      const g: Group = { ...a.group, id: a.group.id || `g-${this.groups.length + 1}` };
+      this.groups = [...this.groups.filter((x) => x.id !== g.id), g];
+      return g;
+    },
     console_entries: () => this.console,
     set_window_view: () => null,
+    set_window_mode: () => null,
+    app_info: () => ({ version: "0.3.0", dataDir: "/tmp/libratable" }),
     passcode_set: () => this.passcode !== null,
     verify_passcode: (a) => a.code === this.passcode,
     "plugin:dialog|save": () => this.savePath,

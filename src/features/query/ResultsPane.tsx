@@ -1,11 +1,12 @@
 // Results of a run: one tab per statement (kept across runs in append mode), rows in a
 // grid, the affected count, or an EXPLAIN plan.
 
-import { Download } from "lucide-react";
+import { Download, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PaddedError, ErrorCallout } from "@/components/ErrorCallout";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { Spinner } from "@/components/Spinner";
+import { EmptyState } from "@/components/StateView";
 import { shortcutFor, withShortcut } from "@/lib/actions";
 import { copyText } from "@/lib/clipboard";
 import { copyRows } from "@/lib/copyRows";
@@ -94,15 +95,21 @@ function ResultStatus(props: {
 }
 
 function EmptyResults() {
+  const [runOne, runAll, save] = (["run-current", "run-all", "save"] as const).map((a) => (
+    <kbd key={a}>{shortcutFor(a)}</kbd>
+  ));
   return (
-    <div className="results-empty">
-      <div>Results appear here.</div>
-      <div className="faint">
-        <kbd>{shortcutFor("run-current")}</kbd> runs the statement under the cursor ·{" "}
-        <kbd>{shortcutFor("run-all")}</kbd> runs everything · <kbd>{shortcutFor("save")}</kbd> saves
-        the query
-      </div>
-    </div>
+    <EmptyState
+      art="query-results"
+      icon={<Play size={18} />}
+      title="Results appear here"
+      hint={
+        <>
+          {runOne} runs the statement under the cursor · {runAll} runs everything · {save} saves the
+          query
+        </>
+      }
+    />
   );
 }
 

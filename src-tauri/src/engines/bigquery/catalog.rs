@@ -135,6 +135,7 @@ impl Table {
             unique: true,
             primary: true,
             definition: format!("PRIMARY KEY ({}) NOT ENFORCED", list(&self.primary_key)),
+            ..Default::default()
         }]
     }
 

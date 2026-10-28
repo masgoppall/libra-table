@@ -106,6 +106,8 @@ export interface Group {
   name: string;
   parentId: string | null;
   collapsed: boolean;
+  /** A custom icon (a small `data:image/…` URL); the plug when null. */
+  icon?: string | null;
 }
 
 export type SecretChange =
@@ -152,6 +154,15 @@ export interface ImportedKeyInfo {
 export interface ConnectionsFileSummary {
   names: string[];
   hasSecrets: boolean;
+  source: "libratable" | "tableplus";
+  /** Encrypted as a whole (TablePlus): the names are known only after the password. */
+  locked: boolean;
+}
+
+export interface ImportReport {
+  added: number;
+  /** Left out, with why ("already in LibraTable", an unsupported driver…). */
+  skipped: { name: string; reason: string }[];
 }
 
 export interface ConnectionDraft {

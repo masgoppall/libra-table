@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Code2 } from "lucide-react";
 import { withShortcut } from "@/lib/actions";
 import { formatCount, formatDuration } from "@/lib/format";
 import { type PageResult, type RowCount } from "@/types";
+import { TableViewSwitch } from "../workspace/TableViewSwitch";
 
 export const PAGE_SIZES = [100, 300, 500, 1000, 2000, 5000];
 
@@ -18,6 +19,8 @@ export interface DataStatusBarProps {
   onToggleSql: () => void;
   onPage: (page: number) => void;
   onPageSize: (size: number) => void;
+  /** Data | Structure: shows the table's structure in this tab. */
+  onShowStructure?: () => void;
 }
 
 const approx = (count: RowCount | null) => (count?.exact ? "" : "~");
@@ -84,6 +87,13 @@ export function DataStatusBar(p: DataStatusBarProps) {
   const sizes = [...new Set([...PAGE_SIZES, p.pageSize])].sort((a, b) => a - b);
   return (
     <div className="statusbar">
+      {p.onShowStructure && (
+        <TableViewSwitch
+          segments={["data", "structure"]}
+          current="data"
+          onPick={() => p.onShowStructure?.()}
+        />
+      )}
       <RowRange {...p} />
       {p.result && <span className="faint">{formatDuration(p.result.elapsedMs)}</span>}
       {p.selected > 0 && <span className="status-pill">{p.selected} selected</span>}

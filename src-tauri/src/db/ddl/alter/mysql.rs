@@ -9,7 +9,7 @@ use super::super::clauses::{
     column_def, comment_of, create_index, fk_clause, quoted_list, same_default, same_type, sql,
 };
 use super::super::plan::{Ctx, Step};
-use super::super::spec::{AlterOp, ColumnSpec};
+use super::super::spec::{AlterOp, ColumnPosition, ColumnSpec};
 
 const D: Dialect = Dialect::Mysql;
 
@@ -24,20 +24,29 @@ pub(super) fn alter(
     let inline_pk_col = inline_primary_key(ops, ctx);
     for op in ops {
         match op {
-            AlterOp::AddColumn { column } => {
+            AlterOp::AddColumn { column, position } => {
                 let inline = inline_pk_col.as_deref() == Some(column.name.as_str());
                 let def = column_def(D, column, inline, true)?;
-                sql(steps, format!("ALTER TABLE {t} ADD COLUMN {def}"));
+                let at = placement(position);
+                sql(steps, format!("ALTER TABLE {t} ADD COLUMN {def}{at}"));
             }
             AlterOp::DropColumn { name } => sql(
                 steps,
                 format!("ALTER TABLE {t} DROP COLUMN {}", quote_ident(D, name)),
             ),
-            AlterOp::ModifyColumn { original, column } => {
-                if column_changed(original, column) {
+            AlterOp::ModifyColumn {
+                original,
+                column,
+                position,
+            } => {
+                if column_changed(original, column) || position.is_some() {
                     let from = quote_ident(D, &original.name);
                     let def = column_def(D, column, false, false)?;
-                    sql(steps, format!("ALTER TABLE {t} CHANGE COLUMN {from} {def}"));
+                    let at = placement(position);
+                    sql(
+                        steps,
+                        format!("ALTER TABLE {t} CHANGE COLUMN {from} {def}{at}"),
+                    );
                 }
             }
             AlterOp::SetPrimaryKey { columns } => {
@@ -81,7 +90,7 @@ fn inline_primary_key(ops: &[AlterOp], ctx: &Ctx) -> Option<String> {
         return None;
     }
     ops.iter().find_map(|o| match o {
-        AlterOp::AddColumn { column } if column.auto_increment && column.name == new_pk[0] => {
+        AlterOp::AddColumn { column, .. } if column.auto_increment && column.name == new_pk[0] => {
             Some(column.name.clone())
         }
         _ => None,
@@ -89,12 +98,25 @@ fn inline_primary_key(ops: &[AlterOp], ctx: &Ctx) -> Option<String> {
 }
 
 fn column_changed(o: &ColumnSpec, c: &ColumnSpec) -> bool {
+    let text = |v: &Option<String>| v.as_deref().map(str::trim).unwrap_or("").to_lowercase();
     o.name != c.name
         || !same_type(&o.data_type, &c.data_type)
         || o.nullable != c.nullable
         || !same_default(o, c)
         || o.auto_increment != c.auto_increment
         || comment_of(&o.comment) != comment_of(&c.comment)
+        || text(&o.charset) != text(&c.charset)
+        || text(&o.collation) != text(&c.collation)
+        || text(&o.extra) != text(&c.extra)
+}
+
+/// ` FIRST` / ` AFTER col` after a column definition.
+fn placement(position: &Option<ColumnPosition>) -> String {
+    match position {
+        None => String::new(),
+        Some(ColumnPosition::First) => " FIRST".into(),
+        Some(ColumnPosition::After(col)) => format!(" AFTER {}", quote_ident(D, col)),
+    }
 }
 
 fn set_primary_key(t: &str, columns: &[String], ctx: &Ctx, steps: &mut Vec<Step>) {

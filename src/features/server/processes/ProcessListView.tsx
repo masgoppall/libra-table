@@ -4,6 +4,7 @@ import { Activity, RefreshCw, Search } from "lucide-react";
 import { PaddedError } from "@/components/ErrorCallout";
 import { Check } from "@/components/Check";
 import { Spinner } from "@/components/Spinner";
+import { EmptyState } from "@/components/StateView";
 import { LAYER, useActions, withShortcut } from "@/lib/actions";
 import { plural } from "@/lib/format";
 import { type ProcessAction, type ProcessInfo, type Workspace } from "@/types";
@@ -70,7 +71,7 @@ export function ProcessListView({ ws, visible }: { ws: Workspace; visible: boole
       <div className="server-scroll">
         <ProcessTable rows={list.rows} idLabel={idLabel} onStop={(p, a) => void onStop(p, a)} />
         {!list.loading && list.rows.length === 0 && (
-          <div className="message faint">No processes match.</div>
+          <EmptyState compact icon={<Activity size={18} />} title="No processes match" />
         )}
       </div>
       <div className="statusbar">

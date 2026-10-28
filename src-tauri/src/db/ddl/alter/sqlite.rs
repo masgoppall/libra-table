@@ -18,13 +18,14 @@ fn needs_rebuild(op: &AlterOp) -> bool {
         AlterOp::ModifyColumn {
             original: o,
             column: c,
+            ..
         } => {
             !same_type(&o.data_type, &c.data_type)
                 || o.nullable != c.nullable
                 || !same_default(o, c)
                 || o.auto_increment != c.auto_increment
         }
-        AlterOp::AddColumn { column } => column.unique || column.primary_key,
+        AlterOp::AddColumn { column, .. } => column.unique || column.primary_key,
         AlterOp::SetPrimaryKey { .. }
         | AlterOp::AddForeignKey { .. }
         | AlterOp::DropForeignKey { .. } => true,
@@ -95,14 +96,14 @@ impl Alter<'_> {
             ),
             // Indexes are created at the end, after any rebuild.
             AlterOp::AddIndex { .. } => {}
-            AlterOp::ModifyColumn { original, column } => {
-                self.modify_column(op, original, column)?
-            }
-            AlterOp::AddColumn { column } if self.rebuild => {
+            AlterOp::ModifyColumn {
+                original, column, ..
+            } => self.modify_column(op, original, column)?,
+            AlterOp::AddColumn { column, .. } if self.rebuild => {
                 column_def(D, column, false, true)?;
                 self.rebuild_spec.ops.push(op.clone());
             }
-            AlterOp::AddColumn { column } => {
+            AlterOp::AddColumn { column, .. } => {
                 let def = column_def(D, column, false, true)?;
                 sql(self.steps, format!("ALTER TABLE {t} ADD COLUMN {def}"));
             }
@@ -130,6 +131,7 @@ impl Alter<'_> {
             self.rebuild_spec.ops.push(AlterOp::ModifyColumn {
                 original,
                 column: c.clone(),
+                position: None,
             });
         }
         Ok(())

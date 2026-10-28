@@ -13,7 +13,7 @@ const MIN_LENGTH: usize = 4;
 const WRONG_DELAY: Duration = Duration::from_millis(600);
 
 pub fn is_set(state: &AppState) -> bool {
-    matches!(state.secrets.get_app(SECRET), Ok(Some(_)))
+    state.secrets.has_app(SECRET)
 }
 
 pub async fn verify(state: &AppState, code: &str) -> AppResult<bool> {

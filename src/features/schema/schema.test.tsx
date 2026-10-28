@@ -27,13 +27,17 @@ const spec = (dataType: string) => ({
   autoIncrement: false,
   unique: false,
   comment: null,
+  charset: null,
+  collation: null,
+  extra: null,
 });
 
 describe("schema changes", () => {
   it("creates a database and opens it (multi database)", async () => {
     renderApp();
     await openWorkspace("Local Postgres");
-    fireEvent.click(within(sidebar()).getByTitle("New database"));
+    fireEvent.click(within(sidebar()).getByRole("button", { name: "New" }));
+    fireEvent.click(await screen.findByText("New database…"));
     const dialog = await screen.findByRole("dialog");
     const name = within(dialog).getByPlaceholderText("e.g. shop_dev");
     fireEvent.change(name, { target: { value: "reports" } });
@@ -50,7 +54,7 @@ describe("schema changes", () => {
     const listed = () =>
       h.backend.callsOf("list_objects").some((c) => c.args.database === "reports");
     await waitFor(() => expect(listed()).toBe(true));
-    expect(query(".db-switch-name").textContent).toBe("reports");
+    expect(query(".tb-status-text").textContent).toMatch(/ : reports$/);
   });
 
   it("creates a table with the designer (⌘⇧N)", async () => {
@@ -59,12 +63,13 @@ describe("schema changes", () => {
     press("KeyN", "N", { shiftKey: true });
     const name = await screen.findByPlaceholderText("table_name");
     fireEvent.change(name, { target: { value: "orders" } });
-    fireEvent.click(screen.getByText("Add column"));
-    const names = queryAll<HTMLInputElement>(
-      ".edit-table input.cell-input[placeholder='column_name']",
-    );
-    fireEvent.change(names[1] as HTMLInputElement, { target: { value: "total" } });
-    fireEvent.click(screen.getByText("Create table…"));
+    fireEvent.click(screen.getByRole("button", { name: "Add column" }));
+    // The new column's name is being typed.
+    const editor = query<HTMLInputElement>(".st-grid input.st-input");
+    expect(editor.placeholder).toBe("column_name");
+    fireEvent.change(editor, { target: { value: "total" } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    press("KeyS", "s");
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("-- create_table orders")).toBeTruthy();
     await act(async () => {
@@ -92,13 +97,21 @@ describe("schema changes", () => {
     await openWorkspace("Local Postgres");
     fireEvent.contextMenu(within(sidebar()).getByText("people"));
     fireEvent.click(await screen.findByText("Edit structure"));
-    const typeInputs = await waitFor(() => {
-      const xs = queryAll<HTMLInputElement>(".edit-table input[list^='lt-types']");
+    const rows = await waitFor(() => {
+      const xs = queryAll<HTMLTableRowElement>(".st-grid tbody tr[data-col]");
       expect(xs.length).toBe(3);
       return xs;
     });
-    fireEvent.change(typeInputs[2] as HTMLInputElement, { target: { value: "varchar(500)" } });
-    expect(await screen.findByText("1 change not applied yet")).toBeTruthy();
+    // Double-click the type of "note" and type a new one.
+    const type = (rows[2] as HTMLElement).querySelectorAll("td.st-cell")[1] as HTMLElement;
+    fireEvent.doubleClick(type);
+    const editor = query<HTMLInputElement>(".st-grid input.st-input");
+    fireEvent.change(editor, { target: { value: "varchar(500)" } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(type.classList.contains("changed")).toBe(true);
+    // The toolbar's commit button lights up.
+    const commit = screen.getByRole("button", { name: "Commit changes" }) as HTMLButtonElement;
+    expect(commit.disabled).toBe(false);
     press("KeyS", "s");
     const dialog = await screen.findByRole("dialog");
     await act(async () => {

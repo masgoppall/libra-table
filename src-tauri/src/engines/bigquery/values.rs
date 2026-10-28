@@ -82,6 +82,7 @@ impl Field {
             pk_position,
             auto_increment: false,
             comment: self.description.clone().filter(|d| !d.is_empty()),
+            ..Default::default()
         }
     }
 }

@@ -47,6 +47,9 @@ pub fn run() {
                 menu::apply_shortcuts(app.handle(), &shortcuts);
             }
             setup::forward_deep_links(app);
+            if let Some(main) = app.get_webview_window("main") {
+                window::mode::welcome(&main)?;
+            }
             console::install(app.handle());
             Ok(())
         })

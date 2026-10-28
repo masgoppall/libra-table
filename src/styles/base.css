@@ -15,7 +15,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font: var(--fs) / 1.45 var(--sans);
-  -webkit-font-smoothing: antialiased;
+  /* As AppKit draws text (font smoothing on), not the thinner "antialiased". */
+  -webkit-font-smoothing: auto;
   user-select: none;
   overflow: hidden;
   cursor: default;
@@ -35,6 +36,18 @@ select,
 button {
   font: inherit;
   color: inherit;
+}
+
+/* Hover and press feedback eases in, as AppKit controls do. */
+button {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.1s ease;
 }
 
 input,

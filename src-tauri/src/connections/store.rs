@@ -137,10 +137,17 @@ pub fn save_group(state: &AppState, mut g: Group) -> AppResult<Group> {
     if g.name.is_empty() {
         return Err(AppError::validation("Give the group a name."));
     }
-    g.parent_id = None; // one level in the MVP
     let mut cfg = state.config.lock().unwrap();
     if g.id.is_empty() {
         g.id = uuid::Uuid::new_v4().to_string();
+    }
+    g.parent_id = g.parent_id.filter(|p| !p.is_empty());
+    g.icon = g.icon.filter(|i| !i.is_empty());
+    if let Some(icon) = &g.icon {
+        check_icon(icon)?;
+    }
+    if let Some(parent) = &g.parent_id {
+        check_parent(&cfg.groups, &g.id, parent)?;
     }
     let mut next = cfg.groups.clone();
     match next.iter_mut().find(|x| x.id == g.id) {
@@ -152,17 +159,70 @@ pub fn save_group(state: &AppState, mut g: Group) -> AppResult<Group> {
     Ok(g)
 }
 
-/// Deletes the group; its connections move to the top level.
+/// Largest group icon kept in groups.json (the dialog stores a 96 px PNG, ~10 KB).
+const MAX_ICON_LEN: usize = 256 * 1024;
+
+fn check_icon(icon: &str) -> AppResult<()> {
+    if !icon.starts_with("data:image/") {
+        return Err(AppError::validation("The group icon must be an image."));
+    }
+    if icon.len() > MAX_ICON_LEN {
+        return Err(AppError::validation("The group icon is too large."));
+    }
+    Ok(())
+}
+
+/// Deepest nesting of groups the list shows.
+const MAX_GROUP_DEPTH: usize = 8;
+
+/// A group can't sit in a missing group, in itself or in one of its own subgroups.
+fn check_parent(groups: &[Group], id: &str, parent: &str) -> AppResult<()> {
+    let mut depth = 1;
+    let mut at = Some(parent.to_string());
+    while let Some(current) = at {
+        if current == id {
+            return Err(AppError::validation("A group can't be moved into itself."));
+        }
+        let g = groups
+            .iter()
+            .find(|g| g.id == current)
+            .ok_or_else(|| AppError::validation("The parent group no longer exists."))?;
+        depth += 1;
+        if depth > MAX_GROUP_DEPTH {
+            return Err(AppError::validation("Groups can be nested 8 levels deep."));
+        }
+        at = g.parent_id.clone();
+    }
+    Ok(())
+}
+
+/// Deletes the group; its subgroups and connections move up to its parent.
 pub fn delete_group(state: &AppState, id: &str) -> AppResult<()> {
     let mut cfg = state.config.lock().unwrap();
-    let groups: Vec<Group> = cfg.groups.iter().filter(|g| g.id != id).cloned().collect();
+    let parent = cfg
+        .groups
+        .iter()
+        .find(|g| g.id == id)
+        .and_then(|g| g.parent_id.clone());
+    let groups: Vec<Group> = cfg
+        .groups
+        .iter()
+        .filter(|g| g.id != id)
+        .cloned()
+        .map(|mut g| {
+            if g.parent_id.as_deref() == Some(id) {
+                g.parent_id = parent.clone();
+            }
+            g
+        })
+        .collect();
     let conns: Vec<Connection> = cfg
         .connections
         .iter()
         .cloned()
         .map(|mut c| {
             if c.group_id.as_deref() == Some(id) {
-                c.group_id = None;
+                c.group_id = parent.clone();
             }
             c
         })
@@ -172,4 +232,40 @@ pub fn delete_group(state: &AppState, id: &str) -> AppResult<()> {
     cfg.groups = groups;
     cfg.connections = conns;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn group(id: &str, parent: Option<&str>) -> Group {
+        Group {
+            id: id.into(),
+            name: id.into(),
+            parent_id: parent.map(str::to_string),
+            collapsed: false,
+            icon: None,
+        }
+    }
+
+    #[test]
+    fn groups_nest_but_never_into_themselves() {
+        let groups = [
+            group("a", None),
+            group("b", Some("a")),
+            group("c", Some("b")),
+        ];
+        assert!(check_parent(&groups, "new", "c").is_ok());
+        assert!(check_parent(&groups, "a", "c").is_err(), "a cycle");
+        assert!(check_parent(&groups, "b", "b").is_err(), "itself");
+        assert!(check_parent(&groups, "new", "missing").is_err());
+    }
+
+    #[test]
+    fn group_icons_are_small_images() {
+        assert!(check_icon("data:image/png;base64,iVBORw0KGgo=").is_ok());
+        assert!(check_icon("https://example.com/icon.png").is_err());
+        let big = format!("data:image/png;base64,{}", "A".repeat(MAX_ICON_LEN));
+        assert!(check_icon(&big).is_err());
+    }
 }

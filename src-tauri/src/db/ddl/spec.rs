@@ -23,6 +23,23 @@ pub struct ColumnSpec {
     pub unique: bool,
     #[serde(default)]
     pub comment: Option<String>,
+    /// MySQL text columns: CHARACTER SET and COLLATE (ignored by other types and drivers).
+    #[serde(default)]
+    pub charset: Option<String>,
+    #[serde(default)]
+    pub collation: Option<String>,
+    /// MySQL column attributes written as given ("ON UPDATE CURRENT_TIMESTAMP",
+    /// "SERIAL DEFAULT VALUE"…); AUTO_INCREMENT is `auto_increment`.
+    #[serde(default)]
+    pub extra: Option<String>,
+}
+
+/// Where a MySQL column goes (`FIRST`, `AFTER other`).
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnPosition {
+    First,
+    After(String),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,6 +51,9 @@ pub struct IndexSpec {
     pub columns: Vec<String>,
     #[serde(default)]
     pub unique: bool,
+    /// BTREE, HASH (MySQL) or an access method (Postgres); the default when empty.
+    #[serde(default)]
+    pub algorithm: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -106,6 +126,9 @@ pub enum SchemaChange {
         schema: String,
         name: String,
         ops: Vec<AlterOp>,
+        /// A new name, applied after the ops.
+        #[serde(default)]
+        rename_to: Option<String>,
     },
     RenameTable {
         schema: String,
@@ -158,6 +181,9 @@ pub enum SchemaChange {
 pub enum AlterOp {
     AddColumn {
         column: ColumnSpec,
+        /// MySQL only; at the end when absent.
+        #[serde(default)]
+        position: Option<ColumnPosition>,
     },
     DropColumn {
         name: String,
@@ -167,6 +193,9 @@ pub enum AlterOp {
     ModifyColumn {
         original: ColumnSpec,
         column: ColumnSpec,
+        /// MySQL only: move the column.
+        #[serde(default)]
+        position: Option<ColumnPosition>,
     },
     /// The whole new primary key (empty = none).
     SetPrimaryKey {

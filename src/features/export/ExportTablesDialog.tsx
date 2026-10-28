@@ -8,6 +8,7 @@ import { Check } from "@/components/Check";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
+import { LoadingState } from "@/components/StateView";
 import { plural } from "@/lib/format";
 import { toastSuccess } from "@/services/errors";
 import { type ToolDialog } from "@/store";
@@ -161,9 +162,7 @@ export function ExportTablesDialog(props: { dialog: TablesDialog; onClose: () =>
       footer={footer}
     >
       {tables === null ? (
-        <div className="row muted">
-          <Spinner /> Loading tables…
-        </div>
+        <LoadingState compact label="Loading tables…" />
       ) : (
         <TableList tables={tables} selected={selected} onChange={setSelected} />
       )}

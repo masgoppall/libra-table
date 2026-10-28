@@ -1,16 +1,14 @@
-// What the palettes list: ⌘P tables, views, saved queries and actions; ⌘K databases.
+// What the ⌘P palette lists: tables, views, saved queries and actions.
 
-import { Command, Database, Eye, FileCode2, Plus, Table2 } from "lucide-react";
+import { Command, Eye, FileCode2, Table2 } from "lucide-react";
 import { type ReactNode } from "react";
 import { api } from "@/api";
 import { actionAvailable } from "@/domain/features";
 import { type ActionId, dispatch, SHORTCUTS, shortcutFor, UNBOUND_ACTIONS } from "@/lib/actions";
-import { showError } from "@/services/errors";
 import { store, tabDb } from "@/store";
 import { type Workspace } from "@/types";
 import { objectPaletteItems } from "../objects/paletteObjects";
 import { openSavedQuery } from "../query/savedQueries";
-import { createDatabaseFlow } from "../schema/flows";
 import { SERVER_ACTIONS, serverActionAvailable } from "../server/serverActions";
 import { tableTab } from "../workspace/tabs";
 
@@ -63,32 +61,6 @@ function actionItems(ws: Workspace): PaletteItem[] {
     hint: shortcutFor(a),
     run: () => dispatch(a),
   }));
-}
-
-export async function databaseItems(ws: Workspace): Promise<PaletteItem[]> {
-  const dbs = await api.listDatabases(ws.connectionId).catch((e) => {
-    showError(e);
-    return [] as string[];
-  });
-  const items: PaletteItem[] = dbs.map((d) => ({
-    key: `db:${d}`,
-    group: "Databases",
-    label: d,
-    detail:
-      d === ws.database ? "current" : d === ws.info.database ? "connection default" : undefined,
-    icon: <Database size={14} />,
-    run: () => store.get().switchDatabase(ws.connectionId, d),
-  }));
-  if (ws.info.dialect !== "sqlite") {
-    items.push({
-      key: "new-db",
-      group: "Actions",
-      label: "New database…",
-      icon: <Plus size={14} />,
-      run: () => createDatabaseFlow(ws),
-    });
-  }
-  return items;
 }
 
 export async function anythingItems(ws: Workspace): Promise<PaletteItem[]> {

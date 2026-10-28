@@ -311,6 +311,7 @@ mod tests {
                 pk_position: Some(1),
                 auto_increment: false,
                 comment: None,
+                ..Default::default()
             },
             ColumnInfo {
                 name: "name".into(),
@@ -320,6 +321,7 @@ mod tests {
                 pk_position: None,
                 auto_increment: false,
                 comment: None,
+                ..Default::default()
             },
             ColumnInfo {
                 name: "at".into(),
@@ -329,6 +331,7 @@ mod tests {
                 pk_position: None,
                 auto_increment: false,
                 comment: None,
+                ..Default::default()
             },
         ]
     }

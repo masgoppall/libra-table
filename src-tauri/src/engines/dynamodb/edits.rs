@@ -276,6 +276,7 @@ mod tests {
             pk_position: pk,
             auto_increment: false,
             comment: None,
+            ..Default::default()
         }
     }
 

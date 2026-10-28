@@ -33,17 +33,22 @@ function useEscape(onClose: () => void) {
   return ref;
 }
 
-export function Modal(props: ModalProps) {
-  const onClose = useEscape(props.onClose);
+/** Escape and ⌘W close the dialog; tab and palette shortcuts don't reach what is behind it. */
+export function useDialogLayer(onClose: () => void) {
+  const ref = useEscape(onClose);
   const swallow = () => true;
   useActions(LAYER.dialog, true, {
-    "close-tab": () => onClose.current(),
+    "close-tab": () => ref.current(),
     "new-query": swallow,
     "next-tab": swallow,
     "prev-tab": swallow,
     "open-anything": swallow,
     "switch-database": swallow,
   });
+}
+
+export function Modal(props: ModalProps) {
+  useDialogLayer(props.onClose);
   const classes = ["modal", props.size ?? "md", props.className].filter(Boolean).join(" ");
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && props.onClose()}>

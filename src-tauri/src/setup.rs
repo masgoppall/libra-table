@@ -15,8 +15,14 @@ use crate::storage::Storage;
 
 const DAY_MS: i64 = 86_400_000;
 
+/// Overrides the data folder (tests, trying the app without touching saved connections).
+const DATA_DIR_ENV: &str = "LIBRATABLE_DATA_DIR";
+
 pub fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>> {
-    let dir = app.path().app_data_dir()?;
+    let dir = match std::env::var_os(DATA_DIR_ENV) {
+        Some(d) if !d.is_empty() => d.into(),
+        _ => app.path().app_data_dir()?,
+    };
     let storage = Storage::new(&dir)?;
     let connections = storage.load_connections()?;
     let groups = storage.load_groups()?;

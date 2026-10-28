@@ -27,7 +27,7 @@ pub struct ObjectInfo {
     pub kind: &'static str,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnInfo {
     pub name: String,
@@ -40,9 +40,15 @@ pub struct ColumnInfo {
     /// Identity / serial (Postgres), AUTO_INCREMENT (MySQL), rowid alias (SQLite).
     pub auto_increment: bool,
     pub comment: Option<String>,
+    /// MySQL text columns: CHARACTER SET and COLLATE.
+    pub charset: Option<String>,
+    pub collation: Option<String>,
+    /// MySQL `EXTRA` as the server reports it ("auto_increment", "DEFAULT_GENERATED",
+    /// "on update CURRENT_TIMESTAMP"…); empty elsewhere.
+    pub extra: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexInfo {
     pub name: String,
@@ -50,6 +56,8 @@ pub struct IndexInfo {
     pub unique: bool,
     pub primary: bool,
     pub definition: String,
+    /// BTREE, HASH… (MySQL `INDEX_TYPE`, Postgres access method); empty when unknown.
+    pub algorithm: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -54,6 +54,11 @@ export interface ColumnInfo {
   pkPosition: number | null;
   autoIncrement: boolean;
   comment: string | null;
+  /** MySQL text columns. */
+  charset?: string | null;
+  collation?: string | null;
+  /** MySQL EXTRA as reported ("auto_increment", "DEFAULT_GENERATED"…); "" elsewhere. */
+  extra?: string;
 }
 
 export interface IndexInfo {
@@ -62,6 +67,8 @@ export interface IndexInfo {
   unique: boolean;
   primary: boolean;
   definition: string;
+  /** BTREE, HASH… ; "" when unknown. */
+  algorithm?: string;
 }
 
 export interface ForeignKeyInfo {

@@ -14,3 +14,4 @@ export type * from "./workspace";
 export type * from "./console";
 export type * from "./objects";
 export type * from "./queryTools";
+export type * from "./brand";

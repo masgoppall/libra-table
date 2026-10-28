@@ -1,5 +1,7 @@
 //! App-level commands: version, settings, the saved workspace and per-table grid state.
 
+use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, State};
@@ -106,4 +108,47 @@ pub async fn change_passcode(
 #[tauri::command]
 pub fn set_window_view(in_workspace: bool) {
     crate::window::set_in_workspace(in_workspace);
+}
+
+/// The compact welcome window (no connection open) or the large workspace window.
+#[tauri::command]
+pub fn set_window_mode(window: tauri::WebviewWindow, mode: crate::window::mode::Mode) -> Cmd<()> {
+    crate::window::mode::apply(&window, mode)
+        .map_err(|e| crate::error::AppError::internal(e.to_string()))
+}
+
+/// Largest image file `read_image_file` accepts.
+const MAX_IMAGE_BYTES: u64 = 8 * 1024 * 1024;
+
+/// An image file as a `data:` URL, for the group icon picker (the UI scales it down).
+#[tauri::command]
+pub fn read_image_file(path: String) -> Cmd<String> {
+    let path = std::path::Path::new(&path);
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "bmp" => "image/bmp",
+        "tif" | "tiff" => "image/tiff",
+        _ => {
+            return Err(crate::error::AppError::validation(
+                "Choose a PNG, JPEG, GIF, WebP or SVG image.",
+            ))
+        }
+    };
+    let size = std::fs::metadata(path)?.len();
+    if size > MAX_IMAGE_BYTES {
+        return Err(crate::error::AppError::validation(
+            "The image is larger than 8 MB.",
+        ));
+    }
+    let bytes = std::fs::read(path)?;
+    Ok(format!("data:{mime};base64,{}", B64.encode(bytes)))
 }

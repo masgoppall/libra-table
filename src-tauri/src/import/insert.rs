@@ -147,6 +147,7 @@ mod tests {
             pk_position: None,
             auto_increment: false,
             comment: None,
+            ..Default::default()
         }
     }
 

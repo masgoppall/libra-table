@@ -142,6 +142,7 @@ pub(super) async fn columns(p: &PgPool, schema: &str, table: &str) -> AppResult<
                 default,
                 pk_position: pk,
                 comment: comment.filter(|c| !c.is_empty()),
+                ..Default::default()
             },
         )
         .collect())
@@ -180,12 +181,22 @@ pub(super) async fn structure(
 
 fn index_info((name, unique, primary, definition, columns): IndexRow) -> IndexInfo {
     IndexInfo {
+        algorithm: index_method(&definition),
         name,
         columns,
         unique,
         primary,
         definition,
     }
+}
+
+/// The access method of `CREATE INDEX … USING btree (…)`.
+fn index_method(definition: &str) -> String {
+    definition
+        .split_once(" USING ")
+        .and_then(|(_, rest)| rest.split_whitespace().next())
+        .unwrap_or("")
+        .to_string()
 }
 
 async fn foreign_keys(p: &PgPool, schema: &str, table: &str) -> AppResult<Vec<ForeignKeyInfo>> {

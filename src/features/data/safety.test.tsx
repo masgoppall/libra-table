@@ -43,7 +43,7 @@ describe("safe mode", () => {
     setOptions({ readOnly: true });
     const bob = await openPeople();
     expect(screen.getByText("Read-only connection")).toBeTruthy();
-    expect(document.querySelector(".toptab .read-only")).toBeTruthy();
+    expect(document.querySelector(".tb-status .read-only")).toBeTruthy();
     fireEvent.doubleClick(bob);
     expect(document.querySelector(".grid-cell input")).toBeNull();
   });

@@ -85,7 +85,7 @@
 .btn.xs {
   height: 22px;
   padding: 0 7px;
-  font-size: 11.5px;
+  font-size: 11px;
   gap: 4px;
   box-shadow: none;
 }
@@ -164,7 +164,7 @@ textarea::placeholder {
 }
 .select.xs {
   height: 22px;
-  font-size: 11.5px;
+  font-size: 11px;
   padding: 0 4px;
 }
 textarea.input {
@@ -359,4 +359,13 @@ kbd + kbd {
 .segmented.wide button {
   flex: 1;
   justify-content: center;
+}
+
+/* The round driver badge (components/DriverLogo): an SVG from public/brand. */
+.driver-circle {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+  pointer-events: none;
+  user-select: none;
 }

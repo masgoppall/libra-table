@@ -30,8 +30,7 @@ export function WorkspaceView({ ws, visible }: { ws: Workspace; visible: boolean
     <div className={classes} style={{ display: visible ? "flex" : "none" }}>
       <Sidebar ws={ws} onExportTable={(schema, table) => setExportTable({ schema, table })} />
       <div className="content">
-        <TabBar ws={ws} />
-        {ws.tabs.length === 0 && <WorkspaceWelcome ws={ws} />}
+        {ws.tabs.length > 0 ? <TabBar ws={ws} /> : <WorkspaceWelcome />}
         <TabPanes ws={ws} visible={visible} />
       </div>
       {exportTable && (

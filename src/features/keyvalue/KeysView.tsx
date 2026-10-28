@@ -151,7 +151,8 @@ export function KeysView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
             onRowContextMenu={(e, r) => rowMenu(e, r)}
             onDeleteRows={() => canEdit && void remove(selectedKeys())}
             rowNumberOffset={list.page * list.pageSize}
-            emptyText={list.loading ? "Loading…" : "No keys match."}
+            emptyText="No keys match."
+            loading={list.loading}
           />
         </div>
         {current !== undefined && (

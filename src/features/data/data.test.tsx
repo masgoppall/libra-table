@@ -40,6 +40,55 @@ describe("data tab", () => {
     expect(last?.database).toBeNull();
   });
 
+  it("shows every row again on an emptied value, a removed row or Clear", async () => {
+    await openPeople("Local Postgres");
+    expect(await screen.findByText("Alice")).toBeTruthy();
+    const pages = () => h.backend.callsOf("fetch_page").length;
+    const active = () =>
+      (h.backend.lastCall("fetch_page")?.args.request.filters as { enabled: boolean }[]).filter(
+        (f) => f.enabled,
+      ).length;
+    const applyValue = async (text: string) => {
+      const before = pages();
+      const value = query<HTMLInputElement>(".filter-row input.value");
+      fireEvent.change(value, { target: { value: text } });
+      fireEvent.keyDown(value, { key: "Enter" });
+      await waitFor(() => expect(pages()).toBeGreaterThan(before));
+    };
+
+    fireEvent.click(screen.getByRole("button", { name: /Filter/ }));
+    await applyValue("Alice");
+    expect(active()).toBe(1);
+    // Emptying the value and pressing ↵ drops the filter instead of failing.
+    await applyValue("");
+    expect(active()).toBe(0);
+
+    await applyValue("Alice");
+    let before = pages();
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(pages()).toBeGreaterThan(before));
+    expect(active()).toBe(0);
+    expect(query<HTMLInputElement>(".filter-row input.value").value).toBe("");
+
+    await applyValue("Alice");
+    before = pages();
+    fireEvent.click(screen.getByTitle("Remove this filter"));
+    await waitFor(() => expect(pages()).toBeGreaterThan(before));
+    expect(active()).toBe(0);
+    expect(document.querySelector(".filters")).toBeNull();
+  });
+
+  it("shows the structure in the same tab from the toolbar", async () => {
+    await openPeople("Local Postgres");
+    expect(await screen.findByText("Alice")).toBeTruthy();
+    fireEvent.click(within(query(".toolbar")).getByRole("button", { name: /Structure/ }));
+    expect(await screen.findByText("column_name")).toBeTruthy();
+    expect(queryAll(".tabbar .tab").length).toBe(1);
+    press("KeyS", "S", { shiftKey: true });
+    expect(await screen.findByText("Alice")).toBeTruthy();
+    expect(queryAll(".tabbar .tab").length).toBe(1);
+  });
+
   it("requires confirmation before committing edits on production (GRD-4, SAFE-2)", async () => {
     await openPeople("Prod Shop");
     fireEvent.doubleClick(await screen.findByText("Bob"));

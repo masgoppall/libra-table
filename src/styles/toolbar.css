@@ -1,0 +1,404 @@
+/* The workspace window's chrome: the 52px toolbar (TablePlus' main window, measured in
+   its dark appearance) and the connection tabs under it. */
+
+:root {
+  --tb-bg: #ececec;
+  --tb-group: linear-gradient(#ffffff, #fbfbfb 25%, #fbfbfb 75%, #f7f7f7);
+  --tb-rim: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.16);
+  --tb-icon: #3a3a3a;
+  --tb-icon-off: #b5b5b5;
+  --tb-hover: rgba(0, 0, 0, 0.06);
+  --tb-press: rgba(0, 0, 0, 0.12);
+  --tb-sep: #d2d2d2;
+  --tb-status-text: #ffffff;
+  --tb-status-local: color(display-p3 0.55 0.565 0.58);
+  --tb-status-testing: color(display-p3 0.72 0.6 0.18);
+  --tb-status-development: color(display-p3 0.52 0.36 0.72);
+  --tb-status-staging: color(display-p3 0.22 0.45 0.78);
+  --tb-status-production: color(display-p3 0.78 0.27 0.25);
+  --tb-status-idle: #dcdcdc;
+  --tb-status-idle-text: #6a6a6a;
+  --ct-bg: #e2e2e2;
+  --ct-tab: #ececec;
+  --ct-text: #5a5a5a;
+  --ct-active-text: #1f1f1f;
+  --ct-border: #cfcfcf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tb-bg: #1a1a1a;
+    --tb-group: linear-gradient(#3e3e3e, #393939 25%, #393939 75%, #3d3d3d);
+    --tb-rim: #6a6a6a #0a0a0a;
+    --tb-icon: #e1e1e1;
+    --tb-icon-off: #646464;
+    --tb-hover: rgba(255, 255, 255, 0.09);
+    --tb-press: rgba(255, 255, 255, 0.16);
+    --tb-sep: #6c6c6c;
+    --tb-info: color(display-p3 0.824 0.533 0.275);
+    --tb-status-local: color(display-p3 0.424 0.439 0.455);
+    --tb-status-testing: color(display-p3 0.5 0.43 0.16);
+    --tb-status-development: color(display-p3 0.4 0.29 0.55);
+    --tb-status-staging: color(display-p3 0.18 0.36 0.62);
+    --tb-status-production: color(display-p3 0.6 0.22 0.2);
+    --tb-status-idle: #303030;
+    --tb-status-idle-text: #9a9a9a;
+    --ct-bg: #141414;
+    --ct-tab: #1a1a1a;
+    --ct-text: #8e8e8e;
+    --ct-active-text: #e1e1e1;
+    --ct-border: #000000;
+  }
+}
+
+:root[data-theme="dark"] {
+  --tb-bg: #1a1a1a;
+  --tb-group: linear-gradient(#3e3e3e, #393939 25%, #393939 75%, #3d3d3d);
+  --tb-rim: #6a6a6a #0a0a0a;
+  --tb-icon: #e1e1e1;
+  --tb-icon-off: #646464;
+  --tb-hover: rgba(255, 255, 255, 0.09);
+  --tb-press: rgba(255, 255, 255, 0.16);
+  --tb-sep: #6c6c6c;
+  --tb-status-local: color(display-p3 0.424 0.439 0.455);
+  --tb-status-testing: color(display-p3 0.5 0.43 0.16);
+  --tb-status-development: color(display-p3 0.4 0.29 0.55);
+  --tb-status-staging: color(display-p3 0.18 0.36 0.62);
+  --tb-status-production: color(display-p3 0.6 0.22 0.2);
+  --tb-status-idle: #303030;
+  --tb-status-idle-text: #9a9a9a;
+  --ct-bg: #141414;
+  --ct-tab: #1a1a1a;
+  --ct-text: #8e8e8e;
+  --ct-active-text: #e1e1e1;
+  --ct-border: #000000;
+}
+
+.toolbar-bar {
+  display: flex;
+  align-items: center;
+  gap: 7.5px;
+  height: 52px;
+  flex: none;
+  padding-right: 6.5px;
+  background: var(--tb-bg);
+}
+/* The traffic lights sit here (window/chrome.rs: left 16, top 19, 23 apart). */
+.tb-traffic {
+  width: 84.5px;
+  flex: none;
+  align-self: stretch;
+}
+.tb-group {
+  --tb-btn-w: 36px;
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 36px;
+  border: 0.5px solid;
+  border-color: var(--tb-rim);
+  border-radius: 18px;
+  background: var(--tb-group);
+}
+.tb-group.separated.wide {
+  --tb-btn-w: 40px;
+}
+.tb-group.separated.narrow {
+  --tb-btn-w: 37.5px;
+}
+.tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tb-btn-w);
+  height: 35px;
+  padding: 0;
+  border: none;
+  border-radius: 17.5px;
+  background: transparent;
+  color: var(--tb-icon);
+  cursor: default;
+}
+.tb-btn:hover:not(:disabled) {
+  background: var(--tb-hover);
+}
+.tb-btn:active:not(:disabled) {
+  background: var(--tb-press);
+}
+.tb-btn:disabled {
+  color: var(--tb-icon-off);
+}
+.tb-btn.active {
+  color: var(--accent-text);
+}
+.tb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.tb-sep {
+  width: 1px;
+  height: 18px;
+  flex: none;
+  background: var(--tb-sep);
+}
+.tb-sql {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.tb-status-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 80px;
+}
+.tb-status {
+  --status: var(--tb-status-local);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 14px 0 11.5px;
+  border: 0.5px solid;
+  border-color: rgba(255, 255, 255, 0.22) rgba(0, 0, 0, 0.55);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      rgba(255, 255, 255, 0.05),
+      transparent 30%,
+      transparent 70%,
+      rgba(255, 255, 255, 0.03)
+    ),
+    var(--status);
+  color: var(--tb-status-text);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+  cursor: default;
+}
+button.tb-status:hover,
+button.tb-status.open {
+  filter: brightness(1.08);
+}
+button.tb-status:active {
+  filter: brightness(1.15);
+}
+button.tb-status:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tb-status.tag-testing {
+  --status: var(--tb-status-testing);
+}
+.tb-status.tag-development {
+  --status: var(--tb-status-development);
+}
+.tb-status.tag-staging {
+  --status: var(--tb-status-staging);
+}
+.tb-status.tag-production {
+  --status: var(--tb-status-production);
+}
+.tb-status.custom {
+  background:
+    linear-gradient(
+      rgba(255, 255, 255, 0.05),
+      transparent 30%,
+      transparent 70%,
+      rgba(255, 255, 255, 0.03)
+    ),
+    color-mix(in srgb, var(--status) 62%, #2b2b2b);
+}
+.tb-status.idle {
+  background: var(--tb-status-idle);
+  color: var(--tb-status-idle-text);
+  font-family: var(--sans);
+  font-weight: 500;
+  justify-content: center;
+}
+.tb-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-status-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.conn-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  flex: none;
+  background: var(--ct-bg);
+  border-top: 1px solid var(--ct-border);
+  border-bottom: 1px solid var(--ct-border);
+}
+.conn-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 28px;
+  color: var(--ct-text);
+  font-size: 12px;
+  cursor: default;
+}
+.conn-tab + .conn-tab {
+  border-left: 1px solid var(--ct-border);
+}
+.conn-tab:not(.active):hover {
+  background: var(--tb-hover);
+  color: var(--ct-active-text);
+}
+.conn-tab.active {
+  background: var(--ct-tab);
+  color: var(--ct-active-text);
+  font-weight: 500;
+}
+.conn-tab.production.active {
+  box-shadow: inset 0 2px 0 var(--danger);
+}
+.conn-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conn-tab-db {
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+.conn-tab-close {
+  position: absolute;
+  left: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ct-text);
+  opacity: 0;
+}
+.conn-tab:hover .conn-tab-close {
+  opacity: 1;
+}
+.conn-tab-close:hover {
+  background: var(--tb-hover);
+  color: var(--ct-active-text);
+}
+.conn-tabs-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--ct-border);
+  background: transparent;
+  color: var(--ct-text);
+}
+.conn-tabs-new:hover {
+  color: var(--ct-active-text);
+}
+
+/* Connection info, under the status pill. */
+.cip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  width: 320px;
+  padding: 14px 14px 12px;
+  border: 0.5px solid var(--menu-rim);
+  border-radius: 14px;
+  background: linear-gradient(rgba(255, 255, 255, 0.05), transparent 48px), var(--menu-bg);
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: var(--menu-shadow);
+  color: var(--menu-text);
+  font-family: var(--sans);
+  transform: translateX(-50%);
+  transform-origin: top center;
+  animation: cip-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1.05);
+}
+@keyframes cip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px) scale(0.96);
+  }
+}
+.cip::before {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-top: 0.5px solid var(--menu-rim);
+  border-left: 0.5px solid var(--menu-rim);
+  background: var(--menu-bg);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+.cip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cip-titles {
+  flex: 1;
+  min-width: 0;
+}
+.cip-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cip-server {
+  font-size: 11px;
+  color: var(--menu-muted);
+}
+.cip-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 12px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 0.5px solid var(--menu-sep);
+  font-size: 12px;
+}
+.cip-label {
+  color: var(--menu-muted);
+  text-align: right;
+}
+.cip-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cip-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

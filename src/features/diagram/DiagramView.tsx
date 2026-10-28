@@ -14,7 +14,7 @@ import {
 import { useEffect, useRef } from "react";
 import { api } from "@/api";
 import { PaddedError } from "@/components/ErrorCallout";
-import { Spinner } from "@/components/Spinner";
+import { EmptyState, LoadingState } from "@/components/StateView";
 import { plural } from "@/lib/format";
 import { showError, toastSuccess } from "@/services/errors";
 import { store } from "@/store";
@@ -98,12 +98,15 @@ export function DiagramView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
         </button>
       </div>
       <PaddedError error={d.error} />
-      {!d.data && !d.error && (
-        <div className="message faint">
-          <Spinner /> Loading the schema…
-        </div>
+      {!d.data && !d.error && <LoadingState label="Loading the schema…" />}
+      {d.data && tables.length === 0 && (
+        <EmptyState
+          art="no-tables"
+          icon={<Network size={20} />}
+          title="No tables yet"
+          hint="Tables of this schema and their relationships appear here."
+        />
       )}
-      {d.data && tables.length === 0 && <div className="message faint">No tables yet.</div>}
       {d.data && tables.length > 0 && (
         <DiagramCanvas
           tables={tables}

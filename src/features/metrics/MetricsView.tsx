@@ -1,8 +1,8 @@
 // Metrics tab (MetricsBoardWindow): boards of widgets, each running a read-only query.
 
-import { Gauge } from "lucide-react";
+import { Gauge, LayoutGrid } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Spinner } from "@/components/Spinner";
+import { EmptyState, LoadingState } from "@/components/StateView";
 import { tabDb } from "@/store";
 import { type MetricBoard, type MetricWidget, type Workspace, type WorkspaceTab } from "@/types";
 import * as model from "./boardModel";
@@ -54,7 +54,14 @@ function Grid(props: {
   });
   if (board.widgets.length === 0) {
     const hint = props.editing ? "Add a widget above." : "Click Edit, then Add widget.";
-    return <div className="message faint">This board is empty. {hint}</div>;
+    return (
+      <EmptyState
+        art="board"
+        icon={<LayoutGrid size={20} />}
+        title="This board is empty"
+        hint={hint}
+      />
+    );
   }
   return (
     <div className="metric-grid">
@@ -102,11 +109,7 @@ export function MetricsView(props: { ws: Workspace; tab: WorkspaceTab; visible: 
         onAdd={add}
       />
       <div className="metrics-body">
-        {boards.boards === null && (
-          <div className="message faint">
-            <Spinner /> Loading boards…
-          </div>
-        )}
+        {boards.boards === null && <LoadingState label="Loading boards…" />}
         {boards.boards?.length === 0 && <Empty onCreate={() => void boards.create()} />}
         {board && (
           <Grid

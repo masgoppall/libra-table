@@ -55,7 +55,7 @@ body.dragging-grab * {
 }
 .diagram-title {
   fill: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .diagram-col {

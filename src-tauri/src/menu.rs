@@ -109,7 +109,7 @@ const TOOLS: &[Section] = &[
 const GO: &[Section] = &[
     &[
         ("open-anything", "Open Table or Query…", Some("CmdOrCtrl+P")),
-        ("switch-database", "Switch Database…", Some("CmdOrCtrl+K")),
+        ("switch-database", "Open Database…", Some("CmdOrCtrl+K")),
     ],
     &[
         ("next-tab", "Next Tab", Some("CmdOrCtrl+Shift+]")),

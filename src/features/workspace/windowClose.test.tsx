@@ -35,3 +35,22 @@ describe("closing the window", () => {
     expect(await screen.findByText("Local Postgres")).toBeTruthy();
   });
 });
+
+describe("window shape", () => {
+  it("is the compact welcome window until a connection opens, and again after", async () => {
+    renderApp();
+    await waitFor(() =>
+      expect(h.backend.lastCall("set_window_mode")?.args).toEqual({ mode: "welcome" }),
+    );
+    expect(document.querySelector(".toolbar-bar")).toBeNull();
+    await openWorkspace("Local Postgres");
+    await waitFor(() =>
+      expect(h.backend.lastCall("set_window_mode")?.args).toEqual({ mode: "workspace" }),
+    );
+    expect(document.querySelector(".toolbar-bar")).not.toBeNull();
+    await act(() => emit("close-requested"));
+    await waitFor(() =>
+      expect(h.backend.lastCall("set_window_mode")?.args).toEqual({ mode: "welcome" }),
+    );
+  });
+});

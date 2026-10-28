@@ -1,10 +1,11 @@
 // Stream entries, read-only: id and the field/value pairs.
 
+import { EmptyState } from "@/components/StateView";
 import { valueText } from "./edits";
 import { type StreamEntry } from "./types";
 
 export function StreamView({ entries }: { entries: StreamEntry[] }) {
-  if (!entries.length) return <div className="message faint">The stream is empty.</div>;
+  if (!entries.length) return <EmptyState compact title="The stream is empty" />;
   return (
     <table className="edit-table kv-table">
       <thead>

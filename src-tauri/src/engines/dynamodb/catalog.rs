@@ -77,6 +77,7 @@ pub async fn columns(c: &Client, table: &str) -> AppResult<Vec<ColumnInfo>> {
                 auto_increment: false,
                 comment: Some(if hash { "partition key" } else { "sort key" }.into()),
                 name,
+                ..Default::default()
             }
         })
         .collect();
@@ -113,6 +114,7 @@ pub async fn columns(c: &Client, table: &str) -> AppResult<Vec<ColumnInfo>> {
         pk_position: None,
         auto_increment: false,
         comment: None,
+        ..Default::default()
     }));
     Ok(cols)
 }
@@ -134,6 +136,7 @@ fn index(name: &str, kind: &str, v: &Value, primary: bool) -> IndexInfo {
         unique: primary,
         primary,
         definition,
+        ..Default::default()
     }
 }
 

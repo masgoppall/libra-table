@@ -2529,11 +2529,13 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "libratable"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "aes",
  "aes-gcm",
  "async-trait",
  "base64 0.22.1",
+ "cbc",
  "chrono",
  "csv",
  "dirs 5.0.1",
@@ -2544,7 +2546,10 @@ dependencies = [
  "keyring",
  "libsqlite3-sys",
  "log",
+ "objc2-app-kit",
+ "objc2-foundation",
  "pbkdf2 0.12.2",
+ "plist",
  "redis",
  "reqwest 0.12.28",
  "ring",
@@ -2552,6 +2557,7 @@ dependencies = [
  "russh",
  "russh-keys",
  "rust_decimal",
+ "security-framework 3.7.0",
  "serde",
  "serde_json",
  "sha1",

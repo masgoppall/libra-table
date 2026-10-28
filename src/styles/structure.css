@@ -1,0 +1,522 @@
+/* The structure tab, measured on TablePlus' dark appearance (pt = CSS px): a 39 pt
+   Name / Primary / search bar, a grid with 27 pt headers and 24 pt striped rows behind
+   a 29 pt handle column, and a 36 pt bottom bar with 24 pt controls. */
+
+:root {
+  --st-bar: #f5f5f5;
+  --st-row1: #ffffff;
+  --st-row2: #f4f4f4;
+  --st-line: #e1e1e1;
+  --st-head-line: #d4d4d4;
+  --st-foot-line: #c9c9c9;
+  --st-text: #262626;
+  --st-dim: #c4c4c4;
+  --st-icon: #8a8a8a;
+  --st-grip: #b4b4b4;
+  --st-label: #262626;
+  --st-field: #ffffff;
+  --st-field-border: #d9d9d9;
+  --st-key-field: #ffffff;
+  --st-token: #cddcf3;
+  --st-token-text: #1d3d6b;
+  --st-placeholder: #8a8a8a;
+  --st-btn: #e3e3e3;
+  --st-btn-hover: #d8d8d8;
+  --st-btn-text: #262626;
+  --st-on: color(display-p3 0.224 0.482 0.969);
+  --st-sel: color(display-p3 0.204 0.471 0.965);
+  --st-changed: #fdf1c2;
+  --st-added: #def3e3;
+  --st-dropped: #fadcdc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --st-bar: #242424;
+    --st-row1: #1e1e1e;
+    --st-row2: #292929;
+    --st-line: #353535;
+    --st-head-line: #3f3f3f;
+    --st-foot-line: #000000;
+    --st-text: #d5d5d5;
+    --st-dim: #434343;
+    --st-icon: #7f7f7f;
+    --st-grip: #565757;
+    --st-label: #dedede;
+    --st-field: #181818;
+    --st-field-border: #2e2e2e;
+    --st-key-field: #2f2e2e;
+    --st-token: #344b6a;
+    --st-token-text: #e0e4e9;
+    --st-placeholder: #979797;
+    --st-btn: #343434;
+    --st-btn-hover: #3d3d3d;
+    --st-btn-text: #e0e0e0;
+    --st-changed: #4a4119;
+    --st-added: #1e4529;
+    --st-dropped: #552222;
+  }
+}
+
+:root[data-theme="dark"] {
+  --st-bar: #242424;
+  --st-row1: #1e1e1e;
+  --st-row2: #292929;
+  --st-line: #353535;
+  --st-head-line: #3f3f3f;
+  --st-foot-line: #000000;
+  --st-text: #d5d5d5;
+  --st-dim: #434343;
+  --st-icon: #7f7f7f;
+  --st-grip: #565757;
+  --st-label: #dedede;
+  --st-field: #181818;
+  --st-field-border: #2e2e2e;
+  --st-key-field: #2f2e2e;
+  --st-token: #344b6a;
+  --st-token-text: #e0e4e9;
+  --st-placeholder: #979797;
+  --st-btn: #343434;
+  --st-btn-hover: #3d3d3d;
+  --st-btn-text: #e0e0e0;
+  --st-changed: #4a4119;
+  --st-added: #1e4529;
+  --st-dropped: #552222;
+}
+
+.structure-tab {
+  background: var(--st-row1);
+}
+
+/* ------------------------------------------------------------ Name / Primary / search */
+
+.st-head {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 40px;
+  padding: 0 14px 0 10px;
+  border-bottom: 1px solid var(--st-head-line);
+  background: var(--st-bar);
+  font-size: 13px;
+}
+.st-field-label {
+  margin-right: 8.5px;
+  color: var(--st-label);
+}
+.st-primary-label {
+  margin-left: 22px;
+  margin-right: 9px;
+}
+.st-name,
+.st-search,
+.st-primary {
+  height: 24px;
+  border: 1px solid var(--st-field-border);
+  border-radius: 7px;
+}
+.st-name {
+  width: 200px;
+  flex: none;
+  padding: 0 5.5px;
+  background: var(--st-field);
+  color: var(--st-label);
+  outline: none;
+}
+.st-name:focus,
+.st-search:focus-within {
+  border-color: var(--sh-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sh-ring) 60%, transparent);
+}
+.st-primary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 80px;
+  padding: 0 8.5px;
+  background: var(--st-key-field);
+  overflow: hidden;
+}
+.st-primary:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.st-token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  min-width: 41.5px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: var(--st-token);
+  color: var(--st-token-text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.st-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  width: 174px;
+  height: 26px;
+  margin-left: 12px;
+  padding: 0 7px 0 4.5px;
+  background: var(--st-field);
+  color: var(--st-placeholder);
+}
+.st-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--st-label);
+  font-size: 13px;
+  outline: none;
+}
+.st-search input::placeholder,
+.st-name::placeholder {
+  color: var(--st-placeholder);
+}
+
+/* ------------------------------------------------------------------------------ grid */
+
+.st-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--st-row1);
+}
+.st-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  outline: none;
+}
+.st-grid {
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--st-text);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: default;
+}
+.st-grid th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* 27 pt plus the 1 pt rule; the header text sits 19 pt from either side. */
+  height: 28px;
+  padding: 0 19px;
+  border-bottom: 1px solid var(--st-line);
+  background: var(--st-bar);
+  color: var(--st-text);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+/* Header separators stop short of the edges (16 pt of 27). */
+.st-grid th::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 0;
+  width: 1px;
+  height: 16px;
+  background: var(--st-line);
+}
+.st-grid th.st-fill::after {
+  display: none;
+}
+.st-grid td {
+  position: relative;
+  height: 24px;
+  padding: 0 18px 0 4px;
+  border-right: 1px solid var(--st-line);
+  background: var(--st-row1);
+  vertical-align: middle;
+}
+.st-grid tbody tr:nth-child(even) td {
+  background: var(--st-row2);
+}
+.st-grid td.with-icon {
+  padding-right: 38px;
+}
+.st-grid td.center {
+  padding-right: 22px;
+  text-align: center;
+}
+.st-grid .st-ruler {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-right: 1px solid var(--st-line);
+  background: var(--st-bar);
+  color: var(--st-grip);
+  text-align: center;
+}
+.st-grid tbody tr:nth-child(even) td.st-ruler {
+  background: var(--st-bar);
+}
+.st-grid th.st-ruler {
+  z-index: 3;
+  color: var(--st-icon);
+  /* The header separator is the column's own border here. */
+  border-right: 1px solid var(--st-line);
+}
+.st-grid th.st-ruler::after {
+  display: none;
+}
+.st-grid .st-ruler svg {
+  display: block;
+  margin: 0 auto;
+}
+.st-grid td.st-ruler[draggable="true"] {
+  cursor: grab;
+}
+.st-grid .st-num {
+  box-sizing: border-box;
+  width: 56px;
+  min-width: 56px;
+  padding: 0 2px 0 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.st-grid th.st-num {
+  padding: 0;
+  text-align: center;
+}
+.st-grid .st-fill {
+  width: 100%;
+  padding: 0;
+  border-right: 0;
+}
+.st-cell.dim .st-text {
+  color: var(--st-dim);
+}
+.st-icon {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--st-icon);
+  transform: translateY(-50%);
+}
+button.st-icon:hover {
+  color: var(--st-text);
+  background: none;
+}
+.st-icon.arrow {
+  right: 3px;
+  pointer-events: none;
+}
+.st-grid td.st-cell.changed,
+.st-grid tbody tr:nth-child(even) td.st-cell.changed {
+  background: var(--st-changed);
+}
+.st-grid tr.added td:not(.st-ruler),
+.st-grid tbody tr.added:nth-child(even) td:not(.st-ruler) {
+  background: var(--st-added);
+}
+.st-grid tr.dropped td:not(.st-ruler),
+.st-grid tbody tr.dropped:nth-child(even) td:not(.st-ruler) {
+  background: var(--st-dropped);
+}
+.st-grid tr.dropped .st-text {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.st-grid tr.selected td:not(.st-ruler),
+.st-grid tbody tr.selected:nth-child(even) td:not(.st-ruler) {
+  background: var(--st-sel);
+  color: #fff;
+}
+.st-grid tr.selected .st-cell.dim .st-text {
+  color: rgba(255, 255, 255, 0.45);
+}
+.st-grid tr.selected .st-icon {
+  color: rgba(255, 255, 255, 0.85);
+}
+.st-grid tr.drop-before td {
+  box-shadow: inset 0 2px 0 var(--st-sel);
+}
+.st-grid tr.drop-after td {
+  box-shadow: inset 0 -2px 0 var(--st-sel);
+}
+.st-grid tr.dragging {
+  opacity: 0.5;
+}
+.st-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 120px;
+  height: 20px;
+  margin-left: -3px;
+  padding: 0 2px;
+  border: 1px solid var(--st-sel);
+  border-radius: 3px;
+  background: var(--st-field);
+  color: var(--st-text);
+  font: inherit;
+  outline: none;
+}
+
+/* ------------------------------------------------------------------------ bottom bar */
+
+.st-foot {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: none;
+  height: 37px;
+  padding: 0 9px;
+  border-top: 1px solid var(--st-foot-line);
+  background: var(--st-bar);
+}
+.st-seg {
+  display: flex;
+  flex: none;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--st-btn);
+}
+.st-seg button {
+  width: 65.3px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--st-btn-text);
+  font-size: 12px;
+}
+.st-seg button:hover:not(.on):not(:disabled) {
+  background: var(--st-btn-hover);
+}
+.st-seg button.on {
+  background: var(--st-on);
+  color: #fff;
+}
+.st-seg button:disabled {
+  color: color-mix(in srgb, var(--st-btn-text) 35%, transparent);
+}
+.st-btn {
+  flex: none;
+  width: 75px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: var(--st-btn);
+  color: var(--st-btn-text);
+  font-size: 12px;
+}
+.st-btn:hover:not(:disabled) {
+  background: var(--st-btn-hover);
+}
+.st-btn:disabled {
+  color: color-mix(in srgb, var(--st-btn-text) 35%, transparent);
+}
+.st-plus {
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 0;
+}
+/* The Data tab's status bar carries the same switch. */
+.statusbar .st-seg {
+  margin-left: -4px;
+}
+
+/* --------------------------------------------------------------- foreign key editor */
+
+.fkp {
+  position: fixed;
+  z-index: 55;
+  box-sizing: border-box;
+  padding: 12px 12px 10px;
+  border: 0.5px solid var(--sh-border);
+  border-radius: 10px;
+  background: var(--sh-bg);
+  box-shadow: var(--sh-shadow);
+  color: var(--sh-text);
+  font-size: 13px;
+  animation: menu-in 0.12s ease-out;
+}
+.fkp-title {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.fkp-grid {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  align-items: center;
+  gap: 8px 10px;
+}
+.fkp-grid label {
+  color: var(--sh-label);
+  text-align: right;
+}
+.fkp-grid select {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--sh-field-border);
+  border-radius: 6px;
+  background: var(--sh-field);
+  color: var(--sh-text);
+  font-size: 13px;
+}
+.fkp-note {
+  margin: 0;
+  color: var(--sh-label);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.fkp-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ------------------------------------------------------------------------- DDL sheet */
+
+.ddl-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 640px;
+  height: 460px;
+}
+.ddl-sheet-title {
+  padding: 14px 16px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ddl-sheet-code {
+  flex: 1;
+  margin: 0 16px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--sh-field-border);
+  border-radius: 7px;
+  background: var(--sh-field);
+  color: var(--sh-text);
+  font-size: 12px;
+  white-space: pre;
+}
+.ddl-sheet .sheet-foot {
+  gap: 10px;
+  padding: 14px 16px 16px;
+}

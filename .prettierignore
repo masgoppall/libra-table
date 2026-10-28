@@ -1,6 +1,8 @@
 dist
 node_modules
 src-tauri
-pnpm-lock.yaml
+bun.lock
 docs
 *.md
+# Brand design files (exported SVG/HTML), kept as delivered.
+public/brand

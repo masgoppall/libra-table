@@ -5,6 +5,7 @@
 @import "./primitives.css";
 @import "./utilities.css";
 @import "./shell.css";
+@import "./toolbar.css";
 @import "./home.css";
 @import "./sidebar.css";
 @import "./workspace.css";
@@ -13,6 +14,7 @@
 @import "./query.css";
 @import "./queryTools.css";
 @import "./designer.css";
+@import "./structure.css";
 @import "./objects.css";
 @import "./history.css";
 @import "./import.css";
@@ -20,6 +22,7 @@
 @import "./metrics.css";
 @import "./server.css";
 @import "./dialogs.css";
+@import "./sheet.css";
 @import "./palette.css";
 @import "./quicklook.css";
 @import "./console.css";

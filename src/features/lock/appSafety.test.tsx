@@ -63,7 +63,7 @@ describe("app safety and tools", () => {
     h.backend.savePath = "/tmp/libratable-export.json";
     renderApp();
     await screen.findByText("Local Postgres");
-    fireEvent.click(screen.getByLabelText("More"));
+    fireEvent.contextMenu(document.querySelector(".home-list") as HTMLElement);
     fireEvent.click(await screen.findByText("Export all connections…"));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByText("Continue"));

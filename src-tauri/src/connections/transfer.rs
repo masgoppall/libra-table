@@ -1,6 +1,7 @@
 //! Moving connections between machines (TablePlus "Export/Import connections"): a JSON
 //! file of connections and groups. Secrets are included only when the user gives a
-//! passphrase, and then only encrypted (`storage::crypto`).
+//! passphrase, and then only encrypted (`storage::crypto`). Files exported by TablePlus
+//! itself are read too (`super::tableplus`).
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -13,7 +14,7 @@ use crate::state::{now_ms, AppState};
 use crate::storage::crypto::{self, Sealed};
 use crate::storage::secrets::SecretKind;
 
-use super::validate;
+use super::{tableplus, validate};
 
 const FORMAT: &str = "libratable-connections";
 const VERSION: u32 = 1;
@@ -37,6 +38,36 @@ type SecretBundle = BTreeMap<String, BTreeMap<String, String>>;
 pub struct FileSummary {
     pub names: Vec<String>,
     pub has_secrets: bool,
+    /// "libratable" or "tableplus".
+    pub source: &'static str,
+    /// Everything is encrypted: the names are known only after the password is given.
+    pub locked: bool,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Skipped {
+    pub name: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportReport {
+    pub added: usize,
+    pub skipped: Vec<Skipped>,
+}
+
+impl ImportReport {
+    pub fn skip(&mut self, name: String, reason: String) {
+        self.skipped.push(Skipped { name, reason });
+    }
+}
+
+/// A connection to add, with the ids of the file it came from and its secrets.
+pub struct NewConnection {
+    pub connection: Connection,
+    pub secrets: Vec<(SecretKind, String)>,
 }
 
 fn collect_secrets(state: &AppState, conns: &[Connection]) -> AppResult<SecretBundle> {
@@ -95,9 +126,8 @@ pub fn export(
     Ok(file.connections.len())
 }
 
-fn read(path: &Path) -> AppResult<ExportFile> {
-    let bytes = std::fs::read(path)?;
-    let file: ExportFile = serde_json::from_slice(&bytes)
+fn parse(bytes: &[u8]) -> AppResult<ExportFile> {
+    let file: ExportFile = serde_json::from_slice(bytes)
         .map_err(|_| AppError::validation("This isn't a LibraTable connections file."))?;
     if file.format != FORMAT || file.version > VERSION {
         return Err(AppError::validation(
@@ -108,22 +138,38 @@ fn read(path: &Path) -> AppResult<ExportFile> {
 }
 
 pub fn inspect(path: &Path) -> AppResult<FileSummary> {
-    let file = read(path)?;
+    let bytes = std::fs::read(path)?;
+    if tableplus::is_export(&bytes) {
+        return Ok(FileSummary {
+            names: Vec::new(),
+            has_secrets: true,
+            source: "tableplus",
+            locked: true,
+        });
+    }
+    let file = parse(&bytes)?;
     Ok(FileSummary {
         names: file.connections.iter().map(|c| c.name.clone()).collect(),
         has_secrets: file.secrets.is_some(),
+        source: "libratable",
+        locked: false,
     })
 }
 
-/// Existing groups are reused by name; others are created. Returns old id → new id.
-fn merge_groups(state: &AppState, groups: &[Group]) -> AppResult<HashMap<String, String>> {
+/// A group with the same name in the same parent is reused; others are created.
+/// Returns file id → LibraTable id.
+pub(super) fn merge_groups(
+    state: &AppState,
+    groups: &[Group],
+) -> AppResult<HashMap<String, String>> {
     let mut map = HashMap::new();
-    for g in groups {
+    for g in parents_first(groups) {
+        let parent_id = g.parent_id.as_ref().and_then(|p| map.get(p).cloned());
         let existing = {
             let cfg = state.config.lock().unwrap();
             cfg.groups
                 .iter()
-                .find(|x| x.name.eq_ignore_ascii_case(&g.name))
+                .find(|x| x.name.eq_ignore_ascii_case(&g.name) && x.parent_id == parent_id)
                 .cloned()
         };
         let id = match existing {
@@ -133,6 +179,7 @@ fn merge_groups(state: &AppState, groups: &[Group]) -> AppResult<HashMap<String,
                     state,
                     Group {
                         id: String::new(),
+                        parent_id,
                         ..g.clone()
                     },
                 )?
@@ -144,6 +191,26 @@ fn merge_groups(state: &AppState, groups: &[Group]) -> AppResult<HashMap<String,
     Ok(map)
 }
 
+/// Groups ordered so every parent comes before its subgroups (unknown parents count
+/// as top level).
+fn parents_first(groups: &[Group]) -> Vec<&Group> {
+    let depth = |g: &Group| {
+        let mut d = 0;
+        let mut at = g.parent_id.as_deref();
+        while let Some(p) = at.filter(|_| d < groups.len()) {
+            d += 1;
+            at = groups
+                .iter()
+                .find(|x| x.id == p)
+                .and_then(|x| x.parent_id.as_deref());
+        }
+        d
+    };
+    let mut ordered: Vec<&Group> = groups.iter().collect();
+    ordered.sort_by_key(|g| depth(g));
+    ordered
+}
+
 fn open_secrets(file: &ExportFile, passphrase: Option<&str>) -> AppResult<SecretBundle> {
     match (&file.secrets, passphrase.filter(|p| !p.is_empty())) {
         (Some(sealed), Some(p)) => Ok(serde_json::from_slice(&crypto::open(p, sealed)?)?),
@@ -152,20 +219,54 @@ fn open_secrets(file: &ExportFile, passphrase: Option<&str>) -> AppResult<Secret
     }
 }
 
-/// Adds every connection of the file under a new id. Returns how many were added.
-pub fn import(state: &AppState, path: &Path, passphrase: Option<&str>) -> AppResult<usize> {
-    let file = read(path)?;
+/// Adds every connection of the file under a new id. A TablePlus export needs the
+/// password it was exported with.
+pub fn import(state: &AppState, path: &Path, passphrase: Option<&str>) -> AppResult<ImportReport> {
+    let bytes = std::fs::read(path)?;
+    if tableplus::is_export(&bytes) {
+        let password = passphrase.filter(|p| !p.is_empty()).ok_or_else(|| {
+            AppError::validation("Enter the password the connections were exported with.")
+        })?;
+        return tableplus::import(state, &bytes, password);
+    }
+    let file = parse(&bytes)?;
     let secrets = open_secrets(&file, passphrase)?;
     file.connections.iter().try_for_each(validate)?;
     let groups = merge_groups(state, &file.groups)?;
+    let fresh = file
+        .connections
+        .iter()
+        .map(|c| NewConnection {
+            connection: c.clone(),
+            secrets: secret_list(secrets.get(&c.id)),
+        })
+        .collect();
+    Ok(ImportReport {
+        added: add(state, fresh, &groups)?,
+        skipped: Vec::new(),
+    })
+}
+
+/// Saves the connections under new ids, in the groups `groups` maps them to, with their
+/// secrets in the keychain. Returns how many were added.
+pub(super) fn add(
+    state: &AppState,
+    fresh: Vec<NewConnection>,
+    groups: &HashMap<String, String>,
+) -> AppResult<usize> {
     let now = now_ms();
     let mut added = Vec::new();
-    for c in &file.connections {
-        let mut n = c.clone();
+    for NewConnection {
+        connection: mut n,
+        secrets,
+    } in fresh
+    {
         n.id = uuid::Uuid::new_v4().to_string();
-        n.group_id = c.group_id.as_ref().and_then(|g| groups.get(g).cloned());
+        n.group_id = n.group_id.as_ref().and_then(|g| groups.get(g).cloned());
         (n.created_at, n.updated_at) = (now, now);
-        store_secrets(state, &n.id, secrets.get(&c.id))?;
+        for (kind, value) in &secrets {
+            state.secrets.set(&n.id, *kind, value)?;
+        }
         added.push(n);
     }
     let mut cfg = state.config.lock().unwrap();
@@ -176,18 +277,14 @@ pub fn import(state: &AppState, path: &Path, passphrase: Option<&str>) -> AppRes
     Ok(added.len())
 }
 
-fn store_secrets(
-    state: &AppState,
-    id: &str,
-    kinds: Option<&BTreeMap<String, String>>,
-) -> AppResult<()> {
-    let Some(kinds) = kinds else { return Ok(()) };
-    for kind in SecretKind::ALL {
-        if let Some(v) = kinds.get(kind.suffix()) {
-            state.secrets.set(id, kind, v)?;
-        }
-    }
-    Ok(())
+fn secret_list(kinds: Option<&BTreeMap<String, String>>) -> Vec<(SecretKind, String)> {
+    let Some(kinds) = kinds else {
+        return Vec::new();
+    };
+    SecretKind::ALL
+        .into_iter()
+        .filter_map(|kind| kinds.get(kind.suffix()).map(|v| (kind, v.clone())))
+        .collect()
 }
 
 #[cfg(test)]
@@ -211,6 +308,7 @@ mod tests {
                 name: "Clients".into(),
                 parent_id: None,
                 collapsed: false,
+                icon: None,
             },
         )
         .unwrap();
@@ -246,7 +344,7 @@ mod tests {
 
         let b = test_state(b_dir.path()).await;
         assert!(import(&b, &file, Some("nope")).is_err());
-        assert_eq!(import(&b, &file, Some("open sesame")).unwrap(), 1);
+        assert_eq!(import(&b, &file, Some("open sesame")).unwrap().added, 1);
         let imported = b.config.lock().unwrap().connections[0].clone();
         let group = b.config.lock().unwrap().groups[0].clone();
         assert_eq!(
@@ -265,7 +363,7 @@ mod tests {
         let file = dir.path().join("plain.json");
         export(&a, &[id], &file, None).unwrap();
         assert!(!inspect(&file).unwrap().has_secrets);
-        assert_eq!(import(&a, &file, None).unwrap(), 1);
+        assert_eq!(import(&a, &file, None).unwrap().added, 1);
         let conns = a.config.lock().unwrap().connections.clone();
         assert_eq!(conns.len(), 2);
         assert!(!a.secrets.has(&conns[1].id, SecretKind::DbPassword));

@@ -6,9 +6,11 @@ import { confirmDiscard } from "@/services/confirm";
 import { runSchemaChange } from "@/services/schemaChange";
 import { store, tabDb } from "@/store";
 import { type AppError, type TableStructure, type Workspace, type WorkspaceTab } from "@/types";
+import * as change from "./designerChange";
 import * as model from "./designerModel";
 
-export type Section = "columns" | "indexes" | "foreign" | "ddl";
+/** What the body shows: the columns, or the indexes (the bottom bar's "Index"). */
+export type Section = "columns" | "indexes";
 
 function useTableNames(ws: Workspace, schema: string) {
   const [tables, setTables] = useState<string[]>([]);
@@ -28,12 +30,13 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
   const db = tabDb(ws, tab);
   const schema = tab.schema ?? ws.schema;
   const creating = tab.kind === "new-table";
+  const table = creating ? "" : (tab.table ?? "");
   const [structure, setStructure] = useState<TableStructure | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [section, setSection] = useState<Section>("columns");
-  const [name, setName] = useState(creating ? "" : (tab.table ?? ""));
+  const [name, setName] = useState(table);
   const [comment, setComment] = useState("");
   const [cols, setCols] = useState<model.ColRow[]>(() =>
     creating ? [model.newColumnRow(driver, true)] : [],
@@ -43,14 +46,15 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
   const tables = useTableNames(ws, schema);
 
   const load = useCallback(async () => {
-    if (creating || !tab.table) return;
+    if (creating || !table) return;
     setLoading(true);
     setError(null);
     try {
       await api.refreshMetadata(id).catch(() => undefined);
-      const s = await api.tableStructure(id, db, schema, tab.table);
+      const s = await api.tableStructure(id, db, schema, table);
       const rows = model.rowsFromStructure(s);
       setStructure(s);
+      setName(table);
       setCols(rows.cols);
       setIdx(rows.idx);
       setFks(rows.fks);
@@ -59,7 +63,7 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     } finally {
       setLoading(false);
     }
-  }, [id, db, schema, tab.table, creating]);
+  }, [id, db, schema, table, creating]);
 
   useEffect(() => {
     void load();
@@ -67,19 +71,34 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
 
   const state: model.DesignerState = {
     creating,
+    driver,
     schema,
-    name: creating ? name : (tab.table ?? ""),
+    table,
+    name,
     comment,
     cols,
     idx,
     fks,
   };
-  const change = useMemo(() => model.buildChange(state), [cols, idx, fks, name, comment, schema]);
-  const problems = useMemo(() => model.validate(state), [cols, idx, fks, name, creating]);
-  const pending = change?.kind === "alter_table" ? change.ops.length : 0;
+  const pendingChange = useMemo(
+    () => change.buildChange(state),
+    [cols, idx, fks, name, comment, schema, table, driver, creating],
+  );
+  const problems = useMemo(
+    () => change.validate(state),
+    [cols, idx, fks, name, comment, schema, table, driver, creating],
+  );
+  const pending = change.pendingCount(pendingChange);
+
+  // The toolbar's discard / commit buttons follow this tab's changes (a new table is
+  // always waiting to be created).
+  const dirty = creating ? 1 : pending;
+  useEffect(() => store.get().setPendingEdits(tab.id, dirty), [tab.id, dirty]);
+  useEffect(() => () => store.get().setPendingEdits(tab.id, 0), [tab.id]);
 
   const discard = () => {
     if (!creating) return void load();
+    setName("");
     setCols([model.newColumnRow(driver, true)]);
     setIdx([]);
     setFks([]);
@@ -90,20 +109,36 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     if (await confirmDiscard(pending, wording)) void load();
   };
 
+  /** Shows what stops the change, or previews and applies it. */
   const apply = async () => {
-    if (!change || problems.length || busy) return;
-    const table = state.name.trim();
+    if (busy) return;
+    if (problems.length) {
+      const [first, ...rest] = problems;
+      await store.get().dialog({
+        kind: "alert",
+        tone: "warning",
+        title: creating ? "The table can't be created yet" : "The changes can't be applied yet",
+        message: first ?? "",
+        details: rest.length ? rest : undefined,
+      });
+      return;
+    }
+    if (!pendingChange) return;
+    const target = name.trim();
     setBusy(true);
-    const ok = await runSchemaChange(id, db, change, {
-      title: creating ? `Create table ${table}` : `Change ${table}`,
+    const ok = await runSchemaChange(id, db, pendingChange, {
+      title: creating ? `Create table ${target}` : `Change ${table}`,
       okLabel: creating ? "Create table" : "Apply changes",
-      success: creating ? `Created table "${table}".` : `Updated "${table}".`,
+      success: creating ? `Created table "${target}".` : `Updated "${target}".`,
     });
     setBusy(false);
     if (!ok) return;
-    // The new-table tab becomes the new table's structure.
-    if (creating)
-      store.get().updateTab(id, tab.id, { kind: "structure", table, title: table, schema });
+    // The new-table tab becomes the new table's structure; a rename renames the tab.
+    if (creating || target !== table) {
+      store
+        .get()
+        .updateTab(id, tab.id, { kind: "structure", table: target, title: target, schema });
+    }
     store.get().refresh(id);
   };
 
@@ -111,9 +146,14 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     const row = model.newColumnRow(driver, false);
     setCols((rows) => [...rows, row]);
     setSection("columns");
-    setTimeout(() => {
-      document.querySelector<HTMLInputElement>(`[data-col="${row.key}"] input`)?.focus();
-    }, 0);
+    return row.key;
+  };
+
+  const addIndex = () => {
+    const row = model.newIndexRow();
+    setIdx((rows) => [...rows, row]);
+    setSection("indexes");
+    return row.key;
   };
 
   return {
@@ -121,6 +161,7 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     driver,
     schema,
     db,
+    table,
     creating,
     structure,
     isView: structure?.kind === "view",
@@ -140,7 +181,7 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     fks,
     setFks,
     tables,
-    change,
+    change: pendingChange,
     problems,
     pending,
     load,
@@ -148,6 +189,7 @@ export function useTableDesigner(ws: Workspace, tab: WorkspaceTab) {
     discard,
     apply,
     addColumn,
+    addIndex,
   };
 }
 

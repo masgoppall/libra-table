@@ -1,26 +1,25 @@
-// The sections of the sidebar list: databases, tables, views and saved queries
-// (recent items and other schema objects are in RecentSection / ObjectGroups).
+// The sidebar's tables and views sections and its saved queries (recent items and other
+// schema objects are in RecentSection / ObjectGroups; databases are in "Open database").
 
-import { Database, FileCode2, Plus } from "lucide-react";
+import { FileCode2, Plus } from "lucide-react";
 import { useState } from "react";
 import { type ContextMenuApi } from "@/components/ContextMenu";
 import { Highlight } from "@/components/Highlight";
-import { withShortcut } from "@/lib/actions";
+import { shortcutFor, withShortcut } from "@/lib/actions";
 import { type SearchResult } from "@/lib/fuzzy";
 import { activeTab, store } from "@/store";
 import { type ObjectInfo, type SavedQuery, type Workspace } from "@/types";
 import { openSavedQuery } from "../query/savedQueries";
-import { createDatabaseFlow } from "../schema/flows";
 import { newTableTab, tableTab } from "../workspace/tabs";
 import { ObjectItem } from "./ObjectItem";
 import { pinMenuItem, sidebarItem } from "./pins";
 import { isPinned, pinnedFirst } from "./recentModel";
-import { databaseMenu, objectMenu, savedQueryMenu, tablesMenu } from "./sidebarMenus";
-import { SideHint, SideSection } from "./SideSection";
+import { objectMenu, savedQueryMenu, tablesMenu } from "./sidebarMenus";
+import { SideEmpty, SideHint, SideSection } from "./SideSection";
 import { type SidebarItems } from "./useSidebarItems";
 import { type TableColumns } from "./useTableColumns";
 
-/** "databases", "tables", "views", "queries", "recent" or a schema object kind. */
+/** "databases", "tables", "views", "recent" or a schema object kind. */
 type SectionKey = string;
 
 /** Which sections are collapsed. "Recent" starts collapsed: it repeats names shown below. */
@@ -39,45 +38,6 @@ function AddButton(props: { title: string; onClick: () => void }) {
     <button className="icon-btn" title={props.title} onClick={props.onClick}>
       <Plus size={13} />
     </button>
-  );
-}
-
-export function DatabaseSection(props: {
-  ws: Workspace;
-  matches: SearchResult<string>[];
-  collapsed: Collapsed;
-  menu: ContextMenuApi;
-}) {
-  const { ws } = props;
-  const open = (d: string) => d !== ws.database && store.get().switchDatabase(ws.connectionId, d);
-  return (
-    <SideSection
-      label="Databases"
-      count={props.matches.length}
-      collapsed={props.collapsed.isCollapsed("databases")}
-      onToggle={() => props.collapsed.toggle("databases")}
-      action={
-        ws.caps.createDatabase && (
-          <AddButton title="New database" onClick={() => createDatabaseFlow(ws)} />
-        )
-      }
-    >
-      {props.matches.map(({ item: d, match }) => (
-        <div
-          key={d}
-          className={`side-item db${d === ws.database ? " current" : ""}`}
-          onClick={() => open(d)}
-          onContextMenu={(e) => props.menu.open(e, databaseMenu(ws, d))}
-          title={d === ws.database ? `${d} (open)` : `Open ${d}`}
-        >
-          <Database size={13} className="side-icon db" />
-          <span className="label">
-            <Highlight text={d} indexes={match.indexes} />
-          </span>
-          {d === ws.info.database && <span className="side-tag">default</span>}
-        </div>
-      ))}
-    </SideSection>
   );
 }
 
@@ -166,41 +126,41 @@ export function ObjectSections(props: {
   );
 }
 
-export function SavedQuerySection(props: {
+/** The "Queries" tab: saved queries of the connection (QRY-7). */
+export function SavedQueryList(props: {
   ws: Workspace;
   matches: SearchResult<SavedQuery>[];
   query: string;
-  collapsed: Collapsed;
   menu: ContextMenuApi;
   reload: () => void;
 }) {
   const { ws } = props;
   const active = activeTab(ws)?.savedName;
-  const empty = props.query ? "No saved queries match." : "Save a query with ⌘S to keep it here.";
+  if (!props.matches.length) {
+    const save = shortcutFor("save") ?? "Save";
+    return (
+      <SideEmpty>
+        {props.query
+          ? `No saved queries match “${props.query}”.`
+          : `No saved queries yet. Save a query (${save}) to keep it here.`}
+      </SideEmpty>
+    );
+  }
   return (
-    <SideSection
-      label="Saved queries"
-      count={props.matches.length}
-      collapsed={props.collapsed.isCollapsed("queries")}
-      onToggle={() => props.collapsed.toggle("queries")}
-    >
-      {props.matches.length ? (
-        props.matches.map(({ item: s, match }) => (
-          <div
-            key={s.name}
-            className={`side-item${active === s.name ? " active" : ""}`}
-            onClick={() => void openSavedQuery(ws.connectionId, s.name)}
-            onContextMenu={(e) => props.menu.open(e, savedQueryMenu(ws, s, props.reload))}
-          >
-            <FileCode2 size={13} className="side-icon query" />
-            <span className="label">
-              <Highlight text={s.name} indexes={match.indexes} />
-            </span>
-          </div>
-        ))
-      ) : (
-        <SideHint>{empty}</SideHint>
-      )}
-    </SideSection>
+    <div className="side-flat">
+      {props.matches.map(({ item: s, match }) => (
+        <div
+          key={s.name}
+          className={`side-item${active === s.name ? " active" : ""}`}
+          onClick={() => void openSavedQuery(ws.connectionId, s.name)}
+          onContextMenu={(e) => props.menu.open(e, savedQueryMenu(ws, s, props.reload))}
+        >
+          <FileCode2 size={13} className="side-icon query" />
+          <span className="label">
+            <Highlight text={s.name} indexes={match.indexes} />
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

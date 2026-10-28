@@ -148,10 +148,55 @@ pub(super) fn column_def(
     let unique = c.unique && with_unique;
     match driver {
         Dialect::Postgres => pg_column_options(&mut s, c, inline_pk, unique),
-        Dialect::Mysql => mysql_column_options(&mut s, c, inline_pk, unique),
+        Dialect::Mysql => mysql_column_options(&mut s, c, inline_pk, unique)?,
         Dialect::Sqlite => sqlite_column_options(&mut s, c, inline_pk, unique),
     }
     Ok(s)
+}
+
+/// MySQL types that take CHARACTER SET and COLLATE.
+fn is_mysql_text(ty: &str) -> bool {
+    let t = ty.trim().to_ascii_lowercase();
+    [
+        "char",
+        "varchar",
+        "tinytext",
+        "text",
+        "mediumtext",
+        "longtext",
+        "enum",
+        "set",
+    ]
+    .iter()
+    .any(|k| t == *k || t.starts_with(&format!("{k}(")) || t.starts_with(&format!("{k} ")))
+}
+
+/// What MySQL reports in EXTRA but isn't written: AUTO_INCREMENT has its own flag and
+/// DEFAULT_GENERATED only marks an expression default.
+fn mysql_extra(c: &ColumnSpec) -> AppResult<Option<String>> {
+    let Some(raw) = c.extra.as_deref() else {
+        return Ok(None);
+    };
+    let words: Vec<&str> = raw
+        .split_whitespace()
+        .filter(|w| !w.eq_ignore_ascii_case("auto_increment"))
+        .filter(|w| !w.eq_ignore_ascii_case("default_generated"))
+        .collect();
+    let extra = words.join(" ");
+    if extra.contains(';') {
+        return Err(bad(format!(
+            "The extra of column \"{}\" can't contain ';'.",
+            c.name
+        )));
+    }
+    let upper = extra.to_ascii_uppercase();
+    if upper.contains("VIRTUAL GENERATED") || upper.contains("STORED GENERATED") {
+        return Err(bad(format!(
+            "Column \"{}\" is generated; change it in the DDL instead.",
+            c.name
+        )));
+    }
+    Ok(Some(extra).filter(|e| !e.is_empty()))
 }
 
 fn pg_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bool) {
@@ -172,11 +217,33 @@ fn pg_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bo
     }
 }
 
-fn mysql_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bool) {
+fn mysql_column_options(
+    s: &mut String,
+    c: &ColumnSpec,
+    inline_pk: bool,
+    unique: bool,
+) -> AppResult<()> {
     let d = Dialect::Mysql;
+    if is_mysql_text(&c.data_type) {
+        fn word(v: &Option<String>) -> Option<&str> {
+            v.as_deref().map(str::trim).filter(|w| !w.is_empty())
+        }
+        if let Some(cs) = word(&c.charset) {
+            need_word("Character set", cs)?;
+            s.push_str(&format!(" CHARACTER SET {cs}"));
+        }
+        if let Some(co) = word(&c.collation) {
+            need_word("Collation", co)?;
+            s.push_str(&format!(" COLLATE {co}"));
+        }
+    }
     s.push_str(if c.nullable { " NULL" } else { " NOT NULL" });
     if let (Some(x), false) = (default_expr(c), c.auto_increment) {
         s.push_str(&format!(" DEFAULT {}", wrap_default(d, x)));
+    }
+    if let Some(extra) = mysql_extra(c)? {
+        s.push(' ');
+        s.push_str(&extra);
     }
     if c.auto_increment {
         s.push_str(" AUTO_INCREMENT");
@@ -189,6 +256,7 @@ fn mysql_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique:
     if let Some(cm) = comment_of(&c.comment) {
         s.push_str(&format!(" COMMENT {}", literal_for(d, cm)));
     }
+    Ok(())
 }
 
 fn sqlite_column_options(s: &mut String, c: &ColumnSpec, inline_pk: bool, unique: bool) {
@@ -274,12 +342,24 @@ pub(super) fn create_index(
     let name = index_name(table, idx);
     let unique = if idx.unique { "UNIQUE " } else { "" };
     let cols = quoted_list(driver, &idx.columns);
+    let algorithm = idx.algorithm.trim();
+    need_word("Index algorithm", algorithm)?;
     let (index, on) = match driver {
         // SQLite puts the schema on the index name, and the table must be in it.
         Dialect::Sqlite => (qualified(driver, schema, &name), quote_ident(driver, table)),
         _ => (quote_ident(driver, &name), qualified(driver, schema, table)),
     };
-    Ok(format!("CREATE {unique}INDEX {index} ON {on} ({cols})"))
+    Ok(match (driver, algorithm) {
+        (Dialect::Sqlite, _) | (_, "") => format!("CREATE {unique}INDEX {index} ON {on} ({cols})"),
+        (Dialect::Mysql, a) => format!(
+            "CREATE {unique}INDEX {index} ON {on} ({cols}) USING {}",
+            a.to_ascii_uppercase()
+        ),
+        (Dialect::Postgres, a) => format!(
+            "CREATE {unique}INDEX {index} ON {on} USING {} ({cols})",
+            a.to_ascii_lowercase()
+        ),
+    })
 }
 
 pub(super) fn sql(steps: &mut Vec<Step>, s: String) {

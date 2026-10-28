@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // Server tools: process list (cancel / kill with confirmation), users (masked password
-// preview), backup from the sidebar with progress events, restore, command line.
+// preview), backup from "Open database" with progress events, restore, command line.
 
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { emit } from "@tauri-apps/api/event";
 import { describe, expect, it } from "vitest";
 import { dispatch } from "@/lib/actions";
-import { openWorkspace, query, renderApp, setupApp, sidebar } from "@/test/app";
+import { openWorkspace, query, renderApp, setupApp } from "@/test/app";
 
 const h = setupApp();
 
@@ -41,7 +41,8 @@ describe("server tools", () => {
     renderApp();
     await openWorkspace("Local Postgres");
     act(() => void dispatch("process-list"));
-    const own = (await screen.findByText("LibraTable")).closest("tr") as HTMLElement;
+    const badge = await screen.findByText("LibraTable", { selector: ".own-badge" });
+    const own = badge.closest("tr") as HTMLElement;
     fireEvent.click(within(own).getByText("Kill"));
     const dialog = await confirmDialog();
     expect(within(dialog).getByText(/LibraTable's own connection/)).toBeTruthy();
@@ -80,10 +81,11 @@ describe("server tools", () => {
     expect(change.role).toMatchObject({ name: "libratable_srv_app", login: true });
   });
 
-  it("backs up a database from the sidebar and follows the progress", async () => {
+  it("backs up a database from the Open database sheet and follows the progress", async () => {
     renderApp();
     await openWorkspace("Local Postgres");
-    fireEvent.contextMenu(within(sidebar()).getByText("analytics"));
+    act(() => void dispatch("switch-database"));
+    fireEvent.contextMenu(await within(query(".dbs-sheet")).findByText("analytics"));
     fireEvent.click(await screen.findByText("Backup…"));
     const dialog = await confirmDialog();
     fireEvent.click(within(dialog).getAllByText("Choose…")[0] as HTMLElement);

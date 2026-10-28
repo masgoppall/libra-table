@@ -163,6 +163,8 @@ macro_rules! all_commands {
             $crate::commands::app::verify_passcode,
             $crate::commands::app::change_passcode,
             $crate::commands::app::set_window_view,
+            $crate::commands::app::set_window_mode,
+            $crate::commands::app::read_image_file,
             $crate::commands::app::get_workspace,
             $crate::commands::app::save_workspace,
             $crate::commands::app::get_table_state,

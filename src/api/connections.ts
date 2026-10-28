@@ -8,6 +8,7 @@ import {
   type ConnectionView,
   type Group,
   type ImportedKeyInfo,
+  type ImportReport,
   type PromptedSecrets,
   type SecretsInput,
   type TestResult,
@@ -42,7 +43,7 @@ export const connectionsApi = {
   inspectConnectionsFile: (path: string) =>
     call<ConnectionsFileSummary>("inspect_connections_file", { path }),
   importConnections: (path: string, passphrase: string | null) =>
-    call<number>("import_connections", { path, passphrase }),
+    call<ImportReport>("import_connections", { path, passphrase }),
   createSqliteFile: (path: string) => call<void>("create_sqlite_file", { path }),
   closeDatabase: (id: string, database: string) => call<void>("close_database", { id, database }),
 };

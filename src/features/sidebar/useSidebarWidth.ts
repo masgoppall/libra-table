@@ -3,7 +3,7 @@ import { clamp, startDrag } from "@/lib/drag";
 import { readNumber, writeValue } from "@/lib/localStore";
 
 const KEY = "libratable.sidebarWidth";
-export const SIDEBAR_WIDTH = { min: 200, max: 520, initial: 264 };
+export const SIDEBAR_WIDTH = { min: 200, max: 520, initial: 312 };
 
 /** The sidebar width, dragged by its edge and remembered per viewer. */
 export function useSidebarWidth() {

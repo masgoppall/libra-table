@@ -39,6 +39,8 @@ export interface DataGridProps {
   onDeleteRows?: () => void;
   rowNumberOffset?: number;
   emptyText?: string;
+  /** Rows are on their way: a spinner instead of the empty text. */
+  loading?: boolean;
   /** Column names not shown. */
   hidden?: string[];
   onHeaderContextMenu?: (e: React.MouseEvent, col: number) => void;

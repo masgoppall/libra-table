@@ -1,12 +1,13 @@
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { brandArt, pruneBrand } from "./vite.brand";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // Tauri expects a fixed port and must not have Vite clear the Rust output.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), brandArt(fileURLToPath(new URL("./public", import.meta.url))), pruneBrand()],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },

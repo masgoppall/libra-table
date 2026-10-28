@@ -80,6 +80,7 @@ pub(super) async fn columns(
             default,
             pk_position: if pk > 0 { Some(pk as i32) } else { None },
             comment: None,
+            ..Default::default()
         })
         .collect())
 }
@@ -133,6 +134,7 @@ async fn indexes(
             columns: pk,
             unique: true,
             primary: true,
+            ..Default::default()
         };
         indexes.insert(0, rowid);
     }
@@ -171,6 +173,7 @@ async fn index(
             .unwrap_or_else(|| format!("({}) — automatic index ({origin})", columns.join(", "))),
         columns,
         name,
+        ..Default::default()
     })
 }
 

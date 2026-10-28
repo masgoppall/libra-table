@@ -150,6 +150,14 @@ export function emptySecrets(): SecretsInput {
 }
 
 /** Text the connection search matches against. */
+/** The second line of a connection in the list, as TablePlus shows it. */
+export function connectionSubtitle(c: ConnectionView): string {
+  if (isFileDriver(c.driver)) return c.db.filePath;
+  if (c.ssh.enabled) return `SSH : ${c.db.database || c.ssh.host}`;
+  if (!builtInDialect(c.driver) || c.db.useSocket) return c.summary;
+  return c.db.host.trim() || "127.0.0.1";
+}
+
 export function searchText(c: ConnectionView): string {
   return `${c.name} ${c.summary} ${c.driver} ${c.tag}`;
 }

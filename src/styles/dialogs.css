@@ -19,7 +19,7 @@
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
-  animation: pop 0.14s ease-out;
+  animation: pop 0.2s cubic-bezier(0.2, 0.9, 0.25, 1.05);
 }
 .modal.sm {
   width: min(440px, calc(100vw - 32px));
@@ -52,7 +52,7 @@
 }
 .modal-subtitle {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 13px;
   margin-top: 2px;
 }
 .modal-body {
@@ -80,7 +80,22 @@
 .form-grid > label {
   color: var(--text-2);
   text-align: right;
-  font-size: 12.5px;
+  font-size: 13px;
+}
+.form-grid > label.required::after {
+  content: " *";
+  color: var(--danger);
+}
+.form-grid > label.invalid {
+  color: var(--danger);
+}
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--bg));
+}
+.input[aria-invalid="true"]:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 24%, transparent);
 }
 .form-section {
   border-top: 1px solid var(--border);
@@ -110,7 +125,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--panel);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .callout-icon {
@@ -153,76 +168,6 @@
   word-break: break-word;
   user-select: text;
 }
-.driver-search {
-  width: 100%;
-  margin-bottom: 12px;
-}
-.driver-group + .driver-group {
-  margin-top: 14px;
-}
-.driver-group-title {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-2);
-}
-.driver-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.driver-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  cursor: pointer;
-  text-align: center;
-}
-.driver-card:hover {
-  border-color: var(--border-strong);
-  background: var(--panel);
-}
-.driver-card:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-.driver-card:disabled:hover {
-  border-color: var(--border);
-  background: var(--bg);
-}
-.driver-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-weak);
-  box-shadow: var(--ring);
-}
-.driver-name {
-  font-weight: 600;
-  margin-top: 4px;
-}
-.driver-desc {
-  font-size: 11.5px;
-  color: var(--text-2);
-}
-.driver-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  color: #fff;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  box-shadow:
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    0 1px 2px rgba(0, 0, 0, 0.12);
-}
-
 .shortcut-columns {
   columns: 2;
   column-gap: 28px;
@@ -246,7 +191,7 @@
   gap: 12px;
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .startup-query {
@@ -263,7 +208,7 @@
 .shortcut-keys {
   font: inherit;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 11px;
   min-width: 56px;
   padding: 2px 8px;
   border: 1px solid var(--border-strong);
@@ -283,4 +228,84 @@
 .secret-area {
   resize: vertical;
   -webkit-text-security: disc;
+}
+
+/* Alerts: one message and OK, like an NSAlert. */
+.alert-overlay {
+  z-index: 70;
+}
+.alert-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 22px 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  overflow: auto;
+  animation: alert-in 0.22s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+}
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+}
+.alert-icon {
+  display: flex;
+  margin-bottom: 10px;
+}
+/* The 240 × 170 illustration at 70 %, inside the 300 px box. */
+.alert-art {
+  width: 168px;
+  height: 119px;
+  margin: -6px 0 6px;
+  pointer-events: none;
+}
+.alert-box.error .alert-icon {
+  color: var(--danger);
+}
+.alert-box.warning .alert-icon {
+  color: var(--warn);
+}
+.alert-box.success .alert-icon {
+  color: var(--ok);
+}
+.alert-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.alert-message {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.alert-details {
+  align-self: stretch;
+  margin: 10px 0 0;
+  padding: 8px 10px 8px 26px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--text);
+}
+.alert-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+.alert-ok {
+  align-self: stretch;
+  justify-content: center;
+  height: 28px;
+  margin-top: 16px;
 }

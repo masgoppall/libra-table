@@ -1,5 +1,6 @@
 import { Check } from "@/components/Check";
 import { isFileDriver } from "@/domain/connection";
+import { fieldAttrs, FieldLabel } from "./fields";
 import { type ConnectionFormState } from "./useConnectionForm";
 
 const DEFAULT_PAGE_SIZE = 300;
@@ -9,10 +10,13 @@ export function OptionsSection({ form }: { form: ConnectionFormState }) {
   const { c, setOptions } = form;
   return (
     <div className="form-grid form-section">
-      <label>Rows per page</label>
+      <FieldLabel form={form} field="pageSize">
+        Rows per page
+      </FieldLabel>
       <div className="row">
         <input
           className="input num-input"
+          {...fieldAttrs(form, "pageSize")}
           type="number"
           min={1}
           max={5000}

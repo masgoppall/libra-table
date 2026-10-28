@@ -73,7 +73,7 @@ const general = (id: ActionId, label: string, keys: string): Shortcut => ({
 
 export const SHORTCUTS: Shortcut[] = [
   general("open-anything", "Open table, view or query", "Mod+P"),
-  general("switch-database", "Switch database", "Mod+K"),
+  general("switch-database", "Open database", "Mod+K"),
   general("new-connection", "New connection", "Mod+N"),
   general("new-table", "New table", "Mod+Shift+N"),
   general("save", "Save query / commit changes / apply structure", "Mod+S"),

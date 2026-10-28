@@ -43,6 +43,8 @@ export function useDataFilters(ctx: FilterContext) {
   const [visible, setVisible] = useState(false);
   const [focusSignal, setFocusSignal] = useState(0);
 
+  const activeCount = applied.only !== null ? 1 : applied.filters.filter((f) => f.enabled).length;
+
   const preferredOp = settings?.defaultFilterOperator ?? "eq";
   const defaultOp = ctx.operators.some((o) => o.id === preferredOp) ? preferredOp : "eq";
   const defaultColumn = defaultFilterColumn(
@@ -51,10 +53,19 @@ export function useDataFilters(ctx: FilterContext) {
     ctx.primaryKey,
   );
 
+  /** A row whose operator needs a value but has none filters nothing: clearing the value
+   * and pressing ↵ shows every row again instead of failing. */
+  const blank = (f: FilterRow) => {
+    const kind = ctx.operators.find((o) => o.id === f.operator)?.valueKind ?? "single";
+    if (kind === "none") return false;
+    return !f.value.trim() || (kind === "range" && !f.value2.trim());
+  };
+  const usable = (rows: FilterRow[]) => rows.map((f) => (blank(f) ? { ...f, enabled: false } : f));
+
   /** From the saved table state: shown when any filter was on. */
   const restore = (s: TableState) => {
     setDraft(s.filters);
-    setAppliedState({ filters: s.filters, only: null });
+    setAppliedState({ filters: usable(s.filters), only: null });
     setVisible(s.filters.some((f) => f.enabled));
   };
 
@@ -64,9 +75,31 @@ export function useDataFilters(ctx: FilterContext) {
     ctx.onApplied();
   };
 
+  const applyRows = (rows: FilterRow[], only: number | null) => {
+    if (only !== null && (!rows[only] || blank(rows[only]))) {
+      return setApplied({ filters: [], only: null }, rows);
+    }
+    setApplied({ filters: usable(rows), only }, rows);
+  };
+
   const apply = (target: ApplyTarget) => {
     if (target === null) setApplied({ filters: [], only: null }, draft);
-    else setApplied({ filters: draft, only: target >= 0 ? target : null }, draft);
+    else applyRows(draft, target >= 0 ? target : null);
+  };
+
+  /** Removes a filter row; when filters are on, the rest apply again right away. */
+  const remove = (i: number) => {
+    const next = draft.filter((_, j) => j !== i);
+    setDraft(next);
+    if (next.length === 0) setVisible(false);
+    if (activeCount > 0) applyRows(next, null);
+    else ctx.saveState({ filters: next });
+  };
+
+  /** Drops every filter and shows all rows, leaving one empty row to type into. */
+  const clear = () => {
+    setDraft([newFilterRow(defaultColumn, defaultOp)]);
+    setApplied({ filters: [], only: null }, []);
   };
 
   /** ⌘F shows the filters and focuses them; the button toggles them. */
@@ -116,8 +149,6 @@ export function useDataFilters(ctx: FilterContext) {
     }
   };
 
-  const activeCount = applied.only !== null ? 1 : applied.filters.filter((f) => f.enabled).length;
-
   return {
     draft,
     setDraft,
@@ -129,6 +160,8 @@ export function useDataFilters(ctx: FilterContext) {
     activeCount,
     restore,
     apply,
+    remove,
+    clear,
     toggle,
     filterByValue,
     showOnly,

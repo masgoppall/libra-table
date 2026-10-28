@@ -39,7 +39,7 @@ function cellClass(p: DataGridProps, r: number, col: number, focused: boolean): 
 export function GridRow(props: RowProps) {
   const { p, row: r, edit, ordered } = props;
   const status = p.rowStatus?.(r);
-  const classes = ["grid-row", p.selected.has(r) && "selected", status].filter(Boolean);
+  const classes = ["grid-row", r % 2 === 1 && "alt", p.selected.has(r) && "selected", status];
 
   const tabFrom = (col: number) => (back: boolean) => {
     const next = ordered[ordered.indexOf(col) + (back ? -1 : 1)];
@@ -48,7 +48,7 @@ export function GridRow(props: RowProps) {
 
   return (
     <div
-      className={classes.join(" ")}
+      className={classes.filter(Boolean).join(" ")}
       style={{ top: props.top, width: props.totalWidth }}
       onMouseDown={props.onMouseDown}
     >

@@ -4,3 +4,7 @@ src-tauri/target/
 src-tauri/gen/schemas/
 .DS_Store
 *.log
+
+tasks.txt
+# Connection exports hold encrypted passwords.
+*.tableplusconnection

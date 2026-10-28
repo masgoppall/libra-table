@@ -68,8 +68,19 @@ impl SecretStore {
         }
     }
 
+    /// Whether the secret is stored. On macOS this looks only at the item's attributes:
+    /// reading the value asks for keychain access, once per item, whenever the app's
+    /// signature changed since the item was saved (every local build).
     pub fn has(&self, connection_id: &str, kind: SecretKind) -> bool {
-        matches!(self.get(connection_id, kind), Ok(Some(_)))
+        self.has_account(&account(connection_id, kind))
+    }
+
+    fn has_account(&self, acct: &str) -> bool {
+        match self {
+            #[cfg(target_os = "macos")]
+            SecretStore::Keychain => exists_in_keychain(acct),
+            _ => matches!(self.get_account(acct), Ok(Some(_))),
+        }
     }
 
     pub fn set(&self, connection_id: &str, kind: SecretKind, value: &str) -> AppResult<()> {
@@ -120,6 +131,10 @@ impl SecretStore {
         self.get_account(&format!("app_{name}"))
     }
 
+    pub fn has_app(&self, name: &str) -> bool {
+        self.has_account(&format!("app_{name}"))
+    }
+
     pub fn set_app(&self, name: &str, value: &str) -> AppResult<()> {
         self.set_account(&format!("app_{name}"), value)
     }
@@ -136,6 +151,19 @@ impl SecretStore {
         }
         Ok(())
     }
+}
+
+#[cfg(target_os = "macos")]
+fn exists_in_keychain(acct: &str) -> bool {
+    use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+    ItemSearchOptions::new()
+        .class(ItemClass::generic_password())
+        .service(SERVICE)
+        .account(acct)
+        .load_attributes(true)
+        .limit(Limit::Max(1))
+        .search()
+        .is_ok_and(|found| !found.is_empty())
 }
 
 #[cfg(test)]

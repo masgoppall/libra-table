@@ -96,6 +96,7 @@ fn column(name: &str, data_type: &str, pk: bool) -> ColumnInfo {
         pk_position: pk.then_some(1),
         auto_increment: false,
         comment: None,
+        ..Default::default()
     }
 }
 

@@ -1,6 +1,7 @@
 import { connectionColor, TAGS } from "@/domain/connection";
 import { useStore } from "@/store";
 import { type Tag } from "@/types";
+import { fieldAttrs, FieldLabel } from "./fields";
 import { type ConnectionFormState } from "./useConnectionForm";
 
 export function GeneralSection({ form }: { form: ConnectionFormState }) {
@@ -8,9 +9,12 @@ export function GeneralSection({ form }: { form: ConnectionFormState }) {
   const { c, set } = form;
   return (
     <div className="form-grid">
-      <label>Name</label>
+      <FieldLabel form={form} field="name">
+        Name
+      </FieldLabel>
       <input
         className="input"
+        {...fieldAttrs(form, "name")}
         value={c.name}
         placeholder="My database"
         autoFocus

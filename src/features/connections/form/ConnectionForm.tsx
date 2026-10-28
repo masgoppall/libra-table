@@ -1,13 +1,12 @@
-// Connection form (CON-3..CON-7, SSH-1..SSH-3, TLS-1).
+// Connection form (CON-3..CON-7, SSH-1..SSH-3, TLS-1). Required fields are marked; missing
+// ones turn red on save, and errors and test results open a popup.
 
-import { CheckCircle2 } from "lucide-react";
-import { DriverLogo } from "@/components/DriverLogo";
-import { ErrorCallout } from "@/components/ErrorCallout";
+import { DriverCircle } from "@/components/DriverLogo";
 import { Modal } from "@/components/Modal";
 import { BusyIcon } from "@/components/Spinner";
 import { builtInDialect, DRIVER_LABEL } from "@/domain/connection";
 import { useDriverEntry } from "@/store";
-import { type ConnectionView, type TestResult } from "@/types";
+import { type ConnectionView } from "@/types";
 import { DriverFieldsSection } from "./DriverFieldsSection";
 import { GeneralSection } from "./GeneralSection";
 import { OptionsSection } from "./OptionsSection";
@@ -17,23 +16,6 @@ import { SqliteSection } from "./SqliteSection";
 import { SshSection } from "./SshSection";
 import { TlsSection } from "./TlsSection";
 import { type ConnectionFormState, type FormInitial, useConnectionForm } from "./useConnectionForm";
-
-function TestOutcome({ test }: { test: TestResult | null }) {
-  if (!test) return null;
-  return (
-    <div className="col">
-      <div className="callout ok">
-        <CheckCircle2 size={13} className="inline-icon" /> Connected to {test.serverVersion} in{" "}
-        {test.durationMs} ms.
-      </div>
-      {test.warnings.map((w) => (
-        <div key={w.code} className="callout warn">
-          {w.message}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Footer(props: {
   form: ConnectionFormState;
@@ -81,7 +63,7 @@ export function ConnectionForm(props: {
     <Modal
       size="lg"
       title={`${DRIVER_LABEL[c.driver]} Connection`}
-      icon={<DriverLogo driver={c.driver} size={22} />}
+      icon={<DriverCircle driver={c.driver} size={24} />}
       onClose={props.onClose}
       footer={<Footer form={form} onClose={props.onClose} onSave={onSave} />}
     >
@@ -93,8 +75,6 @@ export function ConnectionForm(props: {
       {tls && <TlsSection form={form} />}
       <OptionsSection form={form} />
       <SafetySection form={form} />
-      <TestOutcome test={form.test} />
-      <ErrorCallout error={form.error} />
     </Modal>
   );
 }

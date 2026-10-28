@@ -27,7 +27,8 @@ const OBJECTS: &str = "SELECT CAST(TABLE_NAME AS CHAR), CAST(TABLE_TYPE AS CHAR)
 
 const COLUMNS: &str = "SELECT CAST(COLUMN_NAME AS CHAR), CAST(COLUMN_TYPE AS CHAR), \
         CAST(IS_NULLABLE AS CHAR), CAST(COLUMN_DEFAULT AS CHAR), CAST(EXTRA AS CHAR), \
-        CAST(COLUMN_COMMENT AS CHAR) \
+        CAST(COLUMN_COMMENT AS CHAR), CAST(CHARACTER_SET_NAME AS CHAR), \
+        CAST(COLLATION_NAME AS CHAR) \
     FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? \
     ORDER BY ORDINAL_POSITION";
 
@@ -40,7 +41,7 @@ const TABLE_TYPE: &str = "SELECT CAST(TABLE_TYPE AS CHAR) FROM information_schem
     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?";
 
 const INDEX_COLUMNS: &str = "SELECT CAST(INDEX_NAME AS CHAR), CAST(NON_UNIQUE AS SIGNED), \
-        CAST(COLUMN_NAME AS CHAR), CAST(SEQ_IN_INDEX AS SIGNED) \
+        CAST(COLUMN_NAME AS CHAR), CAST(SEQ_IN_INDEX AS SIGNED), CAST(INDEX_TYPE AS CHAR) \
     FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? \
     ORDER BY INDEX_NAME, SEQ_IN_INDEX";
 
@@ -84,12 +85,21 @@ pub(super) async fn columns(
     schema: &str,
     table: &str,
 ) -> AppResult<Vec<ColumnInfo>> {
-    let rows: Vec<(String, String, String, Option<String>, String, String)> =
-        sqlx::query_as(COLUMNS)
-            .bind(schema)
-            .bind(table)
-            .fetch_all(p)
-            .await?;
+    type Row = (
+        String,
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+    );
+    let rows: Vec<Row> = sqlx::query_as(COLUMNS)
+        .bind(schema)
+        .bind(table)
+        .fetch_all(p)
+        .await?;
     let pks: Vec<(String, i64)> = sqlx::query_as(PRIMARY_KEY)
         .bind(schema)
         .bind(table)
@@ -97,23 +107,28 @@ pub(super) async fn columns(
         .await?;
     Ok(rows
         .into_iter()
-        .map(|(name, data_type, nullable, default, extra, comment)| {
-            let pk_position = pks
-                .iter()
-                .find(|(c, _)| c == &name)
-                .map(|(_, pos)| *pos as i32);
-            let extra = extra.to_ascii_lowercase();
-            ColumnInfo {
-                name,
-                data_type,
-                nullable: nullable == "YES",
-                default: default
-                    .and_then(|d| mysql_default_expr(&d, extra.contains("default_generated"))),
-                pk_position,
-                auto_increment: extra.contains("auto_increment"),
-                comment: Some(comment).filter(|c| !c.is_empty()),
-            }
-        })
+        .map(
+            |(name, data_type, nullable, default, extra, comment, charset, collation)| {
+                let pk_position = pks
+                    .iter()
+                    .find(|(c, _)| c == &name)
+                    .map(|(_, pos)| *pos as i32);
+                let flags = extra.to_ascii_lowercase();
+                ColumnInfo {
+                    name,
+                    data_type,
+                    nullable: nullable == "YES",
+                    default: default
+                        .and_then(|d| mysql_default_expr(&d, flags.contains("default_generated"))),
+                    pk_position,
+                    auto_increment: flags.contains("auto_increment"),
+                    comment: Some(comment).filter(|c| !c.is_empty()),
+                    charset: charset.filter(|c| !c.is_empty()),
+                    collation: collation.filter(|c| !c.is_empty()),
+                    extra: extra.trim().to_string(),
+                }
+            },
+        )
         .collect())
 }
 
@@ -187,13 +202,13 @@ async fn show_create(p: &MySqlPool, schema: &str, table: &str, is_view: bool) ->
 }
 
 async fn indexes(p: &MySqlPool, schema: &str, table: &str) -> AppResult<Vec<IndexInfo>> {
-    let rows: Vec<(String, i64, String, i64)> = sqlx::query_as(INDEX_COLUMNS)
+    let rows: Vec<(String, i64, String, i64, String)> = sqlx::query_as(INDEX_COLUMNS)
         .bind(schema)
         .bind(table)
         .fetch_all(p)
         .await?;
     let mut indexes: Vec<IndexInfo> = Vec::new();
-    for (name, non_unique, col, _) in rows {
+    for (name, non_unique, col, _, algorithm) in rows {
         match indexes.iter_mut().find(|i| i.name == name) {
             Some(i) => i.columns.push(col),
             None => indexes.push(IndexInfo {
@@ -202,6 +217,7 @@ async fn indexes(p: &MySqlPool, schema: &str, table: &str) -> AppResult<Vec<Inde
                 columns: vec![col],
                 definition: String::new(),
                 name,
+                algorithm,
             }),
         }
     }

@@ -6,6 +6,7 @@ mod secrets;
 mod session;
 mod sqlite_file;
 mod store;
+mod tableplus;
 pub mod transfer;
 pub mod url;
 

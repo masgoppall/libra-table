@@ -25,7 +25,7 @@
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  font-size: 12.5px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -37,7 +37,7 @@
   background: var(--bg-2);
   padding: 7px 8px;
   border-bottom: 1px solid var(--border);
-  font-size: 11.5px;
+  font-size: 11px;
   white-space: nowrap;
 }
 .edit-table td {
@@ -109,7 +109,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 11px;
   background: var(--bg);
-  font-size: 11.5px;
+  font-size: 11px;
   cursor: pointer;
   font-family: var(--mono);
 }

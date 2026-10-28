@@ -3,6 +3,7 @@
 import { Copy, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "@/components/Check";
+import { EmptyState } from "@/components/StateView";
 import { withShortcut } from "@/lib/actions";
 import { copyText } from "@/lib/clipboard";
 import { cx } from "@/lib/cx";
@@ -80,7 +81,14 @@ export function ConsolePanel() {
         </button>
       </div>
       <div className="console-list" ref={listRef}>
-        {shown.length === 0 && <div className="message faint">No statements yet.</div>}
+        {shown.length === 0 && (
+          <EmptyState
+            compact
+            art="console"
+            title="No statements yet"
+            hint="Every statement LibraTable sends to the server is logged here."
+          />
+        )}
         {shown.map((e, i) => (
           <Entry key={`${e.at}-${i}`} e={e} />
         ))}

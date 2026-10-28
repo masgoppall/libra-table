@@ -1,17 +1,16 @@
 // The table designer's model: rows for columns, indexes and foreign keys, each with
-// what it was (orig) and what it is now (cur). Pure functions build the schema change.
+// what it was (orig) and what it is now (cur). The change they make is in designerChange.
 
 import { blankColumn, columnSpec } from "@/domain/ddl";
 import { uid } from "@/lib/uid";
 import {
-  type AlterOp,
+  type ColumnInfo,
   type ColumnSpec,
   type Dialect,
   type ForeignKeyInfo,
   type ForeignKeySpec,
   type IndexInfo,
   type IndexSpec,
-  type SchemaChange,
   type TableStructure,
 } from "@/types";
 
@@ -26,14 +25,21 @@ interface Row<Orig, Cur> {
 export interface ColRow extends Row<ColumnSpec, ColumnSpec> {
   /** Position in the original primary key (to keep its order). */
   origPk?: number | null;
+  /** Position in the table as loaded (to tell which columns moved). */
+  origIndex?: number;
+  /** The column as the server described it (its raw EXTRA). */
+  info?: ColumnInfo;
 }
 export type IdxRow = Row<IndexInfo, IndexSpec>;
 export type FkRow = Row<ForeignKeyInfo, ForeignKeySpec>;
 
 export interface DesignerState {
   creating: boolean;
+  driver: Dialect;
   schema: string;
-  /** The existing table's name, or the name typed for a new one. */
+  /** The existing table's name ("" while creating one). */
+  table: string;
+  /** The Name field: the new table's name, or a rename of the existing one. */
   name: string;
   comment: string;
   cols: ColRow[];
@@ -41,7 +47,9 @@ export interface DesignerState {
   fks: FkRow[];
 }
 
-const norm = (s: string | null | undefined) => (s ?? "").trim();
+export const norm = (s: string | null | undefined) => (s ?? "").trim();
+const same = (a: string | null | undefined, b: string | null | undefined) =>
+  norm(a).toLowerCase() === norm(b).toLowerCase();
 
 export const live = <T extends { dropped: boolean }>(rows: T[]) => rows.filter((r) => !r.dropped);
 
@@ -52,13 +60,14 @@ export function newColumnRow(driver: Dialect, first: boolean): ColRow {
 }
 
 export function newIndexRow(): IdxRow {
-  return { key: uid(), cur: { name: "", columns: [], unique: false }, dropped: false };
+  const cur: IndexSpec = { name: "", columns: [], unique: false, algorithm: "" };
+  return { key: uid(), cur, dropped: false };
 }
 
-export function newForeignKeyRow(): FkRow {
+export function newForeignKeyRow(column: string): FkRow {
   const cur: ForeignKeySpec = {
     name: "",
-    columns: [],
+    columns: [column],
     refSchema: "",
     refTable: "",
     refColumns: [],
@@ -69,17 +78,19 @@ export function newForeignKeyRow(): FkRow {
 }
 
 export function rowsFromStructure(s: TableStructure) {
-  const cols: ColRow[] = s.columns.map((c) => ({
+  const cols: ColRow[] = s.columns.map((c, i) => ({
     key: uid(),
     orig: columnSpec(c),
     origPk: c.pkPosition,
+    origIndex: i,
+    info: c,
     cur: columnSpec(c),
     dropped: false,
   }));
   const idx: IdxRow[] = s.indexes.map((i) => ({
     key: uid(),
     orig: i,
-    cur: { name: i.name, columns: i.columns, unique: i.unique },
+    cur: { name: i.name, columns: i.columns, unique: i.unique, algorithm: i.algorithm ?? "" },
     dropped: false,
   }));
   const fks: FkRow[] = s.foreignKeys.map((f) => ({
@@ -113,7 +124,30 @@ export function patchRow<T extends Row<unknown, C>, C>(rows: T[], key: string, p
   return rows.map((r) => (r.key === key ? { ...r, cur: { ...r.cur, ...patch } } : r));
 }
 
+/** Moves a row to `to` (an index in the list as it is before the move). */
+export function moveRow<T extends { key: string }>(rows: T[], key: string, to: number): T[] {
+  const from = rows.findIndex((r) => r.key === key);
+  if (from < 0) return rows;
+  const next = rows.filter((r) => r.key !== key);
+  const at = Math.max(0, Math.min(next.length, to > from ? to - 1 : to));
+  next.splice(at, 0, rows[from] as T);
+  return next;
+}
+
 const isSequenceDefault = (d: string | null) => !!d?.startsWith("nextval(");
+
+const TEXT_TYPES = ["char", "varchar", "tinytext", "text", "mediumtext", "longtext", "enum", "set"];
+
+/** MySQL types with a character set and collation. */
+export function isTextType(dataType: string): boolean {
+  const base = baseType(dataType);
+  return TEXT_TYPES.includes(base);
+}
+
+/** `varchar(255) unsigned` → `varchar`. */
+export function baseType(dataType: string): string {
+  return norm(dataType).toLowerCase().split(/[\s(]/)[0] ?? "";
+}
 
 /** Applies a column edit, keeping the column consistent. */
 export function editColumn(c: ColumnSpec, patch: Partial<ColumnSpec>): ColumnSpec {
@@ -125,21 +159,50 @@ export function editColumn(c: ColumnSpec, patch: Partial<ColumnSpec>): ColumnSpe
   }
   if (patch.autoIncrement === false && isSequenceDefault(cur.default)) cur.default = null;
   if (patch.primaryKey) cur.nullable = false;
+  // Numbers, dates… have no character set; a collation belongs to one character set.
+  if (patch.dataType !== undefined && !isTextType(cur.dataType)) {
+    cur.charset = null;
+    cur.collation = null;
+  }
+  if (patch.charset !== undefined && cur.collation && cur.charset) {
+    if (!cur.collation.toLowerCase().startsWith(`${cur.charset.toLowerCase()}_`)) {
+      cur.collation = null;
+    }
+  }
   return cur;
 }
-
-// ------------------------------------------------------------------ the change
 
 /** Changed, ignoring the primary key (handled as one op) and unique (create only). */
 export function columnChanged(a: ColumnSpec, b: ColumnSpec): boolean {
   return (
     a.name !== b.name ||
-    norm(a.dataType).toLowerCase() !== norm(b.dataType).toLowerCase() ||
+    !same(a.dataType, b.dataType) ||
     a.nullable !== b.nullable ||
     norm(a.default) !== norm(b.default) ||
     a.autoIncrement !== b.autoIncrement ||
-    norm(a.comment) !== norm(b.comment)
+    norm(a.comment) !== norm(b.comment) ||
+    !same(a.charset, b.charset) ||
+    !same(a.collation, b.collation) ||
+    !same(a.extra, b.extra)
   );
+}
+
+/** Which fields of a column differ from how it was loaded (for highlighting cells). */
+export function changedFields(r: ColRow): Set<keyof ColumnSpec> {
+  const out = new Set<keyof ColumnSpec>();
+  const o = r.orig;
+  if (!o) return out;
+  const c = r.cur;
+  if (o.name !== c.name) out.add("name");
+  if (!same(o.dataType, c.dataType)) out.add("dataType");
+  if (o.nullable !== c.nullable) out.add("nullable");
+  if (norm(o.default) !== norm(c.default)) out.add("default");
+  if (o.autoIncrement !== c.autoIncrement || !same(o.extra, c.extra)) out.add("extra");
+  if (norm(o.comment) !== norm(c.comment)) out.add("comment");
+  if (!same(o.charset, c.charset)) out.add("charset");
+  if (!same(o.collation, c.collation)) out.add("collation");
+  if (o.primaryKey !== c.primaryKey) out.add("primaryKey");
+  return out;
 }
 
 export type RowStatus = "dropped" | "added" | "changed" | "";
@@ -151,99 +214,16 @@ export function columnStatus(r: ColRow): RowStatus {
   return columnChanged(r.orig, r.cur) || pkChanged ? "changed" : "";
 }
 
-function clean(c: ColumnSpec): ColumnSpec {
-  return {
-    ...c,
-    name: c.name.trim(),
-    dataType: c.dataType.trim(),
-    default: norm(c.default) || null,
-    comment: norm(c.comment) || null,
-  };
-}
-
-function columnOps(cols: ColRow[]): AlterOp[] {
-  return cols.flatMap((r): AlterOp[] => {
-    if (r.orig && r.dropped) return [{ op: "drop_column", name: r.orig.name }];
-    if (r.orig && columnChanged(r.orig, r.cur)) {
-      return [{ op: "modify_column", original: r.orig, column: clean(r.cur) }];
-    }
-    if (!r.orig && !r.dropped) return [{ op: "add_column", column: clean(r.cur) }];
-    return [];
-  });
-}
-
-/** One op for the whole key, only when its columns or their order changed. */
-function primaryKeyOps(cols: ColRow[]): AlterOp[] {
-  const before = cols
-    .filter((r) => r.origPk != null)
-    .sort((a, b) => (a.origPk ?? 0) - (b.origPk ?? 0));
-  const after = live(cols).filter((r) => r.cur.primaryKey);
-  const same =
-    before.length === after.length && before.every((r, i) => r.key === after[i]?.key && !r.dropped);
-  return same ? [] : [{ op: "set_primary_key", columns: after.map((r) => r.cur.name.trim()) }];
-}
-
-function indexOps(idx: IdxRow[]): AlterOp[] {
-  return idx.flatMap((r): AlterOp[] => {
-    if (r.orig && r.dropped) return [{ op: "drop_index", name: r.orig.name }];
-    if (!r.orig && !r.dropped) return [{ op: "add_index", index: r.cur }];
-    return [];
-  });
-}
-
-function foreignKeyOps(fks: FkRow[]): AlterOp[] {
-  return fks.flatMap((r): AlterOp[] => {
-    if (r.orig && r.dropped) return [{ op: "drop_foreign_key", name: r.orig.name }];
-    if (!r.orig && !r.dropped) return [{ op: "add_foreign_key", foreignKey: r.cur }];
-    return [];
-  });
-}
-
-/** The change to preview and apply; null when an existing table is unchanged. */
-export function buildChange(s: DesignerState): SchemaChange | null {
-  if (s.creating) {
-    return {
-      kind: "create_table",
-      schema: s.schema,
-      name: s.name.trim(),
-      columns: live(s.cols).map((r) => clean(r.cur)),
-      indexes: live(s.idx).map((r) => r.cur),
-      foreignKeys: live(s.fks).map((r) => r.cur),
-      comment: norm(s.comment) || null,
-    };
-  }
-  const ops = [
-    ...columnOps(s.cols),
-    ...primaryKeyOps(s.cols),
-    ...indexOps(s.idx),
-    ...foreignKeyOps(s.fks),
-  ];
-  return ops.length ? { kind: "alter_table", schema: s.schema, name: s.name, ops } : null;
-}
-
-/** What stops the change from being applied, first problem first. */
-export function validate(s: DesignerState): string[] {
-  const p: string[] = [];
-  const cols = live(s.cols);
-  if (s.creating && !s.name.trim()) p.push("Name the table.");
-  if (!cols.length) p.push("Add at least one column.");
-  if (cols.some((r) => !r.cur.name.trim())) p.push("Every column needs a name.");
-  if (cols.some((r) => !r.cur.dataType.trim())) p.push("Every column needs a type.");
-  const names = cols.map((r) => r.cur.name.trim().toLowerCase());
-  if (new Set(names).size !== names.length) p.push("Two columns have the same name.");
-  const added = <T extends Row<unknown, unknown>>(rows: T[]) => live(rows).filter((r) => !r.orig);
-  if (added(s.idx).some((r) => r.cur.columns.length === 0)) {
-    p.push("Pick the columns of the new index.");
-  }
-  const badFk = (f: ForeignKeySpec) =>
-    !f.refTable || !f.columns.length || f.columns.length !== f.refColumns.length;
-  if (added(s.fks).some((r) => badFk(r.cur))) {
-    p.push("A new foreign key needs a table and the same number of columns on both sides.");
-  }
-  return p;
+export function indexStatus(r: IdxRow): RowStatus {
+  return r.dropped ? "dropped" : r.orig ? "" : "added";
 }
 
 /** Column names that can be picked for indexes and foreign keys. */
 export function liveColumnNames(cols: ColRow[]): string[] {
   return live(cols).flatMap((r) => (r.cur.name.trim() ? [r.cur.name.trim()] : []));
+}
+
+/** The foreign keys a column is part of (not dropped). */
+export function columnForeignKeys(fks: FkRow[], column: string): FkRow[] {
+  return live(fks).filter((f) => f.cur.columns.includes(column));
 }

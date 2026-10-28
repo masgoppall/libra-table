@@ -2,27 +2,10 @@
 // the driver catalog: host and port, files, driver settings (`db.extra`) and its secret.
 
 import { Check } from "@/components/Check";
-import { type Connection, type DriverEntry, type DriverField } from "@/types";
-import { FieldNote, PasswordField, PathField } from "./fields";
+import { type DriverEntry, type DriverField } from "@/types";
+import { fieldAttrs, FieldLabel, FieldNote, PasswordField, PathField } from "./fields";
 import { type ConnectionFormState, parsePort, typedSecret } from "./useConnectionForm";
-
-/** The text a field shows ("" when unset). */
-export function fieldValue(c: Connection, key: string): string {
-  switch (key) {
-    case "host":
-      return c.db.host;
-    case "port":
-      return c.db.port === null ? "" : String(c.db.port);
-    case "user":
-      return c.db.user;
-    case "database":
-      return c.db.database;
-    case "filePath":
-      return c.db.filePath;
-    default:
-      return c.db.extra[key.replace(/^extra\./, "")] ?? "";
-  }
-}
+import { fieldValue } from "./validation";
 
 function setField(form: ConnectionFormState, key: string, value: string) {
   const { c, setDb } = form;
@@ -49,7 +32,14 @@ function FieldInput(props: { form: ConnectionFormState; f: DriverField; port?: n
     );
   }
   if (f.kind === "file") {
-    return <PathField value={value} onChange={onChange} title={`Choose ${f.label}`} />;
+    return (
+      <PathField
+        value={value}
+        onChange={onChange}
+        title={`Choose ${f.label}`}
+        attrs={fieldAttrs(form, f.key)}
+      />
+    );
   }
   if (f.kind === "select") {
     return (
@@ -66,6 +56,7 @@ function FieldInput(props: { form: ConnectionFormState; f: DriverField; port?: n
   return (
     <input
       className={`input${f.kind === "number" ? " port-input" : ""}`}
+      {...fieldAttrs(form, f.key)}
       value={value}
       placeholder={placeholder || (f.required ? "required" : "")}
       onChange={(e) => onChange(e.target.value)}
@@ -138,7 +129,9 @@ function FieldRow(props: {
   const { form, f, port } = props;
   return (
     <>
-      <label>{f.label}</label>
+      <FieldLabel form={form} field={f.key}>
+        {f.label}
+      </FieldLabel>
       {f.key === "host" && port ? (
         <div className="row">
           <div className="grow">

@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight, Eye, Key, Pin, Table2 } from "lucide-react";
+import { Eye, Key, Pin, Table2 } from "lucide-react";
 import { Highlight } from "@/components/Highlight";
 import { Spinner } from "@/components/Spinner";
 import { type ObjectInfo } from "@/types";
+import { Disclosure } from "./SideSection";
 import { type ColumnsState } from "./useTableColumns";
 
 export interface ObjectItemProps {
@@ -59,7 +60,7 @@ export function ObjectItem(p: ObjectItemProps) {
             p.onToggle();
           }}
         >
-          {p.expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          <Disclosure open={p.expanded} />
         </span>
         {o.kind === "view" ? (
           <Eye size={13} className="side-icon view" />

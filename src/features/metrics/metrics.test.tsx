@@ -3,7 +3,7 @@
 
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { openWorkspace, query, renderApp, setupApp, sidebar } from "@/test/app";
+import { openWorkspace, query, renderApp, setupApp } from "@/test/app";
 
 const h = setupApp();
 
@@ -17,7 +17,7 @@ describe("metrics board", () => {
   it("builds a board with a scoreboard and a chart driven by an input", async () => {
     renderApp();
     await openWorkspace("Local Postgres");
-    fireEvent.click(within(sidebar()).getByText("Metrics"));
+    fireEvent.click(screen.getByRole("button", { name: "Metrics" }));
     fireEvent.click(await screen.findByRole("button", { name: "New board" }));
     const prompt = await screen.findByRole("dialog");
     fireEvent.change(within(prompt).getByDisplayValue("Dashboard"), { target: { value: "Sales" } });

@@ -1,8 +1,8 @@
-// Prompt / confirm / host-key dialogs as promises: `await dialog(spec)`.
+// Prompt / confirm / alert / host-key dialogs as promises: `await dialog(spec)`.
 
 import { type StateCreator } from "zustand";
 import { uid } from "@/lib/uid";
-import { type HostKeyError } from "@/types";
+import { type ArtName, type HostKeyError } from "@/types";
 import { type AppState } from "../types";
 
 export interface PromptSpec {
@@ -31,12 +31,25 @@ export interface ConfirmSpec {
   checkbox?: string;
 }
 
+/** A message with only an OK button (form errors, test results). */
+export interface AlertSpec {
+  kind: "alert";
+  title: string;
+  message: string;
+  /** Listed under the message: the fields to fill in, warnings… */
+  details?: string[];
+  hint?: string;
+  tone?: "error" | "warning" | "success";
+  /** A brand illustration in place of the tone's icon. */
+  art?: ArtName;
+}
+
 export interface HostKeySpec {
   kind: "hostKey";
   error: HostKeyError;
 }
 
-export type DialogSpec = PromptSpec | ConfirmSpec | HostKeySpec;
+export type DialogSpec = PromptSpec | ConfirmSpec | AlertSpec | HostKeySpec;
 
 export type DialogResult = { ok: false } | { ok: true; value?: string; checked?: boolean };
 

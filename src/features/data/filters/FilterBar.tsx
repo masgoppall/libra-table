@@ -1,7 +1,7 @@
 // Filter rows (FLT-1..FLT-6). Operators come from the driver's capabilities; values are
 // sent as bind parameters by Rust.
 
-import { Play, Plus } from "lucide-react";
+import { Play, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { newFilterRow } from "@/domain/filters";
 import { shortcutFor } from "@/lib/actions";
@@ -21,6 +21,10 @@ export interface FilterBarProps {
   focusSignal: number;
   onChange: (rows: FilterRow[]) => void;
   onApply: (target: ApplyTarget) => void;
+  onRemove: (index: number) => void;
+  /** Whether any filter is applied (Clear is offered then too). */
+  active: boolean;
+  onClear: () => void;
   onPreview: (only: number | null) => Promise<FilterPreview | null>;
 }
 
@@ -75,7 +79,7 @@ export function FilterBar(props: FilterBarProps) {
           onDuplicate={() =>
             props.onChange([...rows.slice(0, i + 1), { ...r }, ...rows.slice(i + 1)])
           }
-          onRemove={() => props.onChange(rows.filter((_, j) => j !== i))}
+          onRemove={() => props.onRemove(i)}
         />
       ))}
       <div className="row filter-foot">
@@ -87,11 +91,12 @@ export function FilterBar(props: FilterBarProps) {
         </span>
         <span className="spacer" />
         <button
-          className="btn sm ghost"
-          onClick={() => props.onApply(null)}
-          disabled={rows.length === 0}
+          className="btn sm"
+          onClick={props.onClear}
+          disabled={!props.active && !rows.some((r) => r.value || r.value2)}
+          title="Remove every filter and show all rows"
         >
-          Clear applied
+          <X size={12} /> Clear
         </button>
         <button
           className="btn sm primary"

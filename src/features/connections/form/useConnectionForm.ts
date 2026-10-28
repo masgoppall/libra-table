@@ -1,20 +1,23 @@
 // State and actions of the connection form. Saved passwords are never shown; typing a
-// new one replaces it, "Clear" removes it from the Keychain.
+// new one replaces it, "Clear" removes it from the Keychain. Missing fields turn red when
+// saving or testing; errors and test results open a popup instead of a callout below.
 
 import { homeDir } from "@tauri-apps/api/path";
 import { open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { api } from "@/api";
 import { emptySecrets } from "@/domain/connection";
+import { alertError } from "@/services/errors";
 import { withConnectPrompts } from "@/services/prompts";
+import { store, useDriverEntry } from "@/store";
 import {
-  type AppError,
   type Connection,
   type ConnectionView,
   type SecretChange,
   type SecretsInput,
   type TestResult,
 } from "@/types";
+import { type FieldIssue, type FieldKey, requiredFields, validateConnection } from "./validation";
 
 export interface FormInitial {
   connection: Connection;
@@ -54,6 +57,40 @@ function fileStem(path: string): string {
   );
 }
 
+/** Moves the caret to the first field still to fill in. */
+function focusField(field: FieldKey) {
+  // Keys are field names like "extra.accountId": no quotes to escape.
+  const el = document.querySelector<HTMLElement>(`[data-field="${field}"]`);
+  el?.focus();
+  el?.scrollIntoView({ block: "nearest" });
+}
+
+/** The popup for missing fields; resolves once it is dismissed. */
+async function reportIssues(issues: FieldIssue[]) {
+  const [first] = issues;
+  if (!first) return;
+  await store.get().dialog({
+    kind: "alert",
+    tone: "warning",
+    title: issues.length === 1 ? "A field needs attention" : "Some fields need attention",
+    message:
+      issues.length === 1 ? first.message : "Fill in the fields marked in red, then try again.",
+    details: issues.length === 1 ? undefined : issues.map((i) => i.message),
+  });
+  focusField(first.field);
+}
+
+function testAlert(result: TestResult) {
+  const warnings = result.warnings.map((w) => w.message);
+  return store.get().dialog({
+    kind: "alert",
+    tone: warnings.length ? "warning" : "success",
+    title: "Connection is OK",
+    message: `Connected to ${result.serverVersion} in ${result.durationMs} ms.`,
+    details: warnings,
+  });
+}
+
 async function sshDirectory(): Promise<string | undefined> {
   try {
     return `${await homeDir()}/.ssh`;
@@ -67,9 +104,22 @@ export function useConnectionForm(initial: FormInitial) {
   const [secrets, setSecrets] = useState<SecretsInput>(() => initialSecrets(initial));
   const [keyInfo, setKeyInfo] = useState<{ name: string; encrypted: boolean } | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
-  const [test, setTest] = useState<TestResult | null>(null);
-  const [error, setError] = useState<AppError | null>(null);
+  /** Set by the first save or test with missing fields: from then on they show in red. */
+  const [checked, setChecked] = useState(false);
   const view = initial.view;
+  const entry = useDriverEntry(c.driver);
+  const issues = validateConnection(c, entry);
+  const required = requiredFields(c, entry);
+  const invalid = (field: FieldKey) => checked && issues.some((i) => i.field === field);
+
+  /** True when nothing is missing; otherwise marks the fields and says what to fill in. */
+  const checkFields = async (ignore: FieldKey[] = []) => {
+    const missing = issues.filter((i) => !ignore.includes(i.field));
+    if (!missing.length) return true;
+    setChecked(true);
+    await reportIssues(missing);
+    return false;
+  };
 
   type Part = "db" | "ssh" | "tls" | "options";
   const setPart =
@@ -101,7 +151,7 @@ export function useConnectionForm(initial: FormInitial) {
       setSecret({ sshKeyToken: info.token, clearSshKey: false });
       setSsh({ keyName: info.name, useKey: true });
     } catch (e) {
-      setError(e as AppError);
+      await alertError("Couldn't import the key", e);
     }
   };
 
@@ -123,40 +173,42 @@ export function useConnectionForm(initial: FormInitial) {
       await api.createSqliteFile(p);
       setDb({ filePath: p });
       if (!c.name) set({ name: fileStem(p) });
-      setError(null);
     } catch (e) {
-      setError(e as AppError);
+      await alertError("Couldn't create the database file", e);
     }
   };
 
-  /** Test with prompts for host key, passphrase and "ask" passwords. */
+  /** Test with prompts for host key, passphrase and "ask" passwords. A name isn't needed. */
   const runTest = async () => {
+    if (!(await checkFields(["name"]))) return;
     setBusy("test");
-    setError(null);
-    setTest(null);
+    let result: TestResult | null;
     try {
-      const result = await withConnectPrompts((p) => api.testConnection(c, secrets, p), {
+      result = await withConnectPrompts((p) => api.testConnection(c, secrets, p), {
         title: c.name || "Test",
         offerSavePassphrase: false,
       });
-      setTest(result);
     } catch (e) {
-      setError(e as AppError);
-    } finally {
       setBusy(null);
+      await alertError("Couldn't connect", e, "connection-failed");
+      return;
     }
+    setBusy(null);
+    // Null when a prompt (password, host key) was cancelled.
+    if (result) await testAlert(result);
   };
 
   const save = async (andConnect: boolean): Promise<ConnectionView | null> => {
+    if (!(await checkFields())) return null;
     setBusy(andConnect ? "connect" : "save");
-    setError(null);
     try {
-      return await api.saveConnection(c, secrets);
-    } catch (e) {
-      setError(e as AppError);
-      return null;
-    } finally {
+      const saved = await api.saveConnection(c, secrets);
       setBusy(null);
+      return saved;
+    } catch (e) {
+      setBusy(null);
+      await alertError("Couldn't save the connection", e);
+      return null;
     }
   };
 
@@ -167,8 +219,8 @@ export function useConnectionForm(initial: FormInitial) {
     keyInfo,
     hasKey,
     busy,
-    test,
-    error,
+    required,
+    invalid,
     set,
     setDb,
     setSsh,

@@ -11,13 +11,23 @@ export interface ColumnSpec {
   autoIncrement: boolean;
   unique: boolean;
   comment: string | null;
+  /** MySQL text columns. */
+  charset?: string | null;
+  collation?: string | null;
+  /** MySQL column attributes ("on update CURRENT_TIMESTAMP"…), AUTO_INCREMENT aside. */
+  extra?: string | null;
 }
 
 export interface IndexSpec {
   name: string;
   columns: string[];
   unique: boolean;
+  /** BTREE, HASH… ; the default when empty. */
+  algorithm?: string;
 }
+
+/** Where a MySQL column goes. */
+export type ColumnPosition = "first" | { after: string };
 
 export interface ForeignKeySpec {
   name: string;
@@ -38,9 +48,14 @@ export interface DatabaseOptions {
 }
 
 export type AlterOp =
-  | { op: "add_column"; column: ColumnSpec }
+  | { op: "add_column"; column: ColumnSpec; position?: ColumnPosition }
   | { op: "drop_column"; name: string }
-  | { op: "modify_column"; original: ColumnSpec; column: ColumnSpec }
+  | {
+      op: "modify_column";
+      original: ColumnSpec;
+      column: ColumnSpec;
+      position?: ColumnPosition;
+    }
   | { op: "set_primary_key"; columns: string[] }
   | { op: "add_index"; index: IndexSpec }
   | { op: "drop_index"; name: string }
@@ -63,6 +78,8 @@ export interface AlterTable {
   schema: string;
   name: string;
   ops: AlterOp[];
+  /** A new name for the table, applied after the ops. */
+  renameTo?: string | null;
 }
 
 export type SchemaChange =

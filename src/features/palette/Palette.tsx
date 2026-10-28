@@ -1,33 +1,27 @@
-// ⌘P "open anything" (tables, views, saved queries, actions) and ⌘K "switch database".
+// ⌘P "open anything" (tables, views, saved queries, actions); ⌘K opens the database sheet.
 
-import { Database, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Highlight } from "@/components/Highlight";
 import { Spinner } from "@/components/Spinner";
-import { LAYER, useActions } from "@/lib/actions";
+import { LAYER, shortcutFor, useActions } from "@/lib/actions";
 import { type SearchResult, search } from "@/lib/fuzzy";
-import { type PaletteKind, store, useStore } from "@/store";
+import { store, useStore } from "@/store";
 import { type Workspace } from "@/types";
-import { anythingItems, databaseItems, type PaletteItem } from "./paletteItems";
+import { DatabaseSheet } from "./DatabaseSheet";
+import { anythingItems, type PaletteItem } from "./paletteItems";
 
-const TEXT: Record<PaletteKind, { label: string; placeholder: string }> = {
-  anything: {
-    label: "Open anything",
-    placeholder: "Open a table, view or saved query, or run an action…",
-  },
-  database: { label: "Switch database", placeholder: "Switch to database…" },
-};
+const PLACEHOLDER = "Open a table, view or saved query, or run an action…";
 
-function useItems(kind: PaletteKind, ws: Workspace) {
+function useItems(ws: Workspace) {
   const [items, setItems] = useState<PaletteItem[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    const load = kind === "database" ? databaseItems : anythingItems;
-    void load(ws).then((list) => !cancelled && setItems(list));
+    void anythingItems(ws).then((list) => !cancelled && setItems(list));
     return () => {
       cancelled = true;
     };
-  }, [kind, ws.connectionId]);
+  }, [ws.connectionId]);
   return items;
 }
 
@@ -60,7 +54,7 @@ function Row(props: {
   );
 }
 
-function Footer({ kind }: { kind: PaletteKind }) {
+function Footer() {
   return (
     <div className="palette-foot">
       <span>
@@ -71,34 +65,25 @@ function Footer({ kind }: { kind: PaletteKind }) {
         <kbd>↵</kbd> open
       </span>
       <span>
-        {kind === "anything" ? (
-          <>
-            <kbd>⌘K</kbd> databases
-          </>
-        ) : (
-          <>
-            <kbd>⌘P</kbd> tables
-          </>
-        )}
+        <kbd>{shortcutFor("switch-database")}</kbd> databases
       </span>
     </div>
   );
 }
 
-function PaletteBody({ kind, ws }: { kind: PaletteKind; ws: Workspace }) {
+function PaletteBody({ ws }: { ws: Workspace }) {
   const id = ws.connectionId;
   const { closePalette, openPalette } = store.get();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const items = useItems(kind, ws);
+  const items = useItems(ws);
 
-  // ⌘P / ⌘K again closes; the other key switches palettes.
-  const toggle = (k: PaletteKind) => (kind === k ? closePalette() : openPalette(k, id));
+  // ⌘P again closes; ⌘K switches to the databases.
   useActions(LAYER.dialog, true, {
     "close-tab": closePalette,
-    "open-anything": () => toggle("anything"),
-    "switch-database": () => toggle("database"),
+    "open-anything": closePalette,
+    "switch-database": () => openPalette("database", id),
   });
 
   const matches = useMemo(
@@ -139,17 +124,13 @@ function PaletteBody({ kind, ws }: { kind: PaletteKind; ws: Workspace }) {
       className="palette-overlay"
       onMouseDown={(e) => e.target === e.currentTarget && closePalette()}
     >
-      <div className="palette" role="dialog" aria-label={TEXT[kind].label}>
+      <div className="palette" role="dialog" aria-label="Open anything">
         <div className="palette-input">
-          {kind === "database" ? (
-            <Database size={16} className="faint" />
-          ) : (
-            <Search size={16} className="faint" />
-          )}
+          <Search size={16} className="faint" />
           <input
             autoFocus
             value={query}
-            placeholder={TEXT[kind].placeholder}
+            placeholder={PLACEHOLDER}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
           />
@@ -180,7 +161,7 @@ function PaletteBody({ kind, ws }: { kind: PaletteKind; ws: Workspace }) {
             );
           })}
         </div>
-        <Footer kind={kind} />
+        <Footer />
       </div>
     </div>
   );
@@ -190,5 +171,6 @@ export function Palette() {
   const palette = useStore((s) => s.palette);
   const ws = useStore((s) => (s.palette ? s.workspaces[s.palette.connectionId] : undefined));
   if (!palette || !ws) return null;
-  return <PaletteBody key={`${palette.kind}-${ws.connectionId}`} kind={palette.kind} ws={ws} />;
+  if (palette.kind === "database") return <DatabaseSheet key={ws.connectionId} ws={ws} />;
+  return <PaletteBody key={ws.connectionId} ws={ws} />;
 }

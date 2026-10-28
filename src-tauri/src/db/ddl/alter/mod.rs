@@ -4,7 +4,7 @@ mod mysql;
 mod postgres;
 mod sqlite;
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::models::Dialect;
 
 use super::plan::{Ctx, Step};
@@ -19,6 +19,23 @@ pub(super) fn build(
     ctx: &Ctx,
     steps: &mut Vec<Step>,
 ) -> AppResult<bool> {
+    let moves = ops.iter().any(|op| {
+        matches!(
+            op,
+            AlterOp::AddColumn {
+                position: Some(_),
+                ..
+            } | AlterOp::ModifyColumn {
+                position: Some(_),
+                ..
+            }
+        )
+    });
+    if moves && driver != Dialect::Mysql {
+        return Err(AppError::validation(
+            "Currently, this database doesn't support changing ordinal position.",
+        ));
+    }
     match driver {
         Dialect::Postgres => postgres::alter(schema, table, ops, ctx, steps).map(|_| false),
         Dialect::Mysql => mysql::alter(schema, table, ops, ctx, steps).map(|_| false),

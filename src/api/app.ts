@@ -22,6 +22,9 @@ export const appApi = {
   consoleEntries: () => call<ConsoleEntry[]>("console_entries"),
   clearConsole: () => call<void>("clear_console"),
   setWindowView: (inWorkspace: boolean) => call<void>("set_window_view", { inWorkspace }),
+  setWindowMode: (mode: "welcome" | "workspace") => call<void>("set_window_mode", { mode }),
+  /** An image file as a `data:` URL (the group icon picker). */
+  readImageFile: (path: string) => call<string>("read_image_file", { path }),
   getTableState: (key: string) => call<TableState | null>("get_table_state", { key }),
   saveTableState: (key: string, tableState: TableState) =>
     call<void>("save_table_state", { key, tableState }),

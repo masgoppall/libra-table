@@ -25,7 +25,7 @@ export type { AppState } from "./types";
 export type { DialogResult, DialogSpec, OpenDialog } from "./slices/dialogs";
 export type { Toast, ToastKind } from "./slices/toasts";
 export type { ToolDialog } from "./slices/tools";
-export type { PaletteKind, PaletteState, ServerDialog } from "./slices/ui";
+export type { GroupEditor, PaletteKind, PaletteState, ServerDialog } from "./slices/ui";
 export { HOME } from "./slices/workspaces";
 export * from "./selectors";
 export { activeTab, tabDb } from "./workspaceModel";

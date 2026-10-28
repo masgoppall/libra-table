@@ -1,11 +1,13 @@
 import { FilePlus2 } from "lucide-react";
-import { PathField } from "./fields";
+import { fieldAttrs, FieldLabel, PathField } from "./fields";
 import { type ConnectionFormState } from "./useConnectionForm";
 
 export function SqliteSection({ form }: { form: ConnectionFormState }) {
   return (
     <div className="form-grid form-section">
-      <label>Database file</label>
+      <FieldLabel form={form} field="filePath">
+        Database file
+      </FieldLabel>
       <div className="row">
         <div className="grow">
           <PathField
@@ -13,6 +15,7 @@ export function SqliteSection({ form }: { form: ConnectionFormState }) {
             onChange={(filePath) => form.setDb({ filePath })}
             placeholder="/path/to/database.sqlite"
             title="Choose SQLite file"
+            attrs={fieldAttrs(form, "filePath")}
           />
         </div>
         <button

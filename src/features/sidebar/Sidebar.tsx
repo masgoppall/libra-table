@@ -1,65 +1,38 @@
-// Schema browser (SCH-1..SCH-4, SCH-6): databases of the server, schemas, recent items,
-// tables, views, other schema objects (functions, triggers…) and saved queries (QRY-7),
-// with the operations in context menus.
+// Schema browser (SCH-1..SCH-4, SCH-6), laid out like TablePlus: "Items", "Queries" and
+// "History" tabs, a search field, the tree of the current database (recent items, functions
+// and other schema objects, tables, views) and "+" / schema menus at the bottom. Databases
+// open from "Open database" (⌘K).
 
-import { Gauge, History, RefreshCw, SquareTerminal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useContextMenu } from "@/components/ContextMenu";
-import { BusyIcon, Spinner } from "@/components/Spinner";
-import { withShortcut } from "@/lib/actions";
+import { Spinner } from "@/components/Spinner";
+import { dispatch, shortcutFor } from "@/lib/actions";
 import { type MatchMode, search } from "@/lib/fuzzy";
-import { store } from "@/store";
 import { type Workspace } from "@/types";
-import { openMetrics } from "../import/openTools";
 import { KeyValueSidebar } from "../keyvalue/KeyValueSidebar";
-import { historyTab, newQueryTab } from "../workspace/tabs";
 import { SchemaObjectSections } from "./ObjectGroups";
 import { RecentSection } from "./RecentSection";
-import { DatabaseSection, ObjectSections, SavedQuerySection, useCollapsed } from "./SidebarLists";
-import { SidebarTop } from "./SidebarTop";
-import { SideHint } from "./SideSection";
+import { SidebarFoot, SidebarSearch, type SideTab, SidebarTabs, TABS } from "./SidebarChrome";
+import { SidebarHistory } from "./SidebarHistory";
+import { ObjectSections, SavedQueryList, useCollapsed } from "./SidebarLists";
+import { SideEmpty } from "./SideSection";
 import { needsDatabase, useSidebarData } from "./useSidebarData";
 import { useSidebarExtras } from "./useSidebarExtras";
 import { useSidebarWidth } from "./useSidebarWidth";
 import { useTableColumns } from "./useTableColumns";
 
-function SidebarFoot({ ws, loading }: { ws: Workspace; loading: boolean }) {
-  const id = ws.connectionId;
-  const { addTab, refresh } = store.get();
+function NoDatabase() {
+  const keys = shortcutFor("switch-database");
+  // "⌘K" reads "⌘ + K", as TablePlus writes it.
+  const label = keys ? Array.from(keys).join(" + ") : "Open database";
   return (
-    <div className="sidebar-foot">
-      {ws.caps.query && (
-        <>
-          <button
-            className="btn sm ghost"
-            title={withShortcut("New query", "new-query")}
-            onClick={() => addTab(id, newQueryTab())}
-          >
-            <SquareTerminal size={13} /> Query
-          </button>
-          <button
-            className="btn sm ghost"
-            title={withShortcut("Query history", "history")}
-            onClick={() => addTab(id, historyTab(), { reuse: true })}
-          >
-            <History size={13} /> History
-          </button>
-        </>
-      )}
-      {ws.caps.metrics && (
-        <button className="btn sm ghost" title="Metrics boards" onClick={() => openMetrics(ws)}>
-          <Gauge size={13} /> Metrics
-        </button>
-      )}
-      <span className="spacer" />
-      <button
-        className="btn sm icon ghost"
-        title={withShortcut("Refresh", "refresh")}
-        onClick={() => refresh(id)}
-      >
-        <BusyIcon busy={loading} icon={<RefreshCw size={13} />} />
-      </button>
-    </div>
+    <SideEmpty>
+      No database selected, press{" "}
+      <button className="side-empty-link" onClick={() => dispatch("switch-database")}>
+        {label}
+      </button>{" "}
+      to select a database
+    </SideEmpty>
   );
 }
 
@@ -73,8 +46,15 @@ export function Sidebar(props: {
   const menu = useContextMenu();
   const collapsed = useCollapsed();
   const columns = useTableColumns(ws);
+  const [tab, setTab] = useState<SideTab>("items");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<MatchMode>("fuzzy");
+  const listRef = useRef<HTMLDivElement>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  // A hidden sidebar keeps its state but takes no focus (React 18 has no `inert` prop).
+  useEffect(() => {
+    asideRef.current?.toggleAttribute("inert", !!ws.sidebarHidden);
+  }, [ws.sidebarHidden]);
   const pick = useMemo(() => needsDatabase(ws), [ws]);
   const keyValue = ws.caps.kind === "key_value";
   const extras = useSidebarExtras(ws, data.objects, { query, mode });
@@ -87,89 +67,102 @@ export function Sidebar(props: {
     () => search(data.saved, query, mode, (s) => s.name),
     [data.saved, query, mode],
   );
-  const databases = useMemo(
-    () => search(data.databases, query, mode, (d) => d),
-    [data.databases, query, mode],
-  );
+  const sections = useMemo(() => {
+    const kinds = new Set(extras.objectMatches.map((m) => m.item.kind as string));
+    return ["recent", "tables", "views", "databases", ...kinds];
+  }, [extras.objectMatches]);
+  const collapseAll = (to: boolean) => {
+    for (const k of sections) if (collapsed.isCollapsed(k) !== to) collapsed.toggle(k);
+  };
+  const switchTab = (t: SideTab) => {
+    setTab(t);
+    setQuery("");
+    if (listRef.current) listRef.current.scrollTop = 0;
+  };
 
-  if (ws.sidebarHidden) return null;
-  return (
-    <aside className="sidebar" style={{ width: size.width }}>
-      <SidebarTop
-        ws={ws}
-        schemas={data.schemas}
-        menu={menu}
-        search={{ query, setQuery, mode, setMode }}
-      />
-      <div className="sidebar-list">
-        {keyValue && (
-          <>
-            <KeyValueSidebar
-              ws={ws}
-              query={query}
-              collapsed={collapsed.isCollapsed("databases")}
-              onToggle={() => collapsed.toggle("databases")}
-              menu={menu}
-            />
-            <SavedQuerySection
-              ws={ws}
-              matches={saved}
-              query={query}
-              collapsed={collapsed}
-              menu={menu}
-              reload={data.loadSaved}
-            />
-          </>
+  const items = () => {
+    if (keyValue) {
+      return (
+        <KeyValueSidebar
+          ws={ws}
+          query={query}
+          collapsed={collapsed.isCollapsed("databases")}
+          onToggle={() => collapsed.toggle("databases")}
+          menu={menu}
+        />
+      );
+    }
+    if (pick) return <NoDatabase />;
+    if (data.loading || !data.objects) {
+      return (
+        <div className="side-loading">
+          <Spinner size={16} />
+        </div>
+      );
+    }
+    return (
+      <div className="side-tree" role="tree">
+        <RecentSection
+          ws={ws}
+          matches={extras.recentMatches}
+          collapsed={collapsed}
+          menu={menu}
+          items={extras.items}
+        />
+        {ws.caps.schemaObjects && (
+          <SchemaObjectSections
+            ws={ws}
+            matches={extras.objectMatches}
+            collapsed={collapsed}
+            menu={menu}
+            items={extras.items}
+          />
         )}
-        {ws.caps.switchDatabase && !keyValue && data.databases.length > 0 && (
-          <DatabaseSection ws={ws} matches={databases} collapsed={collapsed} menu={menu} />
-        )}
-        {data.loading && (
-          <div className="side-item faint">
-            <Spinner size={12} /> Loading…
-          </div>
-        )}
-        {pick && !data.loading && <SideHint>Choose a database above to see its tables.</SideHint>}
-        {data.objects && !pick && !keyValue && (
-          <>
-            <RecentSection
-              ws={ws}
-              matches={extras.recentMatches}
-              collapsed={collapsed}
-              menu={menu}
-              items={extras.items}
-            />
-            <ObjectSections
-              ws={ws}
-              matches={objects}
-              query={query}
-              collapsed={collapsed}
-              menu={menu}
-              columns={columns}
-              items={extras.items}
-              onExportTable={props.onExportTable}
-            />
-            {ws.caps.schemaObjects && (
-              <SchemaObjectSections
-                ws={ws}
-                matches={extras.objectMatches}
-                collapsed={collapsed}
-                menu={menu}
-                items={extras.items}
-              />
-            )}
-            <SavedQuerySection
-              ws={ws}
-              matches={saved}
-              query={query}
-              collapsed={collapsed}
-              menu={menu}
-              reload={data.loadSaved}
-            />
-          </>
-        )}
+        <ObjectSections
+          ws={ws}
+          matches={objects}
+          query={query}
+          collapsed={collapsed}
+          menu={menu}
+          columns={columns}
+          items={extras.items}
+          onExportTable={props.onExportTable}
+        />
       </div>
-      <SidebarFoot ws={ws} loading={data.loading} />
+    );
+  };
+
+  const style = { width: size.width, "--side-width": `${size.width}px` } as React.CSSProperties;
+  return (
+    <aside
+      className={`sidebar${ws.sidebarHidden ? " hidden" : ""}`}
+      style={style}
+      aria-hidden={ws.sidebarHidden || undefined}
+      ref={asideRef}
+    >
+      <SidebarTabs tab={tab} onTab={switchTab} />
+      <SidebarSearch
+        placeholder={TABS.find((t) => t.id === tab)?.placeholder ?? ""}
+        query={query}
+        setQuery={setQuery}
+        mode={mode}
+        setMode={setMode}
+        menu={menu}
+      />
+      <div className="sidebar-list" ref={listRef}>
+        {tab === "items" && items()}
+        {tab === "queries" && (
+          <SavedQueryList
+            ws={ws}
+            matches={saved}
+            query={query}
+            menu={menu}
+            reload={data.loadSaved}
+          />
+        )}
+        {tab === "history" && <SidebarHistory ws={ws} query={query} />}
+      </div>
+      <SidebarFoot ws={ws} schemas={data.schemas} menu={menu} collapseAll={collapseAll} />
       <div className="side-resize" onMouseDown={size.startResize} onDoubleClick={size.reset} />
       {menu.node}
     </aside>

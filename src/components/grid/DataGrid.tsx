@@ -1,6 +1,7 @@
 // Virtualized data grid (GRD-1): rows render only when visible, columns resize and
 // reorder, header click sorts (GRD-3), cells edit in place (GRD-4).
 
+import { Rows3 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
 import { defaultWidth, orderColumns, ROW_H, ROWNUM_W } from "./columns";
@@ -9,6 +10,7 @@ import { GridRow } from "./GridRow";
 import { type DataGridProps } from "./types";
 import { useCellEditing } from "./useCellEditing";
 import { useGridKeyboard } from "./useGridKeyboard";
+import { EmptyState, LoadingState } from "../StateView";
 
 export type { DataGridProps, GridColumn, RowStatus } from "./types";
 export { defaultWidth } from "./columns";
@@ -45,7 +47,16 @@ export function DataGrid(p: DataGridProps) {
     <div className="grid" ref={scrollRef} tabIndex={0} onKeyDown={keys.onKeyDown}>
       <GridHeader p={p} ordered={ordered} width={width} totalWidth={totalWidth} />
       {p.rowCount === 0 ? (
-        <div className="grid-empty">{p.emptyText ?? "No rows."}</div>
+        p.loading ? (
+          <LoadingState compact />
+        ) : (
+          <EmptyState
+            compact
+            art="no-rows"
+            icon={<Rows3 size={18} />}
+            title={p.emptyText ?? "No rows."}
+          />
+        )
       ) : (
         <div className="grid-body" style={{ height: virt.getTotalSize(), width: totalWidth }}>
           {virt.getVirtualItems().map((vr) => (

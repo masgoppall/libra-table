@@ -23,14 +23,14 @@ pub(super) fn alter(
     let t = qualified(D, schema, table);
     for op in ops {
         match op {
-            AlterOp::AddColumn { column } => add_column(&t, column, steps)?,
+            AlterOp::AddColumn { column, .. } => add_column(&t, column, steps)?,
             AlterOp::DropColumn { name } => sql(
                 steps,
                 format!("ALTER TABLE {t} DROP COLUMN {}", quote_ident(D, name)),
             ),
-            AlterOp::ModifyColumn { original, column } => {
-                modify_column(&t, original, column, steps)?
-            }
+            AlterOp::ModifyColumn {
+                original, column, ..
+            } => modify_column(&t, original, column, steps)?,
             AlterOp::SetPrimaryKey { columns } => set_primary_key(&t, columns, ctx, steps),
             AlterOp::AddIndex { index } => sql(steps, create_index(D, schema, table, index)?),
             AlterOp::DropIndex { name } => match ctx.index_constraints.get(name) {

@@ -1,8 +1,9 @@
 // Query history tab (QRY-6): search, reopen in an editor, run again.
 
-import { Search, Trash2 } from "lucide-react";
+import { History as HistoryIcon, Search, Trash2 } from "lucide-react";
 import { api } from "@/api";
 import { Spinner } from "@/components/Spinner";
+import { EmptyState, LoadingState } from "@/components/StateView";
 import { LAYER, useActions } from "@/lib/actions";
 import { plural } from "@/lib/format";
 import { showError, toastSuccess } from "@/services/errors";
@@ -99,13 +100,19 @@ export function HistoryView({ ws, visible }: { ws: Workspace; visible: boolean }
             onDeleted={() => h.remove(e.id)}
           />
         ))}
-        {h.loading && (
+        {h.loading && h.items.length === 0 && <LoadingState label="Searching…" />}
+        {h.loading && h.items.length > 0 && (
           <div className="message muted row">
             <Spinner /> Searching…
           </div>
         )}
         {!h.loading && h.items.length === 0 && (
-          <div className="message faint">No history matches.</div>
+          <EmptyState
+            art="no-history"
+            icon={<HistoryIcon size={20} />}
+            title={h.filters.text ? "No history matches" : "No history yet"}
+            hint="Statements you run are kept here, with how long they took."
+          />
         )}
         {!h.loading && h.more && (
           <div className="pad-sm">

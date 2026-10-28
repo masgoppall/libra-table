@@ -169,6 +169,7 @@ fn new_column_info(c: &NewColumn) -> ColumnInfo {
         pk_position: None,
         auto_increment: false,
         comment: None,
+        ..Default::default()
     }
 }
 

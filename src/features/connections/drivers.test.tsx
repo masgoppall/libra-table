@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The driver picker groups every driver; engine drivers get a form from the catalog.
+// The driver picker lists every driver; engine drivers get a form from the catalog.
 
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -9,19 +9,19 @@ const h = setupApp();
 
 async function openPicker() {
   renderApp();
-  fireEvent.click(await screen.findByText("New connection"));
+  fireEvent.click(await screen.findByRole("button", { name: "New connection" }));
   return screen.findByRole("dialog");
 }
 
 describe("driver picker", () => {
-  it("groups drivers and keeps the ones not built yet disabled", async () => {
+  it("lists drivers in TablePlus' order; the ones not built yet are disabled", async () => {
     const dialog = await openPicker();
-    expect(within(dialog).getByText("Relational")).toBeTruthy();
-    expect(within(dialog).getByText("Cloud")).toBeTruthy();
+    const names = Array.from(dialog.querySelectorAll(".picker-name")).map((n) => n.textContent);
+    expect(names).toEqual(["PostgreSQL", "MySQL", "Snowflake", "SQLite", "Oracle"]);
     const oracle = within(dialog).getByText("Oracle").closest("button") as HTMLButtonElement;
     expect(oracle.disabled).toBe(true);
-    expect(within(oracle).getByText("Coming soon")).toBeTruthy();
-    fireEvent.change(within(dialog).getByPlaceholderText("Search drivers"), {
+    expect(oracle.title).toBe("Oracle is not available yet");
+    fireEvent.change(within(dialog).getByPlaceholderText("Search"), {
       target: { value: "snow" },
     });
     await waitFor(() => expect(within(dialog).queryByText("PostgreSQL")).toBeNull());
@@ -31,7 +31,7 @@ describe("driver picker", () => {
   it("builds the form of an engine driver from its fields", async () => {
     const dialog = await openPicker();
     fireEvent.click(within(dialog).getByText("Snowflake"));
-    fireEvent.click(within(dialog).getByText("Continue"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
     expect(await screen.findByText("Snowflake Connection")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("My database"), { target: { value: "WH" } });
     fireEvent.change(screen.getByPlaceholderText("xy12345.eu-central-1"), {

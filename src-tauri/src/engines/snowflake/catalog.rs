@@ -129,6 +129,7 @@ pub async fn columns(
                 comment: Some(text(r, cmt)).filter(|c| !c.is_empty()),
                 default,
                 name,
+                ..Default::default()
             }
         })
         .collect())
@@ -164,6 +165,7 @@ pub fn primary_index(columns: &[ColumnInfo]) -> Option<IndexInfo> {
         columns: keys,
         unique: true,
         primary: true,
+        ..Default::default()
     })
 }
 

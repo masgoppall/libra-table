@@ -1,31 +1,38 @@
-// The connections page: list, search, groups, driver picker, URL import and the form.
+// The connections page, laid out like TablePlus' welcome window: the app on the left,
+// the toolbar, search and the tree of groups and connections on the right.
 
+import { Database, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useContextMenu } from "@/components/ContextMenu";
-import { Kbd } from "@/components/Kbd";
+import { EmptyState } from "@/components/StateView";
 import { newConnection } from "@/domain/connection";
 import { useTauriEvent } from "@/hooks/useTauriEvent";
-import { LAYER, shortcutFor, useActions } from "@/lib/actions";
+import { LAYER, useActions } from "@/lib/actions";
 import { openConnection } from "@/services/connect";
-import { showError, toastSuccess } from "@/services/errors";
+import { alertError, toastSuccess } from "@/services/errors";
 import { HOME, useStore } from "@/store";
-import { type ConnectionView } from "@/types";
-import { ConnectionList } from "./ConnectionList";
+import { type ConnectionView, type Driver } from "@/types";
+import { createGroup } from "./connectionActions";
+import { connectionMenu, groupMenu, listMenu } from "./connectionMenus";
 import { DriverPicker } from "./DriverPicker";
 import { ConnectionForm } from "./form/ConnectionForm";
 import { type FormInitial } from "./form/useConnectionForm";
-import { HomeHeader } from "./HomeHeader";
 import { ImportUrlDialog } from "./ImportUrlDialog";
-import { RestoreBar } from "./RestoreBar";
-import { type SortBy, useConnectionSections } from "./useConnectionSections";
+import { importConnections } from "./transfer";
 import { useHomeKeyboard } from "./useHomeKeyboard";
-import { WelcomeHero } from "./WelcomeHero";
+import { ConnectionTree } from "./welcome/ConnectionTree";
+import { GroupDialog } from "./welcome/GroupDialog";
+import { type ToolKind, ToolPicker } from "./welcome/ToolPicker";
+import { buildTree, type SortBy } from "./welcome/tree";
+import { WelcomeSide } from "./welcome/WelcomeSide";
+import { WelcomeToolbar } from "./welcome/WelcomeToolbar";
 
 /** Which dialog of the page is open. */
 type Overlay =
-  | { kind: "picker" }
+  | { kind: "picker"; groupId: string | null }
   | { kind: "import"; url: string }
   | { kind: "form"; initial: FormInitial }
+  | { kind: "tool"; tool: ToolKind }
   | null;
 
 function useConnect() {
@@ -35,7 +42,7 @@ function useConnect() {
     try {
       await openConnection(c);
     } catch (e) {
-      showError(e);
+      void alertError(`Couldn't connect to ${c.name}`, e, "connection-failed");
     } finally {
       setConnecting(null);
     }
@@ -43,13 +50,30 @@ function useConnect() {
   return { connecting, connect };
 }
 
-function KeyboardHint() {
+function EmptyList(props: { query: string; onNewConnection: () => void }) {
+  if (props.query) {
+    return (
+      <EmptyState
+        compact
+        art="no-results"
+        icon={<Search size={18} />}
+        title="No matching connections"
+        hint={`Nothing matches “${props.query}”.`}
+      />
+    );
+  }
   return (
-    <div className="home-foot faint small">
-      <Kbd>↑</Kbd>
-      <Kbd>↓</Kbd> select · <Kbd>↵</Kbd> connect · right-click for more ·{" "}
-      <Kbd>{shortcutFor("shortcuts")}</Kbd> shortcuts
-    </div>
+    <EmptyState
+      art="no-connections"
+      icon={<Database size={20} />}
+      title="No connections yet"
+      hint="Connect to a database server, a cloud service or a local file."
+      action={
+        <button className="btn primary sm" onClick={props.onNewConnection}>
+          New connection…
+        </button>
+      }
+    />
   );
 }
 
@@ -60,22 +84,28 @@ export function Home() {
   const visible = useStore((s) => s.view === HOME);
   const workspaces = useStore((s) => s.workspaces);
   const newConnectionRequest = useStore((s) => s.newConnectionRequest);
+  const groupEditor = useStore((s) => s.groupEditor);
   const openIds = useMemo(() => Object.keys(workspaces), [workspaces]);
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortBy>("name");
+  const [sortBy, setSortBy] = useState<SortBy>("manual");
   const [selected, setSelected] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const menu = useContextMenu();
   const { connecting, connect } = useConnect();
-  const { sections, visible: list } = useConnectionSections(connections, groups, query, sortBy);
-  const listActive = visible && overlay === null;
+  const rows = useMemo(
+    () => buildTree(connections, groups, query, sortBy),
+    [connections, groups, query, sortBy],
+  );
+  const listActive = visible && overlay === null && !groupEditor;
 
-  const pickDriver = () => setOverlay({ kind: "picker" });
+  const pickDriver = (groupId: string | null = null) => setOverlay({ kind: "picker", groupId });
   const importUrl = (url = "") => setOverlay({ kind: "import", url });
   const edit = (c: ConnectionView) =>
     setOverlay({ kind: "form", initial: { connection: c, view: c } });
   const close = () => setOverlay(null);
+  const startForm = (driver: Driver, groupId: string | null) =>
+    setOverlay({ kind: "form", initial: { connection: { ...newConnection(driver), groupId } } });
 
   useTauriEvent<string[]>("deep-link", (urls) => urls[0] && importUrl(urls[0]));
   useEffect(() => {
@@ -83,14 +113,14 @@ export function Home() {
   }, [newConnectionRequest]);
 
   useActions(LAYER.workspace, listActive, {
-    "new-connection": pickDriver,
+    "new-connection": () => pickDriver(),
     filter: () => searchRef.current?.focus(),
     "open-anything": () => searchRef.current?.focus(),
     refresh: () => void useStore.getState().loadConnections(),
   });
   useHomeKeyboard({
     active: listActive,
-    list,
+    rows,
     selected,
     searchRef,
     onSelect: setSelected,
@@ -107,46 +137,77 @@ export function Home() {
   };
 
   const restore = restorable.flatMap((id) => connections.filter((c) => c.id === id));
+  const reopen = async () => {
+    for (const c of restore) await connect(c);
+  };
+  const onListMenu = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest(".tree-row")) return;
+    menu.open(
+      e,
+      listMenu({
+        count: connections.length,
+        sortBy,
+        onSortBy: setSortBy,
+        newConnection: () => pickDriver(),
+        importUrl: () => importUrl(),
+      }),
+    );
+  };
 
   return (
     <div className="home">
-      <HomeHeader
-        count={connections.length}
-        query={query}
-        onQuery={setQuery}
-        searchRef={searchRef}
-        sortBy={sortBy}
-        onSortBy={setSortBy}
-        onImportUrl={() => importUrl()}
-        onNewConnection={pickDriver}
+      <WelcomeSide
+        restorable={restore}
+        onReopen={() => void reopen()}
+        onBackup={() => setOverlay({ kind: "tool", tool: "backup" })}
+        onRestore={() => setOverlay({ kind: "tool", tool: "restore" })}
       />
-      <div className="home-body">
-        <RestoreBar connections={restore} connecting={connecting} onConnect={connect} />
-        {connections.length === 0 ? (
-          <WelcomeHero onNewConnection={pickDriver} onImportUrl={() => importUrl()} />
-        ) : list.length === 0 && query ? (
-          <div className="faint pad-y center">No connections match “{query}”.</div>
-        ) : (
-          <ConnectionList
-            sections={sections}
-            groups={groups}
-            query={query}
-            openIds={openIds}
-            selected={selected}
-            connecting={connecting}
-            menu={menu}
-            onSelect={setSelected}
-            onConnect={connect}
-            onEdit={edit}
-          />
-        )}
-        {connections.length > 0 && <KeyboardHint />}
-      </div>
+      <section className="home-main">
+        <WelcomeToolbar
+          query={query}
+          onQuery={setQuery}
+          searchRef={searchRef}
+          onNewConnection={() => pickDriver()}
+          onNewGroup={() => createGroup()}
+        />
+        <div className="home-list" onContextMenu={onListMenu}>
+          {rows.length === 0 ? (
+            <EmptyList query={query} onNewConnection={() => pickDriver()} />
+          ) : (
+            <ConnectionTree
+              rows={rows}
+              openIds={openIds}
+              selected={selected}
+              connecting={connecting}
+              menu={menu}
+              onSelect={setSelected}
+              onConnect={connect}
+              connectionMenu={(c) =>
+                connectionMenu(c, { isOpen: openIds.includes(c.id), groups, connect, edit })
+              }
+              groupMenu={(g) => groupMenu(g, { groups, newConnection: (id) => pickDriver(id) })}
+            />
+          )}
+        </div>
+      </section>
       {menu.node}
       {overlay?.kind === "picker" && (
         <DriverPicker
           onClose={close}
-          onPick={(d) => setOverlay({ kind: "form", initial: { connection: newConnection(d) } })}
+          onPick={(d) => startForm(d, overlay.groupId)}
+          onImportUrl={() => importUrl()}
+          onImportFile={() => {
+            close();
+            void importConnections();
+          }}
+          onImportTablePlus={() => {
+            close();
+            void importConnections("tableplus");
+          }}
+          onNewGroup={() => {
+            close();
+            createGroup(overlay.groupId);
+          }}
         />
       )}
       {overlay?.kind === "import" && (
@@ -158,6 +219,10 @@ export function Home() {
       )}
       {overlay?.kind === "form" && (
         <ConnectionForm initial={overlay.initial} onClose={close} onSaved={onSaved} />
+      )}
+      {groupEditor && <GroupDialog editor={groupEditor} />}
+      {overlay?.kind === "tool" && (
+        <ToolPicker kind={overlay.tool} connections={connections} onClose={close} />
       )}
     </div>
   );

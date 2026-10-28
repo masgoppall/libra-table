@@ -1,4 +1,5 @@
-/* The virtualized data grid and the row detail panel. */
+/* The virtualized data grid and the row detail panel. Colors follow the structure grid
+   (TablePlus): striped 24 pt rows, column rules only, striping continued below the rows. */
 
 .grid-wrap {
   flex: 1;
@@ -12,30 +13,34 @@
   position: relative;
   outline: none;
   font-size: calc(var(--fs) - 0.5px);
+  color: var(--st-text);
+  /* Rows start under the 28 + 1 px header. */
+  background: repeating-linear-gradient(var(--st-row1) 0 24px, var(--st-row2) 24px 48px) 0 29px /
+    100% 48px local;
 }
 .grid-head {
   position: sticky;
   top: 0;
   z-index: 2;
   display: flex;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--border-strong);
+  background: var(--st-bar);
+  border-bottom: 1px solid var(--st-line);
 }
 .grid-th {
   position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 30px;
+  height: 28px;
   padding: 0 8px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--st-line);
   font-weight: 600;
   cursor: pointer;
   flex: none;
   overflow: hidden;
 }
 .grid-th:hover {
-  background: var(--bg-3);
+  background: var(--st-btn);
 }
 .grid-th .th-name {
   overflow: hidden;
@@ -43,7 +48,7 @@
   white-space: nowrap;
 }
 .grid-th .th-type {
-  color: var(--text-3);
+  color: var(--st-icon);
   font-weight: 400;
   font-size: 10.5px;
   white-space: nowrap;
@@ -70,49 +75,52 @@
   width: 52px;
   flex: none;
   text-align: right;
-  color: var(--text-3);
+  color: var(--st-icon);
   padding: 0 8px;
   justify-content: flex-end;
   cursor: default;
   font-variant-numeric: tabular-nums;
   font-weight: 400;
-  background: var(--bg-2);
+}
+.grid-th.rownum {
+  background: var(--st-bar);
 }
 .grid-row {
   display: flex;
   position: absolute;
   left: 0;
-  height: 26px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  height: 24px;
+  background: var(--st-row1);
 }
-.grid-row:nth-child(even) {
-  background: var(--row-alt);
+.grid-row.alt {
+  background: var(--st-row2);
 }
 .grid-row:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--st-text) 7%, var(--st-row1));
 }
 .grid-row.selected {
-  background: var(--sel);
+  background: var(--st-sel);
+  color: #fff;
 }
-.grid-row.selected .grid-rownum {
-  background: var(--sel-strong);
-  color: var(--accent-text);
+.grid-row.selected .grid-rownum,
+.grid-row.selected .grid-cell.null,
+.grid-row.selected .grid-cell.binary {
+  color: rgba(255, 255, 255, 0.6);
 }
 .grid-row.inserted {
-  background: var(--inserted);
+  background: var(--st-added);
 }
 .grid-row.deleted {
-  background: var(--deleted);
+  background: var(--st-dropped);
   text-decoration: line-through;
   color: var(--text-3);
 }
 .grid-cell {
   flex: none;
-  height: 25px;
-  line-height: 25px;
+  height: 24px;
+  line-height: 24px;
   padding: 0 8px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--st-line);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,10 +135,10 @@
   font-size: 0.92em;
 }
 .grid-cell.binary {
-  color: var(--text-3);
+  color: var(--st-icon);
 }
 .grid-cell.edited {
-  background: var(--edited);
+  background: var(--st-changed);
 }
 .grid-cell.focus {
   box-shadow: inset 0 0 0 2px var(--accent);
@@ -139,21 +147,13 @@
 .grid-cell input,
 .grid-cell select {
   width: 100%;
-  height: 23px;
+  height: 22px;
   border: none;
   outline: none;
-  background: var(--bg);
+  background: var(--st-field);
   font: inherit;
   padding: 0 2px;
 }
-.grid-empty {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 28px 24px;
-  color: var(--text-2);
-}
-
 .detail {
   width: 340px;
   flex: none;

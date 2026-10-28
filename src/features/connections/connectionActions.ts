@@ -64,35 +64,38 @@ export function toggleGroup(g: Group) {
   return thenReload(() => api.saveGroup({ ...g, collapsed: !g.collapsed }));
 }
 
-export async function createGroup() {
-  const r = await store.get().dialog({
-    kind: "prompt",
-    title: "New group",
-    label: "Group name",
-    placeholder: "e.g. Clients",
-    okLabel: "Create",
-  });
-  const name = r.ok ? r.value?.trim() : "";
-  if (!name) return;
-  await thenReload(() => api.saveGroup({ id: "", name, parentId: null, collapsed: false }));
+/** A new group at the top level, or inside `parentId` (the group dialog saves it). */
+export function createGroup(parentId: string | null = null) {
+  store.get().setGroupEditor({ group: null, parentId });
 }
 
-export async function renameGroup(g: Group) {
-  const r = await store.get().dialog({
-    kind: "prompt",
-    title: "Rename group",
-    label: "Group name",
-    initial: g.name,
-  });
-  const name = r.ok ? r.value?.trim() : "";
-  if (name) await thenReload(() => api.saveGroup({ ...g, name }));
+/** Saves a group from the group dialog; true when saved. */
+export async function saveGroup(g: Group): Promise<boolean> {
+  try {
+    await api.saveGroup(g);
+    await store.get().loadConnections();
+    return true;
+  } catch (e) {
+    showError(e);
+    return false;
+  }
+}
+
+/** Moves a group into another one (null = the top level). */
+export function moveGroup(g: Group, parentId: string | null) {
+  return thenReload(() => api.saveGroup({ ...g, parentId }));
+}
+
+/** Name and icon of a group, in the group dialog. */
+export function editGroup(g: Group) {
+  store.get().setGroupEditor({ group: g, parentId: g.parentId });
 }
 
 export async function deleteGroup(g: Group) {
   const r = await store.get().dialog({
     kind: "confirm",
     title: "Delete group",
-    message: `Delete "${g.name}"? Its connections move to "Ungrouped".`,
+    message: `Delete "${g.name}"? Its connections and groups move up one level.`,
     okLabel: "Delete",
     danger: true,
   });

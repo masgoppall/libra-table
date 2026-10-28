@@ -4,6 +4,7 @@
 import { Clock, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { BusyIcon } from "@/components/Spinner";
+import { EmptyState } from "@/components/StateView";
 import { formatCount } from "@/lib/format";
 import { store } from "@/store";
 import { CollectionEditor } from "./CollectionEditor";
@@ -75,7 +76,14 @@ function Body(props: ValuePanelProps & { detail: KeyDetail; reload: () => void }
     case "stream":
       return <StreamView entries={detail.value.entries} />;
     case "missing":
-      return <div className="message faint">This key no longer exists.</div>;
+      return (
+        <EmptyState
+          compact
+          art="key-missing"
+          title="This key no longer exists"
+          hint="It may have expired or been deleted."
+        />
+      );
     case "other":
       return (
         <div className="message faint">

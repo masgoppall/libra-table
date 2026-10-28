@@ -1,7 +1,7 @@
 // Turning errors into words for toasts and callouts.
 
 import { store } from "@/store";
-import { type AppError, type ErrorLayer } from "@/types";
+import { type AppError, type ArtName, type ErrorLayer } from "@/types";
 
 const LAYER_LABEL: Partial<Record<ErrorLayer, string>> = { ssh: "SSH", database: "Database" };
 
@@ -27,4 +27,10 @@ export function toastSuccess(message: string, detail?: string) {
 
 export function toastInfo(message: string, detail?: string) {
   store.get().toast("info", message, detail);
+}
+
+/** A popup for an error that needs reading, not a toast (the connection form, tests). */
+export async function alertError(title: string, e: unknown, art?: ArtName): Promise<void> {
+  const { message, hint } = errorText(e);
+  await store.get().dialog({ kind: "alert", tone: "error", title, message, hint, art });
 }

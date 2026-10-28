@@ -80,11 +80,27 @@ pub fn build(driver: Dialect, change: &SchemaChange, ctx: &Ctx) -> AppResult<Pla
             sql(&mut steps, drop_database(driver, name, *force)?);
             Exec::Sequential
         }
-        SchemaChange::AlterTable { schema, name, ops } => {
+        SchemaChange::AlterTable {
+            schema,
+            name,
+            ops,
+            rename_to,
+        } => {
             need_name("The table", name)?;
             let mut ops = ops.clone();
             ops.sort_by_key(AlterOp::phase);
-            if alter::build(driver, schema, name, &ops, ctx, &mut steps)? {
+            let rebuild = alter::build(driver, schema, name, &ops, ctx, &mut steps)?;
+            let rename = rename_to.as_deref().map(str::trim);
+            if let Some(to) = rename.filter(|t| !t.is_empty() && t != name) {
+                if rebuild {
+                    return Err(bad(
+                        "SQLite can't rename the table together with these column changes. \
+                         Apply them first, then rename the table.",
+                    ));
+                }
+                sql(&mut steps, rename_table(driver, schema, name, to)?);
+            }
+            if rebuild {
                 Exec::SqliteRebuild
             } else {
                 default_exec(driver)

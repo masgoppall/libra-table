@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "LibraTable",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.libratable.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -14,13 +14,13 @@
       {
         "label": "main",
         "title": "LibraTable",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 960,
-        "minHeight": 600,
+        "width": 680,
+        "height": 608,
+        "resizable": false,
+        "maximizable": false,
+        "center": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "trafficLightPosition": { "x": 16, "y": 21 },
         "dragDropEnabled": false
       }
     ],

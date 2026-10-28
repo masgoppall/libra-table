@@ -1,6 +1,6 @@
 [package]
 name = "libratable"
-version = "0.2.0"
+version = "0.3.0"
 description = "LibraTable — a fast, safe desktop database client"
 edition = "2021"
 rust-version = "1.82"
@@ -32,6 +32,10 @@ hex = "0.4"
 csv = "1"
 log = "0.4"
 aes-gcm = "0.10"
+# TablePlus connection exports (RNCryptor v3: AES-256-CBC, PBKDF2-SHA1, HMAC-SHA256).
+aes = "0.8"
+cbc = "0.1"
+plist = "1"
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 sha2 = "0.10"
 subtle = "2"
@@ -78,6 +82,21 @@ redis = { version = "0.32", default-features = false, features = [
   "connection-manager",
 ] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# Places the window buttons and resizes the window in one step (already linked by Tauri).
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSButton",
+  "NSControl",
+  "NSResponder",
+  "NSScreen",
+  "NSView",
+  "NSWindow",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
+# Asks the keychain whether a secret exists without reading it (no access prompt).
+security-framework = "3"
+
 [dev-dependencies]
 tempfile = "3"
 # Throwaway RSA keys for the BigQuery JWT tests.
@@ -94,6 +113,8 @@ opt-level = 3
 [profile.dev.package.pbkdf2]
 opt-level = 3
 [profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.sha1]
 opt-level = 3
 # RSA key generation in the BigQuery tests.
 [profile.dev.package.num-bigint-dig]

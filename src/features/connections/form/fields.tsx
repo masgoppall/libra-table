@@ -2,10 +2,36 @@
 
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen } from "lucide-react";
+import { cx } from "@/lib/cx";
 import { type PasswordMode, type SecretChange } from "@/types";
-import { typedSecret } from "./useConnectionForm";
+import { type ConnectionFormState, typedSecret } from "./useConnectionForm";
+import { type FieldKey } from "./validation";
 
 const SAVED = "•••••••• saved in Keychain";
+
+/** A form label: required fields get a mark, missing ones turn red after a save. */
+export function FieldLabel(props: {
+  form: ConnectionFormState;
+  field: FieldKey;
+  children: React.ReactNode;
+}) {
+  const { form, field } = props;
+  const required = form.required.has(field);
+  return (
+    <label className={cx(required && "required", form.invalid(field) && "invalid") || undefined}>
+      {props.children}
+    </label>
+  );
+}
+
+/** Attributes of the input of `field`: found by the "fill in" focus, red when missing. */
+export function fieldAttrs(form: ConnectionFormState, field: FieldKey) {
+  return {
+    "data-field": field,
+    "aria-required": form.required.has(field) || undefined,
+    "aria-invalid": form.invalid(field) || undefined,
+  };
+}
 
 function passwordPlaceholder(mode: PasswordMode, saved: boolean, change: SecretChange): string {
   if (mode === "ask") return "asked when connecting";
@@ -66,6 +92,7 @@ export function PathField(props: {
   onChange: (v: string) => void;
   placeholder?: string;
   title: string;
+  attrs?: ReturnType<typeof fieldAttrs>;
 }) {
   const browse = async () => {
     const p = await open({ multiple: false, directory: false, title: props.title });
@@ -75,6 +102,7 @@ export function PathField(props: {
     <div className="row">
       <input
         className="input mono grow"
+        {...props.attrs}
         value={props.value}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(e.target.value)}

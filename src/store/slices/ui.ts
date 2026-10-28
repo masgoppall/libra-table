@@ -2,6 +2,7 @@
 // backup / restore / command line.
 
 import { type StateCreator } from "zustand";
+import { type Group } from "@/types";
 import { type AppState } from "../types";
 
 export type PaletteKind = "anything" | "database";
@@ -11,6 +12,12 @@ export interface ServerDialog {
   kind: "backup" | "restore" | "command-line";
   connectionId: string;
   database: string;
+}
+
+/** The group dialog of the connections page: a new group (in `parentId`) or `group`. */
+export interface GroupEditor {
+  group: Group | null;
+  parentId: string | null;
 }
 
 export interface PaletteState {
@@ -31,6 +38,9 @@ export interface UiSlice {
   serverDialog: ServerDialog | null;
   /** Bumped to ask the home screen to open the new-connection picker. */
   newConnectionRequest: number;
+  /** Uncommitted edits per data tab id, for the toolbar's discard / preview / commit. */
+  pendingEdits: Record<string, number>;
+  groupEditor: GroupEditor | null;
   openPalette: (kind: PaletteKind, connectionId: string) => void;
   closePalette: () => void;
   setSettingsOpen: (open: boolean) => void;
@@ -41,6 +51,8 @@ export interface UiSlice {
   setCreateDatabaseFor: (connectionId: string | null) => void;
   setServerDialog: (dialog: ServerDialog | null) => void;
   requestNewConnection: () => void;
+  setPendingEdits: (tabId: string, count: number) => void;
+  setGroupEditor: (editor: GroupEditor | null) => void;
 }
 
 export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => ({
@@ -53,6 +65,8 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   createDatabaseFor: null,
   serverDialog: null,
   newConnectionRequest: 0,
+  pendingEdits: {},
+  groupEditor: null,
 
   openPalette: (kind, connectionId) => set({ palette: { kind, connectionId } }),
   closePalette: () => set({ palette: null }),
@@ -65,4 +79,13 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   setServerDialog: (serverDialog) => set({ serverDialog }),
   requestNewConnection: () =>
     set((s) => ({ view: "home", newConnectionRequest: s.newConnectionRequest + 1 })),
+  setPendingEdits: (tabId, count) =>
+    set((s) => {
+      if ((s.pendingEdits[tabId] ?? 0) === count) return s;
+      const pendingEdits = { ...s.pendingEdits };
+      if (count) pendingEdits[tabId] = count;
+      else delete pendingEdits[tabId];
+      return { pendingEdits };
+    }),
+  setGroupEditor: (groupEditor) => set({ groupEditor }),
 });

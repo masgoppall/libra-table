@@ -14,6 +14,9 @@ fn col(name: &str, ty: &str) -> ColumnSpec {
         auto_increment: false,
         unique: false,
         comment: None,
+        charset: None,
+        collation: None,
+        extra: None,
     }
 }
 
@@ -57,6 +60,7 @@ fn create(driver: Dialect) -> SchemaChange {
             name: String::new(),
             columns: vec!["name".into()],
             unique: false,
+            algorithm: String::new(),
         }],
         foreign_keys: vec![ForeignKeySpec {
             name: "users_org_fk".into(),
@@ -330,6 +334,7 @@ fn alter(driver: Dialect, ops: Vec<AlterOp>, ctx: &Ctx) -> Plan {
             schema: "s".into(),
             name: "t".into(),
             ops,
+            rename_to: None,
         },
         ctx,
     )
@@ -356,11 +361,13 @@ fn alter_postgres() {
                     name: "t_q".into(),
                     columns: vec!["quantity".into()],
                     unique: true,
+                    algorithm: String::new(),
                 },
             },
             AlterOp::ModifyColumn {
                 original: o,
                 column: c,
+                position: None,
             },
             AlterOp::DropIndex {
                 name: "t_email_key".into(),
@@ -403,7 +410,8 @@ fn alter_postgres() {
             Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: base.clone(),
-                column: auto.clone()
+                column: auto.clone(),
+                position: None,
             }],
             &Ctx::default()
         )),
@@ -417,7 +425,8 @@ fn alter_postgres() {
             Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: auto.clone(),
-                column: base.clone()
+                column: base.clone(),
+                position: None,
             }],
             &Ctx::default()
         )),
@@ -430,7 +439,8 @@ fn alter_postgres() {
             Dialect::Postgres,
             vec![AlterOp::ModifyColumn {
                 original: serial,
-                column: base
+                column: base,
+                position: None,
             }],
             &Ctx::default()
         )),
@@ -455,12 +465,17 @@ fn alter_mysql() {
             AlterOp::ModifyColumn {
                 original: o,
                 column: c,
+                position: None,
             },
             AlterOp::ModifyColumn {
                 original: unchanged.clone(),
                 column: unchanged,
+                position: None,
             },
-            AlterOp::AddColumn { column: id },
+            AlterOp::AddColumn {
+                column: id,
+                position: None,
+            },
             AlterOp::SetPrimaryKey {
                 columns: vec!["id".into()],
             },
@@ -500,7 +515,10 @@ fn alter_mysql() {
     assert_eq!(
         sqls(&alter(
             Dialect::Mysql,
-            vec![AlterOp::AddColumn { column: u }],
+            vec![AlterOp::AddColumn {
+                column: u,
+                position: None,
+            }],
             &Ctx::default()
         )),
         vec!["ALTER TABLE `s`.`t` ADD COLUMN `u` char(36) NULL DEFAULT (uuid())"]
@@ -518,9 +536,11 @@ fn alter_sqlite_in_place_or_rebuild() {
             AlterOp::ModifyColumn {
                 original: o.clone(),
                 column: renamed.clone(),
+                position: None,
             },
             AlterOp::AddColumn {
                 column: col("c", "INTEGER"),
+                position: None,
             },
             AlterOp::DropColumn { name: "d".into() },
             AlterOp::AddIndex {
@@ -528,6 +548,7 @@ fn alter_sqlite_in_place_or_rebuild() {
                     name: "t_c".into(),
                     columns: vec!["c".into()],
                     unique: false,
+                    algorithm: String::new(),
                 },
             },
         ],
@@ -551,6 +572,7 @@ fn alter_sqlite_in_place_or_rebuild() {
         vec![AlterOp::ModifyColumn {
             original: o,
             column: typed,
+            position: None,
         }],
         &Ctx::default(),
     );
@@ -594,12 +616,14 @@ fn sqlite_rebuild_keeps_constraints() {
             AlterOp::ModifyColumn {
                 original: qty,
                 column: qty2,
+                position: None,
             },
             AlterOp::DropColumn {
                 name: "gone".into(),
             },
             AlterOp::AddColumn {
                 column: col("note", "TEXT"),
+                position: None,
             },
             AlterOp::AddForeignKey {
                 foreign_key: ForeignKeySpec {

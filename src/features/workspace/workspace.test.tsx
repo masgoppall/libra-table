@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Workspace: tab shortcuts, the ⌘P palette, several databases at once.
+// Workspace: tab shortcuts, the ⌘P palette, toolbar and sidebar tabs, several databases.
 
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -35,6 +35,48 @@ describe("workspace", () => {
     expect(tabAt(0).textContent).toContain("people");
   });
 
+  it("shows the connection in the toolbar and switches the sidebar's tabs", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    expect(query(".tb-status-text").textContent).toBe(
+      "LOCAL | Local Postgres : PostgreSQL 16.4 : app",
+    );
+    const side = within(sidebar());
+    expect(side.getByPlaceholderText("Search for item...")).toBeTruthy();
+    fireEvent.click(side.getByRole("tab", { name: "Queries" }));
+    expect(await side.findByText(/No saved queries yet/)).toBeTruthy();
+    fireEvent.click(side.getByRole("tab", { name: "History" }));
+    expect(side.getByPlaceholderText("Search for history...")).toBeTruthy();
+    fireEvent.click(side.getByRole("tab", { name: "Items" }));
+    expect(await side.findByText("people")).toBeTruthy();
+  });
+
+  it("has TablePlus' tab menu and connection info on the status pill", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    press("KeyT", "t");
+    await waitFor(() => expect(tabs().length).toBe(1));
+    fireEvent.contextMenu(tabAt(0));
+    const labels = Array.from(document.querySelectorAll(".menu .menu-label")).map(
+      (l) => l.textContent,
+    );
+    expect(labels).toEqual([
+      "New Tab",
+      "Close Tab",
+      "Close other Tabs",
+      "Close Tabs to the Right",
+      "Close all Tabs",
+      "Rename Tab",
+    ]);
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("button", { name: "Connection info" })).toBeNull();
+    fireEvent.click(query(".tb-status"));
+    const info = await screen.findByRole("dialog", { name: "Connection info" });
+    expect(within(info).getByText("Local Postgres")).toBeTruthy();
+    expect(within(info).getByRole("button", { name: "Copy URL" })).toBeTruthy();
+  });
+
   it("works with several databases at once (⌘K switch, tabs keep their database)", async () => {
     renderApp();
     await openWorkspace("Local Postgres");
@@ -42,8 +84,8 @@ describe("workspace", () => {
     await screen.findByText("Alice");
 
     press("KeyK", "k");
-    const input = await screen.findByPlaceholderText(/Switch to database/);
-    await within(query(".palette")).findByText("analytics");
+    const input = await screen.findByPlaceholderText("Search for database...");
+    await within(query(".dbs-sheet")).findByText("analytics");
     fireEvent.change(input, { target: { value: "analy" } });
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.click(await within(sidebar()).findByText("events"));

@@ -7,6 +7,7 @@ pub mod conn_files;
 pub mod crypto;
 mod files;
 pub mod history;
+pub mod rncryptor;
 pub mod saved;
 pub mod secrets;
 mod settings;

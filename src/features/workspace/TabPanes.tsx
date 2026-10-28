@@ -1,6 +1,7 @@
 // Tabs stay mounted so editors and grids keep their state when switching.
 
 import { lazy, Suspense } from "react";
+import { LoadingState } from "@/components/StateView";
 import { type Workspace, type WorkspaceTab } from "@/types";
 import { DataView } from "../data/DataView";
 import { HistoryView } from "../history/HistoryView";
@@ -19,7 +20,7 @@ const MetricsView = lazy(() =>
   import("../metrics/MetricsView").then((m) => ({ default: m.MetricsView })),
 );
 
-const loading = <div className="message faint">Loading…</div>;
+const loading = <LoadingState />;
 
 function TabContent({ ws, tab, visible }: { ws: Workspace; tab: WorkspaceTab; visible: boolean }) {
   switch (tab.kind) {
@@ -31,7 +32,7 @@ function TabContent({ ws, tab, visible }: { ws: Workspace; tab: WorkspaceTab; vi
       return <TableDesigner ws={ws} tab={tab} />;
     case "query":
       return (
-        <Suspense fallback={<div className="message faint">Loading editor…</div>}>
+        <Suspense fallback={<LoadingState label="Loading editor…" />}>
           <QueryView ws={ws} tab={tab} />
         </Suspense>
       );

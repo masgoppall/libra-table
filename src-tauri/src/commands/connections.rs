@@ -144,6 +144,6 @@ pub fn import_connections(
     state: State<'_, AppState>,
     path: String,
     passphrase: Option<String>,
-) -> Cmd<usize> {
+) -> Cmd<transfer::ImportReport> {
     transfer::import(&state, Path::new(&path), passphrase.as_deref())
 }

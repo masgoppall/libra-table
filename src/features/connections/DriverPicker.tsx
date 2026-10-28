@@ -1,29 +1,63 @@
-// CON-3: choose the kind of database for a new connection, grouped like TablePlus.
+// CON-3: choose the kind of database for a new connection — TablePlus' grid of round
+// badges in a sheet, with import and "New Group" next to Create.
 
-import { useMemo, useState } from "react";
-import { DriverLogo } from "@/components/DriverLogo";
-import { Modal } from "@/components/Modal";
-import { ModalActions } from "@/components/ModalActions";
-import { DRIVER_GROUPS } from "@/domain/connection";
-import { useWindowKeys } from "@/hooks/useWindowKeys";
+import { useMemo, useRef, useState } from "react";
+import { useContextMenu } from "@/components/ContextMenu";
+import { DriverCircle } from "@/components/DriverLogo";
+import { Sheet, SheetSearch } from "@/components/Sheet";
 import { useStore } from "@/store";
 import { type Driver, type DriverEntry } from "@/types";
 
-const NEXT_KEYS = ["ArrowRight", "ArrowDown"];
-const PREV_KEYS = ["ArrowLeft", "ArrowUp"];
+const COLUMNS = 6;
+
+/** TablePlus' order of the grid. */
+const ORDER: Driver[] = [
+  "postgres",
+  "redshift",
+  "mysql",
+  "mariadb",
+  "mssql",
+  "cassandra",
+  "clickhouse",
+  "bigquery",
+  "dynamodb",
+  "elasticsearch",
+  "libsql",
+  "cloudflare_d1",
+  "mongodb",
+  "snowflake",
+  "redis",
+  "sqlite",
+  "duckdb",
+  "oracle",
+  "cockroach",
+  "greenplum",
+  "vertica",
+];
+
+const rank = (d: Driver) => {
+  const i = ORDER.indexOf(d);
+  return i < 0 ? ORDER.length : i;
+};
 
 function matches(d: DriverEntry, query: string) {
   const q = query.trim().toLowerCase();
   return !q || d.label.toLowerCase().includes(q) || d.id.includes(q);
 }
 
-function step(list: DriverEntry[], current: Driver, dir: 1 | -1): Driver {
-  const ready = list.filter((d) => d.ready);
-  const i = ready.findIndex((d) => d.id === current);
-  return ready[(i + dir + ready.length) % ready.length]?.id ?? current;
+/** The next available driver from `from` going `step` cells (wrapping around). */
+function move(list: DriverEntry[], from: number, step: number): number {
+  for (let k = 1; k <= list.length; k++) {
+    const i = from + step * k;
+    if (i < 0 || i >= list.length) return from;
+    if (list[i]?.ready) return i;
+    if (Math.abs(step) === 1) continue;
+    return from;
+  }
+  return from;
 }
 
-function DriverCard(props: {
+function DriverTile(props: {
   d: DriverEntry;
   selected: boolean;
   onSelect: () => void;
@@ -32,68 +66,117 @@ function DriverCard(props: {
   const { d } = props;
   return (
     <button
-      className={`driver-card${props.selected ? " selected" : ""}`}
+      type="button"
+      className={`picker-tile${props.selected ? " selected" : ""}`}
       disabled={!d.ready}
+      aria-pressed={props.selected}
       onClick={props.onSelect}
       onDoubleClick={props.onPick}
-      title={d.ready ? d.label : `${d.label} is not available yet`}
+      title={d.ready ? d.note || d.label : `${d.label} is not available yet`}
     >
-      <DriverLogo driver={d.id} size={36} />
-      <div className="driver-name">{d.label}</div>
-      <div className="driver-desc">{d.ready ? d.note : "Coming soon"}</div>
+      <DriverCircle driver={d.id} size={40} />
+      <span className="picker-name">{d.label}</span>
     </button>
   );
 }
 
-export function DriverPicker(props: { onPick: (d: Driver) => void; onClose: () => void }) {
+export interface DriverPickerProps {
+  onPick: (d: Driver) => void;
+  onClose: () => void;
+  onImportUrl: () => void;
+  onImportFile: () => void;
+  onImportTablePlus: () => void;
+  onNewGroup: () => void;
+}
+
+export function DriverPicker(props: DriverPickerProps) {
   const drivers = useStore((s) => s.drivers);
   const [selected, setSelected] = useState<Driver>("postgres");
   const [query, setQuery] = useState("");
-  const shown = useMemo(() => drivers.filter((d) => matches(d, query)), [drivers, query]);
-  const pick = (id: Driver) => drivers.find((d) => d.id === id)?.ready && props.onPick(id);
-  useWindowKeys(true, (e) => {
-    if (NEXT_KEYS.includes(e.key)) setSelected(step(shown, selected, 1));
-    else if (PREV_KEYS.includes(e.key)) setSelected(step(shown, selected, -1));
-    else if (e.key === "Enter") pick(shown.some((d) => d.id === selected) ? selected : "postgres");
-  });
+  const importRef = useRef<HTMLButtonElement>(null);
+  const menu = useContextMenu();
+  const shown = useMemo(
+    () => drivers.filter((d) => matches(d, query)).sort((a, b) => rank(a.id) - rank(b.id)),
+    [drivers, query],
+  );
+  const current = shown.find((d) => d.id === selected && d.ready) ?? shown.find((d) => d.ready);
+  const pick = (id: Driver | undefined) => {
+    if (id && drivers.find((d) => d.id === id)?.ready) props.onPick(id);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const steps: Record<string, number> = {
+      ArrowRight: 1,
+      ArrowLeft: -1,
+      ArrowDown: COLUMNS,
+      ArrowUp: -COLUMNS,
+    };
+    if (e.key === "Enter") {
+      e.preventDefault();
+      pick(current?.id);
+      return;
+    }
+    const step = steps[e.key];
+    if (step === undefined || !current) return;
+    // Left / right move the caret while there is text to edit.
+    if (Math.abs(step) === 1 && query) return;
+    e.preventDefault();
+    const at = shown.indexOf(current);
+    setSelected(shown[move(shown, at, step)]?.id ?? current.id);
+  };
+
+  const importMenu = () => {
+    if (!importRef.current) return;
+    menu.openAt(importRef.current, [
+      { label: "From URL…", onClick: props.onImportUrl },
+      { label: "From file…", onClick: props.onImportFile },
+      { label: "From TablePlus…", onClick: props.onImportTablePlus },
+    ]);
+  };
+
   return (
-    <Modal
-      size="lg"
-      title="New connection"
-      subtitle="Choose the kind of database"
+    <Sheet
+      label="New connection"
+      className="picker-sheet"
       onClose={props.onClose}
       footer={
-        <ModalActions onCancel={props.onClose} onOk={() => pick(selected)} okLabel="Continue" />
+        <>
+          <button className="sheet-btn" onClick={props.onClose}>
+            Cancel
+          </button>
+          <span className="spacer" />
+          <button ref={importRef} className="sheet-btn wide" onClick={importMenu}>
+            Import Connection
+          </button>
+          <button className="sheet-btn" onClick={props.onNewGroup}>
+            New Group
+          </button>
+          <button
+            className="sheet-btn primary"
+            disabled={!current}
+            onClick={() => pick(current?.id)}
+          >
+            Create
+          </button>
+        </>
       }
     >
-      <input
-        className="input driver-search"
-        autoFocus
-        placeholder="Search drivers"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      {DRIVER_GROUPS.map((g) => {
-        const items = shown.filter((d) => d.group === g.id);
-        if (items.length === 0) return null;
-        return (
-          <section key={g.id} className="driver-group">
-            <h3 className="driver-group-title">{g.label}</h3>
-            <div className="driver-grid">
-              {items.map((d) => (
-                <DriverCard
-                  key={d.id}
-                  d={d}
-                  selected={selected === d.id}
-                  onSelect={() => setSelected(d.id)}
-                  onPick={() => pick(d.id)}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
-      {shown.length === 0 && <div className="message faint">No driver matches.</div>}
-    </Modal>
+      <div className="picker-body" onKeyDown={onKeyDown}>
+        <SheetSearch value={query} onChange={setQuery} placeholder="Search" />
+        <div className="picker-grid" role="group" aria-label="Database drivers">
+          {shown.map((d) => (
+            <DriverTile
+              key={d.id}
+              d={d}
+              selected={current?.id === d.id}
+              onSelect={() => setSelected(d.id)}
+              onPick={() => pick(d.id)}
+            />
+          ))}
+          {shown.length === 0 && <div className="picker-empty">No driver matches “{query}”.</div>}
+        </div>
+      </div>
+      {menu.node}
+    </Sheet>
   );
 }

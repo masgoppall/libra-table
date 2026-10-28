@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useContextMenu } from "@/components/ContextMenu";
 import { PaddedError } from "@/components/ErrorCallout";
 import { DataGrid } from "@/components/grid/DataGrid";
-import { Spinner } from "@/components/Spinner";
+import { LoadingState } from "@/components/StateView";
 import { confirmDiscard } from "@/services/confirm";
 import { toastInfo } from "@/services/errors";
 import { store, tabDb, useConnection, useIsTabVisible } from "@/store";
 import { type PageRequest, type Workspace, type WorkspaceTab } from "@/types";
 import { ExportDialog } from "../export/ExportDialog";
-import { tableTab } from "../workspace/tabs";
+import { switchTableView } from "../workspace/TableViewSwitch";
 import { commitChanges } from "./commit";
 import { DataStatusBar } from "./DataStatusBar";
 import { DataToolbar } from "./DataToolbar";
@@ -50,6 +50,10 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const menu = useContextMenu();
   const pendingEdits = usePendingEdits();
   const { pending, dirty } = pendingEdits;
+  useEffect(() => {
+    store.get().setPendingEdits(tab.id, dirty);
+  }, [tab.id, dirty]);
+  useEffect(() => () => store.get().setPendingEdits(tab.id, 0), [tab.id]);
 
   const clearSelection = () => {
     setSelected(new Set());
@@ -178,8 +182,8 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     store.get().updateTab(id, tab.id, { pendingFilter: undefined });
   }, [ts !== null, tab.pendingFilter]);
 
-  const openStructure = () =>
-    store.get().addTab(id, tableTab("structure", table, tab), { reuse: true });
+  // Like TablePlus, the tab itself shows the structure (Data | Structure).
+  const openStructure = () => void switchTableView(ws, tab, "structure");
 
   useDataActions(visible, {
     dirty,
@@ -234,6 +238,9 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
           focusSignal={filters.focusSignal}
           onChange={filters.setDraft}
           onApply={filters.apply}
+          onRemove={filters.remove}
+          active={filters.activeCount > 0}
+          onClear={filters.clear}
           onPreview={filters.preview}
         />
       )}
@@ -273,11 +280,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
             emptyText={filters.activeCount ? "No rows match the filters." : "This table is empty."}
           />
         )}
-        {!result && loaded.loading && (
-          <div className="grid-empty">
-            <Spinner /> Loading…
-          </div>
-        )}
+        {!result && loaded.loading && <LoadingState label="Loading rows…" />}
         {showDetail && result && (
           <RowDetail
             columns={columns}
@@ -304,6 +307,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
           setPageSize(n);
           setPage(0);
         }}
+        onShowStructure={openStructure}
       />
       {menu.node}
       {quickLook.node}

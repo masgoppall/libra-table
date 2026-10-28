@@ -1,4 +1,4 @@
-// The app shell: title bar, the connections page or a workspace, and global overlays.
+// The app shell: toolbar, the connections page or a workspace, and global overlays.
 
 import { useEffect } from "react";
 import { DialogHost } from "@/components/dialogs/DialogHost";
@@ -15,11 +15,13 @@ import { ShortcutsDialog } from "@/features/settings/ShortcutsDialog";
 import { WorkspaceView } from "@/features/workspace/WorkspaceView";
 import { showError } from "@/services/errors";
 import { HOME, useStore } from "@/store";
-import { TopBar } from "./TopBar";
+import { ConnectionTabs } from "./toolbar/ConnectionTabs";
+import { Toolbar } from "./toolbar/Toolbar";
 import { useAppActions } from "./useAppActions";
 import { useAppearance } from "./useAppearance";
 import { useCustomShortcuts, useGlobalKeys } from "./useGlobalKeys";
 import { useWindowClose } from "./useWindowClose";
+import { useWindowMode } from "./useWindowMode";
 
 function Overlays() {
   const settingsOpen = useStore((s) => s.settingsOpen);
@@ -55,10 +57,12 @@ export default function App() {
   useGlobalKeys();
   useAppActions();
   useWindowClose();
+  const compact = useWindowMode();
 
   return (
-    <div className="app">
-      <TopBar />
+    <div className={`app${compact ? " compact" : ""}`}>
+      {!compact && <Toolbar />}
+      {!compact && <ConnectionTabs />}
       <div className="main">
         <div className="home-wrap" style={{ display: view === HOME ? "flex" : "none" }}>
           <Home />

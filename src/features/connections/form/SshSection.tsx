@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import { Check } from "@/components/Check";
-import { FieldNote, PasswordField } from "./fields";
+import { fieldAttrs, FieldLabel, FieldNote, PasswordField } from "./fields";
 import { type ConnectionFormState, parsePort, typedSecret } from "./useConnectionForm";
 
 const SAVED = "•••••••• saved in Keychain";
@@ -44,10 +44,13 @@ function SshFields({ form }: { form: ConnectionFormState }) {
   const passphrase = secrets.sshKeyPassphrase;
   return (
     <div className="form-grid">
-      <label>Server</label>
+      <FieldLabel form={form} field="ssh.host">
+        Server
+      </FieldLabel>
       <div className="row">
         <input
           className="input grow"
+          {...fieldAttrs(form, "ssh.host")}
           value={c.ssh.host}
           placeholder="bastion.example.com or ~/.ssh/config alias"
           onChange={(e) => setSsh({ host: e.target.value })}

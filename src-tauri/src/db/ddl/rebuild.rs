@@ -178,7 +178,7 @@ impl Model {
 
     fn apply(&mut self, op: &AlterOp, schema: &str, fks: &[ForeignKeyInfo]) -> AppResult<()> {
         match op {
-            AlterOp::AddColumn { column } => self.add_column(column),
+            AlterOp::AddColumn { column, .. } => self.add_column(column),
             AlterOp::DropColumn { name } => self.drop_column(name),
             AlterOp::ModifyColumn { column, .. } => self.modify_column(column),
             AlterOp::SetPrimaryKey { columns } => {

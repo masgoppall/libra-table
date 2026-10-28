@@ -1,6 +1,7 @@
 // Shows the newest dialog from the store's queue.
 
 import { type DialogResult, useStore } from "@/store";
+import { AlertDialog } from "./AlertDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { HostKeyDialog } from "./HostKeyDialog";
 import { PromptDialog } from "./PromptDialog";
@@ -15,6 +16,8 @@ export function DialogHost() {
       return <PromptDialog key={top.id} spec={top.spec} done={done} />;
     case "confirm":
       return <ConfirmDialog key={top.id} spec={top.spec} done={done} />;
+    case "alert":
+      return <AlertDialog key={top.id} spec={top.spec} done={done} />;
     case "hostKey":
       return <HostKeyDialog key={top.id} spec={top.spec} done={done} />;
   }

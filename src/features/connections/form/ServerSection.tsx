@@ -2,7 +2,7 @@
 
 import { Check } from "@/components/Check";
 import { builtInDialect, DEFAULT_PORT } from "@/domain/connection";
-import { FieldNote, PasswordField } from "./fields";
+import { fieldAttrs, FieldLabel, FieldNote, PasswordField } from "./fields";
 import { type ConnectionFormState, parsePort } from "./useConnectionForm";
 
 function HostRow({ form }: { form: ConnectionFormState }) {
@@ -11,6 +11,7 @@ function HostRow({ form }: { form: ConnectionFormState }) {
     return (
       <input
         className="input mono grow"
+        {...fieldAttrs(form, "socket")}
         value={c.db.socket}
         placeholder="/tmp/.s.PGSQL.5432"
         onChange={(e) => setDb({ socket: e.target.value })}
@@ -40,7 +41,9 @@ export function ServerSection({ form }: { form: ConnectionFormState }) {
   const { c, setDb, view, secrets, setSecret } = form;
   return (
     <div className="form-grid form-section">
-      <label>{c.db.useSocket ? "Socket" : "Host"}</label>
+      <FieldLabel form={form} field={c.db.useSocket ? "socket" : "host"}>
+        {c.db.useSocket ? "Socket" : "Host"}
+      </FieldLabel>
       <div className="row">
         <HostRow form={form} />
         <Check

@@ -21,6 +21,8 @@ mod run;
 mod spec;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_structure;
 
 pub use context::context;
 pub use plan::{build, Ctx, Exec, Plan, Rebuild, Step};
