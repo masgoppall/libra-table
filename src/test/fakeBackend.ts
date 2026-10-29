@@ -228,7 +228,7 @@ export class FakeBackend {
     console_entries: () => this.console,
     set_window_view: () => null,
     set_window_mode: () => null,
-    app_info: () => ({ version: "0.3.0", dataDir: "/tmp/libratable" }),
+    app_info: () => ({ version: "0.3.1", dataDir: "/tmp/libratable" }),
     passcode_set: () => this.passcode !== null,
     verify_passcode: (a) => a.code === this.passcode,
     "plugin:dialog|save": () => this.savePath,

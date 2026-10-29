@@ -14,6 +14,9 @@ use super::chrome::{self, Layout};
 pub const WELCOME: (f64, f64) = (680.0, 608.0);
 const WORKSPACE_DEFAULT: (f64, f64) = (1280.0, 820.0);
 const WORKSPACE_MIN: (f64, f64) = (960.0, 600.0);
+/// How often, and how many times, to check that the window has left full screen.
+const FULLSCREEN_EXIT_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+const FULLSCREEN_EXIT_POLLS: u32 = 40;
 
 /// The close button as TablePlus places it in its welcome window.
 const WELCOME_BUTTONS: Layout = Layout {
@@ -61,13 +64,28 @@ pub fn apply<R: Runtime>(w: &WebviewWindow<R>, mode: Mode) -> tauri::Result<()> 
     }
     if welcome_mode {
         if w.is_fullscreen()? {
+            // Leaving full screen animates; resize once it is over, keeping the size the
+            // workspace had before it went full screen.
             w.set_fullscreen(false)?;
-        }
-        if w.is_maximized()? {
-            w.unmaximize()?;
+            let w = w.clone();
+            std::thread::spawn(move || {
+                for _ in 0..FULLSCREEN_EXIT_POLLS {
+                    std::thread::sleep(FULLSCREEN_EXIT_POLL);
+                    if !w.is_fullscreen().unwrap_or(false) {
+                        break;
+                    }
+                }
+                // A connection opened meanwhile keeps the workspace shape.
+                if WELCOME_SHOWN.load(Ordering::SeqCst) {
+                    let _ = welcome(&w);
+                }
+            });
+            return Ok(());
         }
         let size = w.inner_size()?.to_logical(w.scale_factor()?);
         *WORKSPACE_SIZE.lock().unwrap() = Some(size);
+        // A zoomed (maximized) window isn't unzoomed first: tao restores the old frame
+        // asynchronously, after (and over) the welcome frame. Setting the frame unzooms it.
         return welcome(w);
     }
     let (min_w, min_h) = WORKSPACE_MIN;
@@ -78,8 +96,10 @@ pub fn apply<R: Runtime>(w: &WebviewWindow<R>, mode: Mode) -> tauri::Result<()> 
         .unwrap_or(LogicalSize::new(w0, h0));
     w.set_resizable(true)?;
     w.set_maximizable(true)?;
-    w.set_min_size(Some(LogicalSize::new(min_w, min_h)))?;
+    // The size first: a minimum larger than the welcome window would widen it from its
+    // top-left corner before it is centered.
     resize_centered(w, size)?;
+    w.set_min_size(Some(LogicalSize::new(min_w, min_h)))?;
     chrome::place(w, WORKSPACE_BUTTONS);
     Ok(())
 }

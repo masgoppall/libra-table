@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versi 0.3.0" src="https://img.shields.io/badge/versi-0.3.0-3e63dd">
+  <img alt="Versi 0.3.1" src="https://img.shields.io/badge/versi-0.3.1-3e63dd">
   <img alt="macOS 13 atau lebih baru" src="https://img.shields.io/badge/macOS-13%2B-1e3190">
   <img alt="Dibuat dengan Tauri 2 dan React" src="https://img.shields.io/badge/Tauri%202-React-f2b24c">
 </p>
