@@ -12,8 +12,8 @@ use super::chrome::{self, Layout};
 
 /// The welcome window, in points (TablePlus' size).
 pub const WELCOME: (f64, f64) = (680.0, 608.0);
-const WORKSPACE_DEFAULT: (f64, f64) = (1280.0, 820.0);
-const WORKSPACE_MIN: (f64, f64) = (960.0, 600.0);
+pub const WORKSPACE_DEFAULT: (f64, f64) = (1280.0, 820.0);
+pub const WORKSPACE_MIN: (f64, f64) = (960.0, 600.0);
 /// How often, and how many times, to check that the window has left full screen.
 const FULLSCREEN_EXIT_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 const FULLSCREEN_EXIT_POLLS: u32 = 40;
@@ -45,6 +45,11 @@ static WELCOME_SHOWN: AtomicBool = AtomicBool::new(true);
 /// The workspace window's last size, restored when it opens again.
 static WORKSPACE_SIZE: Mutex<Option<LogicalSize<f64>>> = Mutex::new(None);
 
+/// Where a workspace window's buttons go.
+pub fn buttons_for_workspace() -> Layout {
+    WORKSPACE_BUTTONS
+}
+
 /// Where the window buttons go in the current mode.
 pub fn buttons() -> Layout {
     if WELCOME_SHOWN.load(Ordering::SeqCst) {
@@ -57,6 +62,11 @@ pub fn buttons() -> Layout {
 /// Switches the window to `mode`. Already in it, only the buttons are placed again (the
 /// UI asks once the window is on screen, after AppKit's first layout).
 pub fn apply<R: Runtime>(w: &WebviewWindow<R>, mode: Mode) -> tauri::Result<()> {
+    // Connection windows (not the main one) are always workspace windows.
+    if w.label() != super::MAIN {
+        chrome::place(w, WORKSPACE_BUTTONS);
+        return Ok(());
+    }
     let welcome_mode = mode == Mode::Welcome;
     if WELCOME_SHOWN.swap(welcome_mode, Ordering::SeqCst) == welcome_mode {
         chrome::place(w, buttons());

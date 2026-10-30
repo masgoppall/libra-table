@@ -71,6 +71,76 @@
   display: flex;
   min-width: 0;
 }
+/* The database stack left of the sidebar (TablePlus' DatabaseStackItem): an outlined
+   cylinder over the name, the shown database highlighted. */
+.db-rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 80px;
+  border-right: 1px solid var(--side-border);
+  background: color-mix(in srgb, var(--side-bg) 82%, #000);
+}
+:root[data-theme="light"] .db-rail {
+  background: color-mix(in srgb, var(--side-bg) 94%, #000);
+}
+.db-rail.hidden {
+  display: none;
+}
+.db-rail-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.db-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 3px 12px;
+  border: none;
+  border-bottom: 1px solid var(--side-border);
+  background: transparent;
+  color: var(--side-muted);
+  font: inherit;
+  cursor: default;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+.db-rail-item:hover {
+  background: var(--side-hover);
+  color: var(--side-text);
+}
+.db-rail-item.active {
+  background: var(--side-bg);
+  color: var(--side-text);
+}
+.db-rail-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-rail-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border: none;
+  border-top: 1px solid var(--side-border);
+  background: transparent;
+  color: var(--side-icon);
+  cursor: default;
+}
+.db-rail-add:hover {
+  color: var(--side-text);
+}
 .sidebar {
   position: relative;
   flex: none;
@@ -484,4 +554,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
+}
+
+/* Folders of saved queries. */
+.side-item.query-folder {
+  font-weight: 500;
+}
+.side-item.query-folder .side-icon.folder {
+  color: var(--accent);
+}
+.side-item.query-folder .side-count {
+  margin-left: auto;
+  padding-right: 6px;
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.side-item.in-folder {
+  padding-left: 30px;
 }

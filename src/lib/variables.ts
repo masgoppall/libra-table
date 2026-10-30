@@ -3,8 +3,32 @@
 // dollar-quoted bodies, and never as part of `::type`, `:=` or an array slice `a[1:n]`.
 // Values become SQL literals (quoted like the rest of the app); see `renderValue`.
 
-import { type Dialect, type QueryVariable } from "@/types";
+import { type Dialect, type QueryVariable, type VariableFormat } from "@/types";
 import { sqlLiteral } from "./sql";
+
+export type { VariableFormat } from "@/types";
+
+export interface VariableOptions {
+  format?: VariableFormat;
+  /** Variables inside quoted strings count too (`'%:term%'`). */
+  inStrings?: boolean;
+}
+
+const PATTERNS: Record<VariableFormat, RegExp> = {
+  colon: /^:([A-Za-z_][A-Za-z0-9_]*)/,
+  dollar: /^\$([A-Za-z_][A-Za-z0-9_]*)/,
+  "dollar-braces": /^\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}/,
+  "double-braces": /^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/,
+  percent: /^%([A-Za-z_][A-Za-z0-9_]*)%/,
+};
+
+export const VARIABLE_FORMATS: [VariableFormat, string][] = [
+  ["colon", "Colon :name"],
+  ["dollar", "Dollar $name"],
+  ["dollar-braces", "Dollar braces ${name}"],
+  ["double-braces", "Double braces {{name}}"],
+  ["percent", "Percent %name%"],
+];
 
 export interface VariableUse {
   name: string;
@@ -86,25 +110,50 @@ function skipNonCode(sql: string, i: number, driver: Dialect): number | null {
   return null;
 }
 
-/** Every `:name` in `sql`, in order. */
-export function findVariables(sql: string, driver: Dialect): VariableUse[] {
+/** A variable written as `format` at `i`, or null. */
+function variableAt(sql: string, i: number, format: VariableFormat): VariableUse | null {
+  if (format === "colon" && sql[i + 1] === ":") return null;
+  if ((format === "colon" || format === "dollar") && isName(sql[i - 1])) return null;
+  const m = PATTERNS[format].exec(sql.slice(i, i + 200));
+  return m?.[1] ? { name: m[1], from: i, to: i + m[0].length } : null;
+}
+
+/** Quoted strings are searched too with `inStrings`; comments never are. */
+function skipFor(sql: string, i: number, driver: Dialect, o: VariableOptions): number | null {
+  if (o.inStrings && sql[i] === "'") return null;
+  // `$name` and `${name}` aren't Postgres dollar quotes.
+  if (sql[i] === "$" && o.format !== undefined && o.format !== "colon") {
+    if (variableAt(sql, i, o.format)) return null;
+  }
+  return skipNonCode(sql, i, driver);
+}
+
+/** Every variable in `sql`, in order. */
+export function findVariables(
+  sql: string,
+  driver: Dialect,
+  o: VariableOptions = {},
+): VariableUse[] {
+  const format = o.format ?? "colon";
   const uses: VariableUse[] = [];
   let i = 0;
   while (i < sql.length) {
-    const skipped = skipNonCode(sql, i, driver);
+    const skipped = skipFor(sql, i, driver, o);
     if (skipped !== null) {
       i = skipped;
       continue;
     }
-    if (sql[i] === ":" && sql[i + 1] === ":") {
+    if (format === "colon" && sql[i] === ":" && sql[i + 1] === ":") {
       i += 2;
       continue;
     }
-    if (sql[i] === ":" && NAME_START.test(sql[i + 1] ?? "") && !isName(sql[i - 1])) {
-      let j = i + 2;
-      while (isName(sql[j])) j += 1;
-      uses.push({ name: sql.slice(i + 1, j), from: i, to: j });
-      i = j;
+    const use =
+      NAME_START.test(sql[i + 1] ?? "") || format.endsWith("braces")
+        ? variableAt(sql, i, format)
+        : null;
+    if (use) {
+      uses.push(use);
+      i = use.to;
       continue;
     }
     i += 1;
@@ -113,8 +162,8 @@ export function findVariables(sql: string, driver: Dialect): VariableUse[] {
 }
 
 /** Variable names in order of first use. */
-export function variableNames(sql: string, driver: Dialect): string[] {
-  return [...new Set(findVariables(sql, driver).map((u) => u.name))];
+export function variableNames(sql: string, driver: Dialect, o: VariableOptions = {}): string[] {
+  return [...new Set(findVariables(sql, driver, o).map((u) => u.name))];
 }
 
 /** The SQL for one value. Throws (with a message for the user) if it isn't valid. */
@@ -137,10 +186,15 @@ export function renderValue(driver: Dialect, v: QueryVariable): string {
 }
 
 /** `sql` with every variable replaced by its value. Throws if one has no value. */
-export function substituteVariables(sql: string, driver: Dialect, values: QueryVariable[]): string {
+export function substituteVariables(
+  sql: string,
+  driver: Dialect,
+  values: QueryVariable[],
+  o: VariableOptions = {},
+): string {
   const byName = new Map(values.map((v) => [v.name, v]));
   let out = sql;
-  for (const use of findVariables(sql, driver).reverse()) {
+  for (const use of findVariables(sql, driver, o).reverse()) {
     const v = byName.get(use.name);
     if (!v) throw new Error(`No value for :${use.name}.`);
     out = out.slice(0, use.from) + renderValue(driver, v) + out.slice(use.to);

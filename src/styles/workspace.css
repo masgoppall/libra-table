@@ -154,6 +154,32 @@
   background: var(--tabs-hover);
   color: var(--tabs-selected-text);
 }
+.tab-nav {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 0 2px;
+  border-right: 1px solid var(--tabs-border, var(--border));
+}
+.tab-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tabs-text);
+  cursor: default;
+}
+.tab-nav button:hover:not(:disabled) {
+  background: var(--tabs-hover);
+  color: var(--tabs-selected-text);
+}
+.tab-nav button:disabled {
+  opacity: 0.35;
+}
 .tab-pane {
   flex: 1;
   min-height: 0;

@@ -1,6 +1,6 @@
 // Where a key moves the focused cell, spreadsheet style. Pure: no DOM, no state.
 
-import { type CellPos } from "./types";
+import { type CellPos, type CellRange } from "./types";
 
 export interface NavContext {
   focus: CellPos;
@@ -46,3 +46,22 @@ export function rowRange(a: number, b: number): Set<number> {
   for (let r = Math.min(a, b); r <= Math.max(a, b); r++) out.add(r);
   return out;
 }
+
+/** The cells between two corners, or null when the corners are the same cell. */
+export function spanRange(a: CellPos, b: CellPos, ordered: number[]): CellRange | null {
+  const i = ordered.indexOf(a.col);
+  const j = ordered.indexOf(b.col);
+  if ((a.row === b.row && i === j) || i < 0 || j < 0) return null;
+  return {
+    top: Math.min(a.row, b.row),
+    bottom: Math.max(a.row, b.row),
+    cols: ordered.slice(Math.min(i, j), Math.max(i, j) + 1),
+  };
+}
+
+export function inRange(r: CellRange | null, row: number, col: number): boolean {
+  return !!r && row >= r.top && row <= r.bottom && r.cols.includes(col);
+}
+
+/** The rows of a block of cells. */
+export const rangeRows = (r: CellRange) => rowRange(r.top, r.bottom);

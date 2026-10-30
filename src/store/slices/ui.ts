@@ -5,7 +5,7 @@ import { type StateCreator } from "zustand";
 import { type Group } from "@/types";
 import { type AppState } from "../types";
 
-export type PaletteKind = "anything" | "database";
+export type PaletteKind = "anything" | "database" | "connection";
 
 /** Backup, restore and "Open in command line" for one database of a connection. */
 export interface ServerDialog {
@@ -29,6 +29,7 @@ export interface UiSlice {
   palette: PaletteState | null;
   settingsOpen: boolean;
   shortcutsOpen: boolean;
+  backupSchedulesOpen: boolean;
   consoleOpen: boolean;
   /** A passcode is set (the app locks at start and when idle). */
   passcodeEnabled: boolean;
@@ -45,6 +46,7 @@ export interface UiSlice {
   closePalette: () => void;
   setSettingsOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
+  setBackupSchedulesOpen: (open: boolean) => void;
   setConsoleOpen: (open: boolean) => void;
   setPasscodeEnabled: (enabled: boolean) => void;
   setLocked: (locked: boolean) => void;
@@ -59,6 +61,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   palette: null,
   settingsOpen: false,
   shortcutsOpen: false,
+  backupSchedulesOpen: false,
   consoleOpen: false,
   passcodeEnabled: false,
   locked: false,
@@ -72,6 +75,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   closePalette: () => set({ palette: null }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+  setBackupSchedulesOpen: (backupSchedulesOpen) => set({ backupSchedulesOpen }),
   setConsoleOpen: (consoleOpen) => set({ consoleOpen }),
   setPasscodeEnabled: (passcodeEnabled) => set({ passcodeEnabled }),
   setLocked: (locked) => set({ locked, palette: null }),

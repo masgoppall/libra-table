@@ -112,6 +112,21 @@ const SETTINGS: Settings = {
   uiFontSize: 13,
   lockAfterMinutes: 0,
   shortcuts: {},
+  openInNewTab: true,
+  alternatingRows: true,
+  showRowNumbers: true,
+  rowDensity: "normal",
+  editorKeymap: "default",
+  uppercaseKeywords: false,
+  closeBrackets: true,
+  customTags: [],
+  variableFormat: "colon",
+  variablesInStrings: false,
+  colorTheme: "",
+  customThemes: [],
+  aiEnabled: false,
+  aiModel: "claude-opus-5-5",
+  backupSchedules: [],
 };
 
 const info = (id: string): ConnectInfo => ({
@@ -151,6 +166,10 @@ export class FakeBackend {
       slow: true,
     },
   ];
+  /** The system clipboard as the clipboard plugin sees it. */
+  clipboard = "";
+  settings: Settings = { ...SETTINGS };
+  savedQueries: { name: string; modifiedAt: number; size: number }[] = [];
   /** Answers for the next `connect` calls (throw to fail one). */
   connectScript: Array<(args: Args) => unknown> = [];
   /** Imports, exports, diagram and metrics. */
@@ -228,13 +247,18 @@ export class FakeBackend {
     console_entries: () => this.console,
     set_window_view: () => null,
     set_window_mode: () => null,
-    app_info: () => ({ version: "0.3.1", dataDir: "/tmp/libratable" }),
+    app_info: () => ({ version: "0.4.0", dataDir: "/tmp/libratable" }),
     passcode_set: () => this.passcode !== null,
     verify_passcode: (a) => a.code === this.passcode,
     "plugin:dialog|save": () => this.savePath,
+    "plugin:clipboard-manager|write_text": (a) => {
+      this.clipboard = a.text;
+      return null;
+    },
+    "plugin:clipboard-manager|read_text": () => this.clipboard,
     export_connections: (a) => (a.ids.length ? a.ids.length : this.connections.length),
-    get_settings: () => SETTINGS,
-    save_settings: (a) => a.settings,
+    get_settings: () => this.settings,
+    save_settings: (a) => (this.settings = a.settings),
     get_workspace: () => this.workspace,
     save_workspace: (a) => {
       this.workspace = a.workspace;
@@ -259,7 +283,14 @@ export class FakeBackend {
     list_columns: () => COLUMNS,
     column_choices: (a) => (a.table === "orders" ? { status: ["new", "paid"] } : {}),
     fetch_cell: () => ({ kind: "text", text: '{"total":5,"items":["a"]}' }),
-    list_saved_queries: () => [],
+    list_saved_queries: () => this.savedQueries,
+    ai_key_status: () => true,
+    open_window: () => "win-1",
+    ai_ask: (a) => ({
+      sql: "SELECT name FROM people;",
+      note: `Asked: ${a.request.question}`,
+      model: a.request.model,
+    }),
     completion_metadata: () => ({ schema: "public", schemas: ["public"], tables: {} }),
     fetch_page: this.page,
     count_rows: () => ({ total: 2, exact: true }),

@@ -4,6 +4,7 @@
 //! Commands only unpack arguments, find the session and call into the domain modules;
 //! the checks every command shares (production confirmation, history) live here.
 
+pub mod ai;
 pub mod app;
 pub mod connections;
 pub mod data;
@@ -179,6 +180,7 @@ macro_rules! all_commands {
             $crate::commands::connections::test_connection,
             $crate::commands::connections::connect,
             $crate::commands::connections::disconnect,
+            $crate::commands::connections::open_window,
             $crate::commands::connections::open_sessions,
             $crate::commands::connections::trust_host_key,
             $crate::commands::connections::create_sqlite_file,
@@ -228,6 +230,12 @@ macro_rules! all_commands {
             $crate::commands::history::delete_saved_query,
             $crate::commands::export::start_export,
             $crate::commands::export::cancel_export,
+            $crate::commands::export::save_text_file,
+            $crate::commands::export::prune_backups,
+            $crate::commands::ai::ai_key_status,
+            $crate::commands::ai::ai_set_key,
+            $crate::commands::ai::ai_clear_key,
+            $crate::commands::ai::ai_ask,
             $crate::commands::export_tables::start_export_tables,
             $crate::commands::import::preview_import_file,
             $crate::commands::import::preview_import,

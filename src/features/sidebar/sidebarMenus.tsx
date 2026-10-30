@@ -28,8 +28,15 @@ import { toastSuccess } from "@/services/errors";
 import { store } from "@/store";
 import { type ObjectInfo, type SavedQuery, type Workspace } from "@/types";
 import * as tools from "../import/openTools";
-import { deleteSavedQuery, openSavedQuery, renameSavedQuery } from "../query/savedQueries";
+import {
+  deleteSavedQuery,
+  moveSavedQuery,
+  openSavedQuery,
+  renameSavedQuery,
+} from "../query/savedQueries";
 import * as flows from "../schema/flows";
+import { canRenameDatabase, renameDatabase } from "../schema/renameDatabase";
+import { copyScript, SCRIPT_LABELS } from "../schema/scripts";
 import { openServerDialog, serverActionAvailable } from "../server/serverActions";
 import { newQueryTab, tableTab } from "../workspace/tabs";
 
@@ -94,6 +101,11 @@ export function objectMenu(
       icon: icon(Table2),
       onClick: () => addTab(id, tableTab("data", o.name, where), { reuse: true }),
     },
+    {
+      label: "Open in new tab",
+      hint: "⌘-click",
+      onClick: () => addTab(id, tableTab("data", o.name, where), { reuse: true, newTab: true }),
+    },
     ...when(caps.structure !== "none", {
       label: isTable && editable ? "Edit structure" : "Show structure",
       icon: icon(Columns3),
@@ -107,6 +119,16 @@ export function objectMenu(
     SEPARATOR,
     { label: "Copy name", icon: icon(Copy), onClick: () => void copy(o.name, "Name") },
     ...when(sql, { label: "Copy SELECT … LIMIT 100", onClick: () => void copy(select, "SELECT") }),
+    ...when(sql && caps.structure !== "none", {
+      label: "Copy script as",
+      icon: icon(FileCode2),
+      submenu: SCRIPT_LABELS.filter(([k]) => isTable || k === "create" || k === "select").map(
+        ([kind, label]) => ({
+          label,
+          onClick: () => void copyScript(ws, kind, ws.schema, o.name),
+        }),
+      ),
+    }),
     { label: "Export…", icon: icon(Download), onClick: () => onExport(ws.schema, o.name) },
     ...when(
       isTable,
@@ -173,6 +195,12 @@ export function databaseMenu(ws: Workspace, name: string): MenuItem[] {
       caps.createDatabase,
       SEPARATOR,
       { label: "New database…", icon: icon(Plus), onClick: () => flows.createDatabaseFlow(ws) },
+      ...when(canRenameDatabase(ws), {
+        label: "Rename…",
+        icon: icon(Pencil),
+        disabled: name === ws.info.database,
+        onClick: () => void renameDatabase(ws, name),
+      }),
       {
         label: "Drop database…",
         icon: icon(Trash2),
@@ -193,6 +221,11 @@ export function savedQueryMenu(ws: Workspace, s: SavedQuery, reload: () => void)
       label: "Rename…",
       icon: icon(Pencil),
       onClick: () => void thenReload(renameSavedQuery(id, s.name)),
+    },
+    {
+      label: "Move to folder…",
+      icon: icon(FolderPlus),
+      onClick: () => void thenReload(moveSavedQuery(id, s.name)),
     },
     {
       label: "Delete",

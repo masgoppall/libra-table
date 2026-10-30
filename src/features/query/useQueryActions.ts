@@ -54,7 +54,9 @@ export function useQueryActions(d: QueryActionDeps) {
 
   /** `text` with its variables filled in; null when cancelled or invalid. */
   const fillVariables = async (text: string): Promise<string | null> => {
-    const names = variableNames(text, driver);
+    const settings = store.get().settings;
+    const o = { format: settings?.variableFormat, inStrings: settings?.variablesInStrings };
+    const names = variableNames(text, driver, o);
     if (!names.length) return text;
     const remembered = store.workspace(d.ws.connectionId)?.tabs.find((t) => t.id === d.tab.id);
     const values = await d.askVariables(variablesFor(names, remembered?.variables));
@@ -62,7 +64,7 @@ export function useQueryActions(d: QueryActionDeps) {
     const variables = rememberVariables(remembered?.variables, values);
     store.get().updateTab(d.ws.connectionId, d.tab.id, { variables });
     try {
-      return substituteVariables(text, driver, values);
+      return substituteVariables(text, driver, values, o);
     } catch (e) {
       store.get().toast("error", (e as Error).message);
       return null;

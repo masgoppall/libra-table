@@ -1,11 +1,12 @@
 // Keys on the focused grid: copy, select all, delete, and moving the focus.
 
-import { type RefObject, useState } from "react";
+import { type RefObject } from "react";
 import { type Virtualizer } from "@tanstack/react-virtual";
-import { columnLeft, ROW_H, ROWNUM_W } from "./columns";
+import { columnLeft } from "./columns";
 import { navigate, rowRange } from "./navigation";
 import { type CellPos, type DataGridProps } from "./types";
 import { type CellEditing } from "./useCellEditing";
+import { type GridSelection } from "./useGridSelection";
 
 interface Options {
   p: DataGridProps;
@@ -14,34 +15,41 @@ interface Options {
   scrollRef: RefObject<HTMLDivElement>;
   virt: Virtualizer<HTMLDivElement, Element>;
   edit: CellEditing;
+  sel: GridSelection;
+  rowHeight: number;
+  /** Width of the row-number column (0 when hidden). */
+  numW: number;
 }
 
 const isMod = (e: React.KeyboardEvent) => e.metaKey || e.ctrlKey;
 
-export function useGridKeyboard({ p, ordered, width, scrollRef, virt, edit }: Options) {
-  const [focus, setFocus] = useState<CellPos | null>(null);
-  const [anchor, setAnchor] = useState<number | null>(null);
+export function useGridKeyboard(o: Options) {
+  const { p, ordered, width, scrollRef, virt, edit, sel } = o;
+  const { focus, setFocus, anchor, setAnchor, range } = sel;
 
   // Keeps the focused column visible when moving with the keyboard.
   const scrollColumnIntoView = (col: number) => {
     const el = scrollRef.current;
     if (!el) return;
-    const left = columnLeft(ordered, col, width);
+    const left = columnLeft(ordered, col, width, o.numW);
     const right = left + width(col);
-    if (left - ROWNUM_W < el.scrollLeft) el.scrollLeft = left - ROWNUM_W;
+    if (left - o.numW < el.scrollLeft) el.scrollLeft = left - o.numW;
     else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
   };
 
-  /** ⌘C, ⌘A, Delete and Escape; true when handled. */
+  /** ⌘C, ⌘V, ⌘A, Delete and Escape; true when handled. */
   const selectionKey = (e: React.KeyboardEvent): boolean => {
     const key = e.key.toLowerCase();
-    if (isMod(e) && key === "c") p.onCopy?.();
+    if (isMod(e) && key === "c") p.onCopy?.(range);
+    else if (isMod(e) && key === "v" && p.onPaste) p.onPaste(focus, range);
     else if (isMod(e) && key === "a") {
       const all = new Set(Array.from({ length: p.rowCount }, (_, i) => i));
+      sel.clearRange();
       p.onSelect(all, focus?.row ?? null);
     } else if ((e.key === "Backspace" || e.key === "Delete") && p.selected.size && p.editable) {
       p.onDeleteRows?.();
-    } else if (e.key === "Escape" && p.selected.size) {
+    } else if (e.key === "Escape" && (p.selected.size || range)) {
+      sel.clearRange();
       p.onSelect(new Set(), null);
       return true;
     } else return false;
@@ -80,13 +88,18 @@ export function useGridKeyboard({ p, ordered, width, scrollRef, virt, edit }: Op
 
   const moveTo = (e: React.KeyboardEvent, from: CellPos, to: CellPos) => {
     e.preventDefault();
-    const extending = e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp");
-    if (extending && anchor !== null) {
+    const vertical = e.key === "ArrowDown" || e.key === "ArrowUp";
+    const sideways = e.key === "ArrowLeft" || e.key === "ArrowRight";
+    // Shift+←/→ starts a block of cells; Shift+↑/↓ grows it, or else the rows.
+    if (e.shiftKey && (sideways || (vertical && range))) {
+      sel.extendTo(to);
+      scrollColumnIntoView(to.col);
+    } else if (e.shiftKey && vertical && anchor !== null) {
       setFocus({ row: to.row, col: from.col });
       p.onSelect(rowRange(anchor, to.row), to.row);
     } else {
       setFocus(to);
-      if (to.row !== from.row) {
+      if (to.row !== from.row || range) {
         p.onSelect(new Set([to.row]), to.row);
         setAnchor(to.row);
       }
@@ -99,30 +112,17 @@ export function useGridKeyboard({ p, ordered, width, scrollRef, virt, edit }: Op
     if (edit.editing || selectionKey(e)) return;
     if (!focus) return startFocus(e);
     const height = scrollRef.current?.clientHeight ?? 400;
-    const pageRows = Math.max(1, Math.floor(height / ROW_H) - 2);
+    const pageRows = Math.max(1, Math.floor(height / o.rowHeight) - 2);
+    // Shift+arrows move the far corner of a block; Shift+Tab still moves back.
+    const extending = e.shiftKey && e.key.startsWith("Arrow");
+    const from = extending && sel.head ? sel.head : focus;
     const to = navigate(
       { key: e.key, shiftKey: e.shiftKey, mod: isMod(e) },
-      { focus, ordered, rowCount: p.rowCount, pageRows },
+      { focus: from, ordered, rowCount: p.rowCount, pageRows },
     );
-    if (to) moveTo(e, focus, to);
+    if (to) moveTo(e, from, to);
     else editKey(e, focus);
   };
 
-  /** Click selection: Shift extends from the anchor, ⌘ toggles a row. */
-  const selectRow = (row: number, e: React.MouseEvent) => {
-    if (e.shiftKey && anchor !== null) {
-      p.onSelect(rowRange(anchor, row), row);
-      return;
-    }
-    let next = new Set([row]);
-    if (e.metaKey || e.ctrlKey) {
-      next = new Set(p.selected);
-      if (next.has(row)) next.delete(row);
-      else next.add(row);
-    }
-    setAnchor(row);
-    p.onSelect(next, row);
-  };
-
-  return { focus, setFocus, onKeyDown, selectRow };
+  return { onKeyDown, scrollColumnIntoView };
 }

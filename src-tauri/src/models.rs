@@ -292,6 +292,9 @@ pub struct Connection {
     pub tag: Tag,
     #[serde(default)]
     pub color: String,
+    /// Custom tags (Settings › Tags) on top of the environment tag.
+    #[serde(default)]
+    pub labels: Vec<String>,
     #[serde(default)]
     pub db: DbSettings,
     #[serde(default)]

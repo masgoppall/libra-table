@@ -44,6 +44,7 @@ export function useDialogLayer(onClose: () => void) {
     "prev-tab": swallow,
     "open-anything": swallow,
     "switch-database": swallow,
+    "open-connection": swallow,
   });
 }
 

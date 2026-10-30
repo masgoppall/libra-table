@@ -1,6 +1,7 @@
 // Column geometry: default widths by type, user order, horizontal positions.
 
-import { isNumericType } from "@/lib/cells";
+import { cellValue, displayCell, isNumericType } from "@/lib/cells";
+import { type GridValue } from "@/types";
 import { type GridColumn } from "./types";
 
 export const ROW_H = 24;
@@ -44,12 +45,46 @@ export function reorder(names: string[], from: string, target: string): string[]
   return rest;
 }
 
-/** Left edge of a column inside the scroll area (after the row numbers). */
-export function columnLeft(ordered: number[], col: number, width: (i: number) => number): number {
-  let left = ROWNUM_W;
+/** Left edge of a column inside the scroll area (after the row numbers, `numW` wide). */
+export function columnLeft(
+  ordered: number[],
+  col: number,
+  width: (i: number) => number,
+  numW = ROWNUM_W,
+): number {
+  let left = numW;
   for (const i of ordered) {
     if (i === col) break;
     left += width(i);
   }
   return left;
+}
+
+const FIT_SAMPLE = 500;
+const FIT_MAX = 600;
+let canvas: HTMLCanvasElement | null = null;
+
+/** Width of `text` in `font`; a rough estimate where there's no canvas (tests). */
+function textWidth(text: string, font: string): number {
+  canvas ??= document.createElement("canvas");
+  const ctx = canvas.getContext?.("2d");
+  if (!ctx) return text.length * 7;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+/** A width that shows the header and the longest of the first rows (TablePlus' "Expand
+ * columns to fit the content"), within reason. */
+export function fitWidth(
+  c: GridColumn,
+  values: (row: number) => GridValue,
+  rowCount: number,
+  font: string,
+): number {
+  let widest = textWidth(c.name, `600 ${font}`) + textWidth(c.typeName, font) * 0.8 + 34;
+  for (let r = 0; r < Math.min(rowCount, FIT_SAMPLE); r++) {
+    const text = displayCell(cellValue(values(r)));
+    widest = Math.max(widest, textWidth(text.slice(0, 200), font) + 18);
+  }
+  return Math.round(Math.max(MIN_W, Math.min(FIT_MAX, widest)));
 }

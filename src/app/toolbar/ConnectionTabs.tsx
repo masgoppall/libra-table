@@ -59,8 +59,10 @@ export function ConnectionTabs() {
       )}
       <button
         className="conn-tabs-new"
-        onClick={() => useStore.getState().setView(HOME)}
-        title={withShortcut("Open a connection", "home")}
+        onClick={() =>
+          view === HOME ? undefined : useStore.getState().openPalette("connection", view)
+        }
+        title={withShortcut("Open a connection", "open-connection")}
         aria-label="Open a connection"
       >
         <Plus size={13} />

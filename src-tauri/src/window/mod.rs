@@ -4,11 +4,16 @@
 //! closes (and the app quits). `mode` switches between the welcome and workspace shapes.
 
 mod chrome;
+pub mod holders;
 pub mod mode;
+pub mod windows;
+
+/// The app's first window; others show one connection each.
+pub const MAIN: &str = "main";
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{Emitter, Window, WindowEvent};
+use tauri::{Emitter, Manager, Window, WindowEvent};
 
 /// True while a connection (not the connections page) is visible.
 static IN_WORKSPACE: AtomicBool = AtomicBool::new(false);
@@ -21,6 +26,9 @@ pub fn set_in_workspace(visible: bool) {
 /// After resizes and focus changes, AppKit has moved the window buttons back: re-place
 /// them.
 pub fn on_event(window: &Window, event: &WindowEvent) {
+    if window.label() != MAIN {
+        return other_window_event(window, event);
+    }
     match event {
         WindowEvent::CloseRequested { api, .. } => {
             if IN_WORKSPACE.load(Ordering::Relaxed) {
@@ -32,6 +40,28 @@ pub fn on_event(window: &Window, event: &WindowEvent) {
         | WindowEvent::Focused(_)
         | WindowEvent::ScaleFactorChanged { .. }
         | WindowEvent::ThemeChanged(_) => chrome::place(window, mode::buttons()),
+        _ => {}
+    }
+}
+
+/// A connection window closes like any window; its connections close with it unless
+/// another window still shows them.
+fn other_window_event(window: &Window, event: &WindowEvent) {
+    match event {
+        WindowEvent::Destroyed => {
+            let orphaned = holders::release_window(window.label());
+            let app = window.app_handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let state = app.state::<crate::state::AppState>();
+                for id in orphaned {
+                    crate::connections::disconnect(&state, &id).await;
+                }
+            });
+        }
+        WindowEvent::Resized(_)
+        | WindowEvent::Focused(_)
+        | WindowEvent::ScaleFactorChanged { .. }
+        | WindowEvent::ThemeChanged(_) => chrome::place(window, mode::buttons_for_workspace()),
         _ => {}
     }
 }

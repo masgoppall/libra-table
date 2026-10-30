@@ -18,12 +18,22 @@ export interface CellPos {
   col: number;
 }
 
+/** A rectangle of cells: rows `top`..`bottom` and the columns between, as displayed. */
+export interface CellRange {
+  top: number;
+  bottom: number;
+  /** Column indexes, left to right in display order. */
+  cols: number[];
+}
+
 export interface DataGridProps {
   columns: GridColumn[];
   rowCount: number;
   getCell: (row: number, col: number) => GridValue;
   rowStatus?: (row: number) => RowStatus;
   isEdited?: (row: number, col: number) => boolean;
+  /** Search hits ("current" for the one stepped to). */
+  isMatch?: (row: number, col: number) => boolean | "current";
   editable?: boolean;
   onEdit?: (row: number, col: number, value: CellInput) => void;
   widths: Record<string, number>;
@@ -34,8 +44,19 @@ export interface DataGridProps {
   onSort?: (column: string, additive: boolean) => void;
   selected: Set<number>;
   onSelect: (rows: Set<number>, focusRow: number | null) => void;
-  onRowContextMenu?: (e: React.MouseEvent, row: number, col: number) => void;
-  onCopy?: () => void;
+  /** `range` is set when the click is inside a selected block of cells. */
+  onRowContextMenu?: (
+    e: React.MouseEvent,
+    row: number,
+    col: number,
+    range: CellRange | null,
+  ) => void;
+  /** ⌘C; `range` is the selected block of cells, null when rows are selected. */
+  onCopy?: (range: CellRange | null) => void;
+  /** ⌘V, with the focused cell (null when no cell is focused) and the selected block. */
+  onPaste?: (at: CellPos | null, range: CellRange | null) => void;
+  /** A double-click below the rows (or on the empty grid): TablePlus adds a row. */
+  onBlankDoubleClick?: () => void;
   onDeleteRows?: () => void;
   rowNumberOffset?: number;
   emptyText?: string;
@@ -44,6 +65,9 @@ export interface DataGridProps {
   /** Column names not shown. */
   hidden?: string[];
   onHeaderContextMenu?: (e: React.MouseEvent, col: number) => void;
+  /** Moves the focus to a cell and scrolls it into view (Jump to column or row); a new
+   * `seq` jumps again. */
+  reveal?: { at: CellPos; seq: number };
   /** Space on the focused cell (Quick Look). */
   onQuickLook?: (row: number, col: number) => void;
 }

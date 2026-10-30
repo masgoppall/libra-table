@@ -12,6 +12,8 @@ use crate::connections::{self, ConnectInfo, ConnectionInput, ImportedKeyInfo, Te
 use crate::models::{ConnectionView, Group, PromptedSecrets};
 use crate::state::AppState;
 
+use crate::window::holders;
+
 use super::Cmd;
 
 #[derive(Serialize)]
@@ -78,17 +80,36 @@ pub async fn test_connection(
 
 #[tauri::command]
 pub async fn connect(
+    window: tauri::Window,
     state: State<'_, AppState>,
     id: String,
     prompted: Option<PromptedSecrets>,
 ) -> Cmd<ConnectInfo> {
-    connections::connect(&state, &id, prompted.unwrap_or_default()).await
+    let info = connections::connect(&state, &id, prompted.unwrap_or_default()).await?;
+    holders::hold(&id, window.label());
+    Ok(info)
 }
 
+/// This window lets go of the connection; it closes once no window shows it, or right
+/// away with `force` (Reconnect).
 #[tauri::command]
-pub async fn disconnect(state: State<'_, AppState>, id: String) -> Cmd<()> {
-    connections::disconnect(&state, &id).await;
+pub async fn disconnect(
+    window: tauri::Window,
+    state: State<'_, AppState>,
+    id: String,
+    force: Option<bool>,
+) -> Cmd<()> {
+    if holders::release(&id, window.label()) || force.unwrap_or(false) {
+        connections::disconnect(&state, &id).await;
+    }
     Ok(())
+}
+
+/// Opens `id` in a window of its own, optionally with a tab (JSON) to show there.
+#[tauri::command]
+pub fn open_window(app: tauri::AppHandle, id: String, tab: Option<String>) -> Cmd<String> {
+    crate::window::windows::open(&app, &id, tab.as_deref())
+        .map_err(|e| crate::error::AppError::internal(e.to_string()))
 }
 
 #[tauri::command]

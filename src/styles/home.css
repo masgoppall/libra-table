@@ -549,3 +549,38 @@
   display: inline-block;
   width: 14px;
 }
+
+/* Custom tags (Settings › Tags) next to the environment tag, and their picker. */
+.label-chip {
+  position: relative;
+  top: 1px;
+  flex: none;
+  height: 15px;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 7.5px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--chip);
+  background: color-mix(in srgb, var(--chip) 18%, transparent);
+  white-space: nowrap;
+}
+.label-chip.pick {
+  top: 0;
+  height: 22px;
+  line-height: 20px;
+  padding: 0 9px;
+  margin: 0 4px 4px 0;
+  border: 1px solid color-mix(in srgb, var(--chip) 45%, transparent);
+  border-radius: 11px;
+  background: transparent;
+  cursor: default;
+}
+.label-chip.pick.on {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: #fff;
+}
+.tag-editor .color-input {
+  flex: none;
+}

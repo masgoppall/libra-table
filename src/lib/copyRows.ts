@@ -4,7 +4,7 @@ import { type Cell, type Dialect } from "@/types";
 import { cellText } from "./cells";
 import { qualifiedName, quoteIdent, sqlLiteral } from "./sql";
 
-export type CopyFormat = "tsv" | "csv" | "json" | "sql" | "markdown";
+export type CopyFormat = "tsv" | "csv" | "json" | "sql" | "markdown" | "html";
 
 export interface CopyOptions {
   driver: Dialect;
@@ -55,6 +55,21 @@ function toMarkdown(columns: string[], rows: Cell[][]): string {
   return [head, sep, ...body].join("\n");
 }
 
+function toHtml(columns: string[], rows: Cell[][]): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const line = (tag: string, values: string[]) =>
+    `    <tr>${values.map((v) => `<${tag}>${esc(v)}</${tag}>`).join("")}</tr>`;
+  const body = rows.map((r) =>
+    line(
+      "td",
+      r.map((v) => (v === null ? "NULL" : cellText(v))),
+    ),
+  );
+  return ["<table>", "  <thead>", line("th", columns), "  </thead>", "  <tbody>", ...body]
+    .concat(["  </tbody>", "</table>"])
+    .join("\n");
+}
+
 export function copyRows(
   format: CopyFormat,
   columns: string[],
@@ -73,5 +88,7 @@ export function copyRows(
       return toInserts(columns, rows, opts);
     case "markdown":
       return toMarkdown(columns, rows);
+    case "html":
+      return toHtml(columns, rows);
   }
 }

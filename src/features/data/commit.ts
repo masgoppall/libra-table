@@ -3,6 +3,7 @@
 import { api } from "@/api";
 import { isProduction } from "@/domain/connection";
 import { plural } from "@/lib/format";
+import { confirmDiscard } from "@/services/confirm";
 import { showError, toastSuccess } from "@/services/errors";
 import { writeDialogOptions } from "@/services/safeMode";
 import { store } from "@/store";
@@ -42,4 +43,22 @@ export async function commitChanges(t: CommitTarget, changes: Change[]): Promise
     showError(e);
     return false;
   }
+}
+
+/** Commit (⌘S) and refresh (asking before dropping uncommitted edits) of a data tab. */
+export function tableSaving(
+  target: CommitTarget,
+  changes: () => Change[] | null,
+  dirty: number,
+  load: () => void,
+) {
+  const commit = async () => {
+    const list = changes();
+    if (list && (await commitChanges(target, list))) load();
+  };
+  const reload = async () => {
+    const wording = { doing: "Refreshing", verb: "refresh", kind: "uncommitted" };
+    if (await confirmDiscard(dirty, wording)) load();
+  };
+  return { commit, reload };
 }

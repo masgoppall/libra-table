@@ -179,6 +179,7 @@ mod tests {
             driver: Driver::Postgres,
             tag: Tag::Local,
             color: String::new(),
+            labels: Vec::new(),
             db: Default::default(),
             ssh: Default::default(),
             tls: Default::default(),

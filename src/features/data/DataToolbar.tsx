@@ -135,3 +135,7 @@ export function DataToolbar(p: DataToolbarProps) {
     </div>
   );
 }
+
+/** Why the table is read-only (a read-only connection says so itself). */
+export const readOnlyNote = (editRows: boolean) =>
+  editRows ? "Read-only · no primary key" : "Read-only";

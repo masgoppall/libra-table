@@ -3,6 +3,7 @@
 
 import { type StateCreator } from "zustand";
 import { api } from "@/api";
+import { isConnectionWindow } from "@/lib/windowRole";
 import { type ConnectionView, type DriverEntry, type Group } from "@/types";
 import { savedOpenConnections } from "../persistence";
 import { type AppState } from "../types";
@@ -32,7 +33,8 @@ export const createConnectionsSlice: StateCreator<AppState, [], [], ConnectionsS
     const { connections, groups } = await api.listConnections();
     set({ connections, groups });
     const known = new Set(connections.map((c) => c.id));
-    const open = await savedOpenConnections();
+    // A connection window shows its own connection only (App opens it).
+    const open = isConnectionWindow ? [] : await savedOpenConnections();
     set({ restorable: open.filter((id) => known.has(id) && !get().workspaces[id]) });
   },
 });

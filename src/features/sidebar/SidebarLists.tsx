@@ -1,21 +1,21 @@
 // The sidebar's tables and views sections and its saved queries (recent items and other
 // schema objects are in RecentSection / ObjectGroups; databases are in "Open database").
 
-import { FileCode2, Plus } from "lucide-react";
-import { useState } from "react";
+import { FileCode2, Folder, Plus } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { type ContextMenuApi } from "@/components/ContextMenu";
 import { Highlight } from "@/components/Highlight";
 import { shortcutFor, withShortcut } from "@/lib/actions";
 import { type SearchResult } from "@/lib/fuzzy";
 import { activeTab, store } from "@/store";
 import { type ObjectInfo, type SavedQuery, type Workspace } from "@/types";
-import { openSavedQuery } from "../query/savedQueries";
+import { openSavedQuery, splitSavedName } from "../query/savedQueries";
 import { newTableTab, tableTab } from "../workspace/tabs";
 import { ObjectItem } from "./ObjectItem";
 import { pinMenuItem, sidebarItem } from "./pins";
 import { isPinned, pinnedFirst } from "./recentModel";
 import { objectMenu, savedQueryMenu, tablesMenu } from "./sidebarMenus";
-import { SideEmpty, SideHint, SideSection } from "./SideSection";
+import { Disclosure, SideEmpty, SideHint, SideSection } from "./SideSection";
 import { type SidebarItems } from "./useSidebarItems";
 import { type TableColumns } from "./useTableColumns";
 
@@ -70,8 +70,8 @@ export function ObjectSections(props: {
     );
   const tables = ofKind("table");
   const views = ofKind("view");
-  const openData = (name: string) =>
-    store.get().addTab(id, tableTab("data", name, { schema: ws.schema }), { reuse: true });
+  const openData = (name: string, newTab = false) =>
+    store.get().addTab(id, tableTab("data", name, { schema: ws.schema }), { reuse: true, newTab });
   const newTable = () => store.get().addTab(id, newTableTab(ws.schema));
 
   const render = ({ item: o, match }: SearchResult<ObjectInfo>) => (
@@ -82,7 +82,7 @@ export function ObjectSections(props: {
       active={isOpenTable(ws, o.name)}
       expanded={!!cols.expanded[o.name]}
       columns={cols.columns[o.name]}
-      onOpen={() => openData(o.name)}
+      onOpen={(newTab) => openData(o.name, newTab)}
       onToggle={() => void cols.toggle(o.name)}
       pinned={isPinned(items.pinned, itemOf(o))}
       onMenu={(e) => {
@@ -146,21 +146,67 @@ export function SavedQueryList(props: {
       </SideEmpty>
     );
   }
+  const row = ({ item: s, match }: SearchResult<SavedQuery>, inFolder: boolean) => {
+    const [folder, base] = splitSavedName(s.name);
+    const shift = folder === null ? 0 : folder.length + 1;
+    return (
+      <div
+        key={s.name}
+        className={`side-item${inFolder ? " in-folder" : ""}${active === s.name ? " active" : ""}`}
+        onClick={() => void openSavedQuery(ws.connectionId, s.name)}
+        onContextMenu={(e) => props.menu.open(e, savedQueryMenu(ws, s, props.reload))}
+        title={s.name}
+      >
+        <FileCode2 size={13} className="side-icon query" />
+        <span className="label">
+          <Highlight
+            text={base}
+            indexes={match.indexes.map((i) => i - shift).filter((i) => i >= 0)}
+          />
+        </span>
+      </div>
+    );
+  };
+  const { loose, folders } = byFolder(props.matches);
   return (
     <div className="side-flat">
-      {props.matches.map(({ item: s, match }) => (
-        <div
-          key={s.name}
-          className={`side-item${active === s.name ? " active" : ""}`}
-          onClick={() => void openSavedQuery(ws.connectionId, s.name)}
-          onContextMenu={(e) => props.menu.open(e, savedQueryMenu(ws, s, props.reload))}
-        >
-          <FileCode2 size={13} className="side-icon query" />
-          <span className="label">
-            <Highlight text={s.name} indexes={match.indexes} />
-          </span>
-        </div>
+      {folders.map(([folder, items]) => (
+        <QueryFolder key={folder} name={folder} count={items.length} open={!!props.query}>
+          {items.map((m) => row(m, true))}
+        </QueryFolder>
       ))}
+      {loose.map((m) => row(m, false))}
     </div>
+  );
+}
+
+function byFolder(matches: SearchResult<SavedQuery>[]) {
+  const loose: SearchResult<SavedQuery>[] = [];
+  const folders = new Map<string, SearchResult<SavedQuery>[]>();
+  for (const m of matches) {
+    const [folder] = splitSavedName(m.item.name);
+    if (folder === null) loose.push(m);
+    else folders.set(folder, [...(folders.get(folder) ?? []), m]);
+  }
+  const sorted = [...folders.entries()].sort(([a], [b]) => a.localeCompare(b));
+  return { loose, folders: sorted };
+}
+
+/** A folder of saved queries; open while searching. */
+function QueryFolder(props: { name: string; count: number; open: boolean; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(true);
+  const open = props.open || expanded;
+  return (
+    <>
+      <div className="side-item query-folder" onClick={() => setExpanded(!expanded)}>
+        <span className="side-caret">
+          <Disclosure open={open} />
+        </span>
+        <Folder size={13} className="side-icon folder" />
+        <span className="label">{props.name}</span>
+        <span className="side-count">{props.count}</span>
+      </div>
+      {open && props.children}
+    </>
   );
 }

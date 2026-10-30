@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   Check,
   Copy,
   CopyPlus,
@@ -14,6 +15,7 @@ import {
   Upload,
 } from "lucide-react";
 import { type MenuItem, SEPARATOR } from "@/components/ContextMenu";
+import { openInNewWindow } from "@/services/connect";
 import { store } from "@/store";
 import { type ConnectionView, type Group } from "@/types";
 import * as actions from "./connectionActions";
@@ -53,6 +55,11 @@ export function connectionMenu(c: ConnectionView, ctx: ConnectionMenuContext): M
       icon: <Plug size={14} />,
       hint: "↵",
       onClick: () => ctx.connect(c),
+    },
+    {
+      label: "Open in New Window",
+      icon: <AppWindow size={14} />,
+      onClick: () => void openInNewWindow(c.id),
     },
     ...(ctx.isOpen ? [disconnect] : []),
     { label: "Edit…", icon: <Pencil size={14} />, onClick: () => ctx.edit(c) },

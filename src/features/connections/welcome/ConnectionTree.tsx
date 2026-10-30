@@ -6,6 +6,7 @@ import { type ContextMenuApi, type MenuItem } from "@/components/ContextMenu";
 import { connectionSubtitle } from "@/domain/connection";
 import { type ConnectionView, type Group } from "@/types";
 import { toggleGroup } from "../connectionActions";
+import { LabelChips } from "../LabelChips";
 import { ChevronIcon, PlugCircleIcon } from "./icons";
 import { groupKey, type TreeRow } from "./tree";
 
@@ -86,6 +87,7 @@ function ConnectionRow(props: { row: Extract<TreeRow, { kind: "conn" }>; p: Conn
         <div className="tree-conn-line">
           <span className="tree-conn-name">{c.name}</span>
           <span className={`tag-badge ${c.tag}`}>{c.tag}</span>
+          <LabelChips labels={c.labels} />
           {isOpen && <span className="tree-open-dot" title="Open" />}
           {p.connecting === c.id && <Spinner size={11} className="tree-spinner" />}
         </div>

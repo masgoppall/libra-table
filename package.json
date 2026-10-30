@@ -1,7 +1,7 @@
 {
   "name": "libratable",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,9 +16,12 @@
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-sql": "^6.8.0",
+    "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.34.0",
+    "@replit/codemirror-vim": "^6.3.0",
     "@tanstack/react-virtual": "^3.10.8",
     "@tauri-apps/api": "^2.1.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.5.0",

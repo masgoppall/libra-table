@@ -101,4 +101,36 @@ describe("workspace model", () => {
     expect(m.tabDb(w, { database: "app" })).toBeNull();
     expect(m.tabDb(w, { database: "analytics" })).toBe("analytics");
   });
+
+  it("keeps the opened databases on a rail, saved with the tabs", () => {
+    const w = ws([tab("a")]);
+    expect(m.openDatabases(w)).toEqual(["app"]);
+    const opened = { ...w, ...m.withDatabase(w, "analytics") };
+    expect(opened).toMatchObject({ database: "analytics", schema: "public" });
+    expect(m.openDatabases(opened)).toEqual(["app", "analytics"]);
+    expect(m.toSaved(opened).databases).toEqual(["app", "analytics"]);
+    const restored = m.restoreWorkspace(w.info, w.caps, m.toSaved(opened));
+    expect(m.openDatabases(restored)).toEqual(["app", "analytics"]);
+  });
+
+  it("closes a database with its tabs and moves the sidebar to a remaining one", () => {
+    const w = {
+      ...ws([tab("a"), tab("e", { database: "analytics" })], "e"),
+      database: "analytics",
+      databases: ["app", "analytics"],
+    };
+    const closed = { ...w, ...m.closeDatabase(w, "analytics") };
+    expect(closed.tabs.map((t) => t.id)).toEqual(["a"]);
+    expect(closed.activeTabId).toBe("a");
+    expect(closed.database).toBe("app");
+    expect(m.openDatabases(closed)).toEqual(["app"]);
+    // The last database can't be closed.
+    expect(m.closeDatabase(closed, "app")).toEqual({});
+  });
+
+  it("brings the sidebar to the database of the tab that becomes active", () => {
+    const w = { ...ws([tab("a"), tab("e", { database: "analytics", schema: "events" })], "e") };
+    expect(m.followActiveTab(w)).toMatchObject({ database: "analytics", schema: "events" });
+    expect(m.followActiveTab({ ...w, activeTabId: "a" })).toEqual({});
+  });
 });

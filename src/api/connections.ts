@@ -9,6 +9,7 @@ import {
   type Group,
   type ImportedKeyInfo,
   type ImportReport,
+  type NewTab,
   type PromptedSecrets,
   type SecretsInput,
   type TestResult,
@@ -33,7 +34,12 @@ export const connectionsApi = {
     }),
   connect: (id: string, prompted?: PromptedSecrets) =>
     call<ConnectInfo>("connect", { id, prompted: prompted ?? null }),
-  disconnect: (id: string) => call<void>("disconnect", { id }),
+  /** This window lets go of the connection (closed once no window shows it); `force`
+   * closes it anyway (Reconnect). */
+  disconnect: (id: string, force = false) => call<void>("disconnect", { id, force }),
+  /** Opens a connection in a window of its own, optionally with a tab moved there. */
+  openWindow: (id: string, tab: NewTab | null = null) =>
+    call<string>("open_window", { id, tab: tab ? JSON.stringify(tab) : null }),
   openSessions: () => call<string[]>("open_sessions"),
   trustHostKey: (host: string, port: number) => call<void>("trust_host_key", { host, port }),
   connectionUrl: (id: string) => call<string>("connection_url", { id }),

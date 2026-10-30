@@ -4,6 +4,7 @@
 //! commands in `commands/` and listens to events (`export-progress`, `tool-progress`,
 //! `console-log`, `deep-link`, `menu`, `close-requested`).
 
+pub mod ai;
 pub mod app_lock;
 pub mod commands;
 pub mod connections;

@@ -1,4 +1,4 @@
-import { CircleStop, Database, Play, PlayCircle, Save } from "lucide-react";
+import { CircleStop, Database, Play, PlayCircle, Save, Sparkles } from "lucide-react";
 import { withShortcut } from "@/lib/actions";
 import { QueryTools, type QueryToolsProps } from "./QueryTools";
 
@@ -14,6 +14,8 @@ export interface QueryToolbarProps {
   onRunAll: () => void;
   onCancel: () => void;
   onSave: () => void;
+  /** Opens the SQL assistant; absent when it is off. */
+  onAsk?: () => void;
   tools: QueryToolsProps;
 }
 
@@ -69,6 +71,15 @@ export function QueryToolbar(p: QueryToolbarProps) {
       <QueryTools {...p.tools} />
       {p.databases.length > 0 && <DatabasePicker {...p} />}
       <span className="spacer" />
+      {p.onAsk && (
+        <button
+          className="btn sm"
+          onClick={p.onAsk}
+          title={withShortcut("Write SQL from a question", "ask-ai")}
+        >
+          <Sparkles size={13} /> Ask AI
+        </button>
+      )}
       {p.production && <span className="badge production">production</span>}
       <button className="btn sm" onClick={p.onSave} title={withShortcut("Save", "save")}>
         <Save size={13} /> {p.saved ? "Save" : "Save as…"}

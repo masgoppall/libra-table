@@ -80,6 +80,10 @@ pub fn build(driver: Dialect, change: &SchemaChange, ctx: &Ctx) -> AppResult<Pla
             sql(&mut steps, drop_database(driver, name, *force)?);
             Exec::Sequential
         }
+        SchemaChange::RenameDatabase { from, to } => {
+            sql(&mut steps, rename_database(driver, from, to)?);
+            Exec::Sequential
+        }
         SchemaChange::AlterTable {
             schema,
             name,
@@ -187,6 +191,7 @@ fn object_steps(
         | SchemaChange::ResetSequence { .. } => objects::steps(driver, change, ctx, steps)?,
         SchemaChange::CreateDatabase { .. }
         | SchemaChange::DropDatabase { .. }
+        | SchemaChange::RenameDatabase { .. }
         | SchemaChange::AlterTable { .. } => unreachable!("handled by build"),
     }
     Ok(())
@@ -284,6 +289,24 @@ fn drop_database(driver: Dialect, name: &str, force: bool) -> AppResult<String> 
         Dialect::Mysql => Ok(format!("DROP DATABASE {db}")),
         Dialect::Sqlite => Err(bad(
             "An SQLite database is a file: delete the file to remove it.",
+        )),
+    }
+}
+
+fn rename_database(driver: Dialect, from: &str, to: &str) -> AppResult<String> {
+    need_name("The database", from)?;
+    need_name("The new database", to)?;
+    match driver {
+        Dialect::Postgres => Ok(format!(
+            "ALTER DATABASE {} RENAME TO {}",
+            quote_ident(driver, from),
+            quote_ident(driver, to)
+        )),
+        Dialect::Mysql => Err(bad(
+            "MySQL can't rename a database. Create a new one and move the tables into it.",
+        )),
+        Dialect::Sqlite => Err(bad(
+            "An SQLite database is a file: rename the file instead.",
         )),
     }
 }

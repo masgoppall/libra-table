@@ -85,6 +85,7 @@ export interface AlterTable {
 export type SchemaChange =
   | { kind: "create_database"; name: string; options: DatabaseOptions }
   | { kind: "drop_database"; name: string; force?: boolean }
+  | { kind: "rename_database"; from: string; to: string }
   | { kind: "create_schema"; name: string }
   | { kind: "drop_schema"; name: string; cascade?: boolean }
   | CreateTable

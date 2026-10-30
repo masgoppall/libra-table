@@ -67,6 +67,7 @@ describe("workspace", () => {
       "Close Tabs to the Right",
       "Close all Tabs",
       "Rename Tab",
+      "Move Tab to New Window",
     ]);
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -104,5 +105,109 @@ describe("workspace", () => {
       database: null,
       request: { table: "people" },
     });
+  });
+
+  it("shows opened databases on a rail: switch, follow the tab, close", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    fireEvent.click(within(sidebar()).getByText("people"));
+    await screen.findByText("Alice");
+    expect(document.querySelector(".db-rail")).toBeNull();
+
+    press("KeyK", "k");
+    await within(query(".dbs-sheet")).findByText("analytics");
+    fireEvent.doubleClick(within(query(".dbs-sheet")).getByText("analytics"));
+    const rail = () => query(".db-rail");
+    const shown = () => within(rail()).getByRole("tab", { selected: true }).textContent;
+    await waitFor(() => expect(shown()).toBe("analytics"));
+    fireEvent.click(await within(sidebar()).findByText("events"));
+    await waitFor(() => expect(tabs().length).toBe(2));
+
+    // The people tab brings the sidebar back to its database.
+    fireEvent.mouseDown(tabAt(0));
+    await waitFor(() => expect(shown()).toBe("app"));
+    fireEvent.click(within(rail()).getByRole("tab", { name: "analytics" }));
+    await waitFor(() => expect(shown()).toBe("analytics"));
+
+    fireEvent.contextMenu(within(rail()).getByRole("tab", { name: "analytics" }));
+    fireEvent.click(await screen.findByText("Close database"));
+    await waitFor(() => expect(document.querySelector(".db-rail")).toBeNull());
+    // One database left: the tab no longer names it.
+    expect(tabs().map((t) => t.textContent)).toEqual(["people"]);
+  });
+
+  it("opens another connection from inside one with ⇧⌘K", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    press("KeyK", "K", { shiftKey: true });
+    const sheet = await screen.findByRole("dialog", { name: "Open connection" });
+    expect(within(sheet).getByText("Local Postgres")).toBeTruthy();
+    fireEvent.change(within(sheet).getByPlaceholderText("Search for connection..."), {
+      target: { value: "prod" },
+    });
+    fireEvent.doubleClick(await within(sheet).findByText("Prod Shop"));
+    await waitFor(() => expect(document.querySelectorAll(".conn-tab").length).toBe(2));
+    expect(screen.queryByRole("dialog", { name: "Open connection" })).toBeNull();
+  });
+});
+
+describe("tables opened in place", () => {
+  it("replaces the table tab and goes back and forward", async () => {
+    h.backend.settings = { ...h.backend.settings, openInNewTab: false };
+    renderApp();
+    await openWorkspace("Local Postgres");
+    fireEvent.click(query('.side-item[title="people"]'));
+    await screen.findByText("Alice");
+    fireEvent.click(query('.side-item[title="orders"]'));
+    await waitFor(() => expect(tabAt(0).textContent).toContain("orders"));
+    expect(tabs().length).toBe(1);
+
+    press("BracketLeft", "[", { altKey: true });
+    await waitFor(() => expect(tabAt(0).textContent).toContain("people"));
+    await screen.findByText("Alice");
+    fireEvent.click(screen.getByRole("button", { name: "Forward" }));
+    await waitFor(() => expect(tabAt(0).textContent).toContain("orders"));
+
+    // ⌘-click still opens a tab of its own.
+    fireEvent.click(query('.side-item[title="people"]'), { metaKey: true, ctrlKey: true });
+    await waitFor(() => expect(tabs().length).toBe(2));
+  });
+});
+
+describe("reconnect", () => {
+  it("reconnects with ⇧⌘R and keeps the tabs", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    fireEvent.click(query('.side-item[title="people"]'));
+    await screen.findByText("Alice");
+    press("KeyR", "r", { shiftKey: true });
+    await waitFor(() => expect(h.backend.callsOf("connect").length).toBe(2));
+    expect(h.backend.callsOf("disconnect").length).toBe(1);
+    expect(tabs().length).toBe(1);
+    await screen.findByText("Reconnected.");
+  });
+});
+
+describe("windows", () => {
+  it("moves a tab to a new window of the same connection", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    fireEvent.click(query('.side-item[title="people"]'));
+    await screen.findByText("Alice");
+    fireEvent.contextMenu(tabAt(0));
+    fireEvent.click(screen.getByText("Move Tab to New Window"));
+    await waitFor(() => expect(tabs().length).toBe(0));
+    const args = h.backend.lastCall("open_window")?.args;
+    expect(args?.id).toBe("c-local");
+    const tab = JSON.parse(args?.tab);
+    expect(tab).toMatchObject({ kind: "data", table: "people" });
+    expect(tab.id).toBeUndefined();
+  });
+
+  it("opens the connection in a new window with ⌥⌘N", async () => {
+    renderApp();
+    await openWorkspace("Local Postgres");
+    press("KeyN", "n", { altKey: true });
+    await waitFor(() => expect(h.backend.lastCall("open_window")?.args.tab).toBeNull());
   });
 });

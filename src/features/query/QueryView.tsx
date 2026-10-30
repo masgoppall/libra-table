@@ -7,12 +7,14 @@ import { defaultSchema } from "@/domain/schema";
 import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { LAYER, useActions } from "@/lib/actions";
 import { canAnalyze } from "@/lib/explainPlan";
-import { store, useConnection, useIsTabVisible } from "@/store";
+import { store, useConnection, useIsTabVisible, useStore } from "@/store";
 import { type Workspace, type WorkspaceTab } from "@/types";
 import { ExportDialog } from "../export/ExportDialog";
 import { QueryToolbar } from "./QueryToolbar";
 import { ResultsPane } from "./ResultsPane";
 import { saveQuery } from "./saveQuery";
+import { convertIndentation, transformSelection, trimTrailingWhitespace } from "./editor/editing";
+import { AskBar } from "./AskBar";
 import { SqlEditor } from "./SqlEditor";
 import { useEditorSplit } from "./useEditorSplit";
 import { useQueryActions } from "./useQueryActions";
@@ -49,10 +51,15 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     "cancel-query": runner.cancel,
     explain: () => (ws.caps.explain ? void actions.explain(false) : false),
     "format-sql": () => (ws.caps.sqlDialect ? actions.format() : false),
+    "trim-whitespace": () => {
+      const view = editorRef.current?.view;
+      return view ? void trimTrailingWhitespace(view) : false;
+    },
     save: () => void save(),
     export: () => (canExport && result ? setExportSql(result.sql) : false),
     // Results don't refresh on ⌘R; the sidebar does (next layer).
     refresh: () => false,
+    "ask-ai": () => (aiOn ? openAsk() : false),
   });
 
   // "Run again" from history: run once when the tab first shows.
@@ -61,6 +68,10 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     updateTab(id, tab.id, { autoRun: undefined });
     void runner.run(text);
   }, []);
+
+  const aiOn = useStore((st) => !!st.settings?.aiEnabled) && ws.caps.sqlDialect !== null;
+  const [asking, setAsking] = useState(0);
+  const openAsk = () => setAsking((n) => n + 1);
 
   const pickDatabase = (d: string) =>
     updateTab(id, tab.id, { database: d, schema: defaultSchema(ws.info.dialect, d) });
@@ -78,6 +89,7 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
         onRunAll={() => void actions.runAll()}
         onCancel={runner.cancel}
         onSave={() => void save()}
+        onAsk={aiOn ? openAsk : undefined}
         tools={{
           running: !!runner.running,
           canExplain: ws.caps.explain,
@@ -85,8 +97,25 @@ export function QueryView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
           canAnalyze: canAnalyze(ws.info.dialect),
           onExplain: (analyze) => void actions.explain(analyze),
           onFormat: actions.format,
+          onTool: (t) => {
+            const view = editorRef.current?.view;
+            if (!view) return;
+            if (t.kind === "trim") trimTrailingWhitespace(view);
+            else if (t.kind === "indent") convertIndentation(view, t.to);
+            else transformSelection(view, t.transform);
+            view.focus();
+          },
         }}
       />
+      {aiOn && asking > 0 && (
+        <AskBar
+          ws={ws}
+          completion={ctx.completion}
+          editorRef={editorRef}
+          focusSignal={asking}
+          onClose={() => setAsking(0)}
+        />
+      )}
       <div className="editor-split">
         <div className="editor-pane" style={{ height: `${split.height}%` }}>
           <SqlEditor

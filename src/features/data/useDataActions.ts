@@ -11,6 +11,9 @@ export interface DataActionHandlers {
   reload: () => void;
   focusFilters: () => void;
   addRow: () => void;
+  duplicateRows: () => void;
+  jump: () => void;
+  findReplace: () => void;
   discard: () => void;
   undo: () => boolean;
   prevPage: () => void;
@@ -26,6 +29,9 @@ export function useDataActions(visible: boolean, h: DataActionHandlers) {
     refresh: h.reload,
     filter: h.focusFilters,
     "add-row": h.addRow,
+    "duplicate-row": h.duplicateRows,
+    "jump-to": h.jump,
+    "find-replace": h.findReplace,
     discard: () => (h.dirty ? h.discard() : false),
     // Text fields keep ⌘Z for themselves.
     undo: () => (isEditingText() ? false : h.undo()),

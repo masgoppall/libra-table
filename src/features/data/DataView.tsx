@@ -3,18 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { useContextMenu } from "@/components/ContextMenu";
 import { PaddedError } from "@/components/ErrorCallout";
+import { orderColumns } from "@/components/grid/columns";
 import { DataGrid } from "@/components/grid/DataGrid";
 import { LoadingState } from "@/components/StateView";
-import { confirmDiscard } from "@/services/confirm";
-import { toastInfo } from "@/services/errors";
 import { store, tabDb, useConnection, useIsTabVisible } from "@/store";
 import { type PageRequest, type Workspace, type WorkspaceTab } from "@/types";
 import { ExportDialog } from "../export/ExportDialog";
 import { switchTableView } from "../workspace/TableViewSwitch";
-import { commitChanges } from "./commit";
+import { tableSaving } from "./commit";
 import { DataStatusBar } from "./DataStatusBar";
-import { DataToolbar } from "./DataToolbar";
+import { DataToolbar, readOnlyNote } from "./DataToolbar";
 import { FilterBar } from "./filters/FilterBar";
+import { useGridFinders } from "./useGridFinders";
 import * as edits from "./pending";
 import { openReferencedRow } from "./foreignKeys";
 import { RowDetail } from "./RowDetail";
@@ -24,14 +24,12 @@ import { useColumnControls } from "./useColumnControls";
 import { useDataActions } from "./useDataActions";
 import { useDataFilters } from "./useDataFilters";
 import { useGridColumns } from "./useGridColumns";
-import { usePendingEdits } from "./usePendingEdits";
+import { useRowSelection, useTabPendingEdits } from "./usePendingEdits";
 import { useQuickLook } from "./useQuickLook";
+import { useRowEditing } from "./useRowEditing";
 import { useTablePage } from "./useTablePage";
 import { useTableRelations } from "./useTableRelations";
 import { useTableState } from "./useTableState";
-
-const NO_PK_HINT = "Add a primary key in the structure tab, or insert rows with a query.";
-const READ_ONLY_HINT = "Turn off Read-only in the connection settings to edit rows.";
 
 export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const id = ws.connectionId;
@@ -42,26 +40,16 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const visible = useIsTabVisible(id, tab.id);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(conn?.options.pageSize ?? 300);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [focusRow, setFocusRow] = useState<number | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const menu = useContextMenu();
-  const pendingEdits = usePendingEdits();
+  const pendingEdits = useTabPendingEdits(tab.id);
   const { pending, dirty } = pendingEdits;
-  useEffect(() => {
-    store.get().setPendingEdits(tab.id, dirty);
-  }, [tab.id, dirty]);
-  useEffect(() => () => store.get().setPendingEdits(tab.id, 0), [tab.id]);
-
-  const clearSelection = () => {
-    setSelected(new Set());
-    setFocusRow(null);
-  };
+  const { selected, setSelected, focusRow, selectRows } = useRowSelection();
   const loaded = useTablePage(id, db, () => {
     pendingEdits.reset();
-    clearSelection();
+    selectRows(new Set(), null);
   });
   const { result } = loaded;
 
@@ -74,11 +62,6 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const primaryKey = result?.primaryKey ?? [];
   const readOnlyConn = !!conn?.options.readOnly;
   const editable = primaryKey.length > 0 && !readOnlyConn && ws.caps.editRows;
-  const readOnlyNote = readOnlyConn
-    ? "Read-only connection"
-    : ws.caps.editRows
-      ? "Read-only · no primary key"
-      : "Read-only";
   const baseRows = result?.rows.length ?? 0;
 
   // `request` is defined below; the filters only call it on demand (SQL preview).
@@ -115,40 +98,57 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
   const onEdit = (r: number, c: number, value: Parameters<typeof edits.editCell>[4]) =>
     result && pendingEdits.update((p) => edits.editCell(p, result, r, c, value));
 
-  const addRow = () => {
-    if (readOnlyConn) return toastInfo("This connection is read-only.", READ_ONLY_HINT);
-    if (!ws.caps.editRows) return toastInfo("Editing rows isn't available for this database.");
-    if (!editable)
-      return toastInfo("This table has no primary key, so it is read-only here.", NO_PK_HINT);
-    const r = baseRows + pending.inserts.length;
-    pendingEdits.update(edits.addInsert);
-    setSelected(new Set([r]));
-    setFocusRow(r);
-  };
-
-  const deleteSelected = () => {
-    if (!editable || selected.size === 0) return;
-    pendingEdits.update((p) => edits.toggleDeletes(p, selected, baseRows));
-    setSelected(new Set());
-  };
-
-  const commit = async () => {
-    if (!result) return;
-    const target = { connectionId: id, db, schema, table };
-    if (await commitChanges(target, edits.buildChanges(pending, result))) load();
-  };
-
-  const reload = async () => {
-    const wording = { doing: "Refreshing", verb: "refresh", kind: "uncommitted" };
-    if (await confirmDiscard(dirty, wording)) load();
-  };
+  const { commit, reload } = tableSaving(
+    { connectionId: id, db, schema, table },
+    () => result && edits.buildChanges(pending, result),
+    dirty,
+    load,
+  );
 
   const onSort = (column: string, additive: boolean) => {
     tableState.save({ sort: nextSort(ts?.sort ?? [], column, additive) });
     setPage(0);
   };
 
+  const controls = useColumnControls({
+    columns,
+    state: ts,
+    save: tableState.save,
+    filterColumn: filters.filterColumn,
+    menu,
+    rowCount: baseRows + pending.inserts.length,
+    getCell,
+  });
+  const visibleColumns = orderColumns(columns, ts?.columnOrder, controls.hidden);
+  const rowCount = baseRows + pending.inserts.length;
+  const rows = useRowEditing({
+    result,
+    pending,
+    update: pendingEdits.update,
+    getCell,
+    visibleColumns,
+    selected,
+    select: selectRows,
+    readOnlyConnection: readOnlyConn,
+    editRows: ws.caps.editRows,
+    editable,
+  });
+  const { addRow, deleteSelected } = rows;
+  const finders = useGridFinders({
+    columns: columns.map((c) => c.name),
+    visible: visibleColumns,
+    rowCount,
+    rowOffset: page * pageSize,
+    getCell,
+    isDeleted: (r) => pending.deletes.has(r),
+    editable,
+    setCells: rows.setCells,
+  });
+
   const quickLook = useQuickLook({ connectionId: id, db, schema, table }, result);
+  const look = ws.caps.quickLook
+    ? (r: number, c: number) => quickLook.show(r, c, getCell(r, c))
+    : undefined;
   const cells = useCellActions({
     driver: ws.info.dialect,
     qualifiedTable: `${schema}.${table}`,
@@ -162,16 +162,10 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     onEdit,
     filterBy: filters.filterByValue,
     deleteRows: deleteSelected,
-    quickLook: ws.caps.quickLook ? (r, c) => quickLook.show(r, c, getCell(r, c)) : undefined,
+    duplicate: rows.duplicate,
+    paste: (at, range) => void rows.paste(at, range),
+    quickLook: look,
     openReference: (ref, value) => openReferencedRow(ws, tab, ref, value),
-    menu,
-  });
-
-  const controls = useColumnControls({
-    columns,
-    state: ts,
-    save: tableState.save,
-    filterColumn: filters.filterColumn,
     menu,
   });
 
@@ -193,6 +187,9 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
     reload: () => void reload(),
     focusFilters: () => filters.toggle(true),
     addRow,
+    duplicateRows: rows.duplicate,
+    jump: () => finders.openJump(focusRow),
+    findReplace: finders.openFind,
     discard: pendingEdits.discard,
     undo: pendingEdits.undo,
     prevPage: () => setPage(page - 1),
@@ -212,7 +209,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
         loading={loaded.loading}
         editable={editable}
         loaded={!!result}
-        readOnlyNote={readOnlyNote}
+        readOnlyNote={readOnlyConn ? "Read-only connection" : readOnlyNote(ws.caps.editRows)}
         hasSelection={selected.size > 0}
         dirty={dirty}
         detailOpen={showDetail}
@@ -244,16 +241,17 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
           onPreview={filters.preview}
         />
       )}
+      {finders.findBar}
       <PaddedError error={loaded.error} />
       <div className="grid-wrap">
         {result && (
           <DataGrid
             columns={columns}
-            rowCount={baseRows + pending.inserts.length}
+            rowCount={rowCount}
+            reveal={finders.reveal}
+            isMatch={finders.isMatch}
             getCell={getCell}
-            rowStatus={(r) =>
-              r >= baseRows ? "inserted" : pending.deletes.has(r) ? "deleted" : undefined
-            }
+            rowStatus={(r) => edits.rowStatus(pending, baseRows, r)}
             isEdited={(r, c) => edits.isEdited(pending, result, r, c)}
             editable={editable}
             onEdit={onEdit}
@@ -264,17 +262,14 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
             sort={ts?.sort}
             onSort={onSort}
             selected={selected}
-            onSelect={(rows, focus) => {
-              setSelected(rows);
-              setFocusRow(focus);
-            }}
+            onSelect={selectRows}
             onRowContextMenu={cells.openMenu}
-            onCopy={() => void cells.copy("tsv")}
+            onCopy={(range) => void cells.copy("tsv", range)}
+            onPaste={(at, range) => void rows.paste(at, range)}
+            onBlankDoubleClick={addRow}
             hidden={controls.hidden}
             onHeaderContextMenu={controls.openHeaderMenu}
-            onQuickLook={
-              ws.caps.quickLook ? (r, c) => quickLook.show(r, c, getCell(r, c)) : undefined
-            }
+            onQuickLook={look}
             onDeleteRows={deleteSelected}
             rowNumberOffset={page * pageSize}
             emptyText={filters.activeCount ? "No rows match the filters." : "This table is empty."}
@@ -311,6 +306,7 @@ export function DataView({ ws, tab }: { ws: Workspace; tab: WorkspaceTab }) {
       />
       {menu.node}
       {quickLook.node}
+      {finders.jumpSheet}
       {exporting && (
         <ExportDialog
           ws={ws}

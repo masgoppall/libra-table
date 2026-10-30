@@ -11,6 +11,8 @@ export type ActionId =
   | "export"
   | "close-tab"
   | "disconnect"
+  | "reconnect"
+  | "reconnect-all"
   | "refresh"
   | "toggle-sidebar"
   | "toggle-detail"
@@ -20,6 +22,9 @@ export type ActionId =
   | "font-reset"
   | "filter"
   | "add-row"
+  | "duplicate-row"
+  | "jump-to"
+  | "find-replace"
   | "discard"
   | "undo"
   | "prev-page"
@@ -30,11 +35,17 @@ export type ActionId =
   | "cancel-query"
   | "explain"
   | "format-sql"
+  | "trim-whitespace"
+  | "ask-ai"
   | "history"
   | "open-anything"
   | "switch-database"
+  | "open-connection"
+  | "new-window"
   | "next-tab"
   | "prev-tab"
+  | "tab-back"
+  | "tab-forward"
   | "home"
   | "settings"
   | "shortcuts"
@@ -50,6 +61,8 @@ export type ActionId =
   | "export-tables"
   | "open-diagram"
   | "open-metrics"
+  | "compare-schema"
+  | "backup-schedules"
   | TabNumberAction;
 
 export type ShortcutGroup = "General" | "Tabs" | "Data" | "Query" | "View";
@@ -74,6 +87,8 @@ const general = (id: ActionId, label: string, keys: string): Shortcut => ({
 export const SHORTCUTS: Shortcut[] = [
   general("open-anything", "Open table, view or query", "Mod+P"),
   general("switch-database", "Open database", "Mod+K"),
+  general("open-connection", "Open another connection", "Mod+Shift+K"),
+  general("new-window", "This connection in a new window", "Mod+Alt+N"),
   general("new-connection", "New connection", "Mod+N"),
   general("new-table", "New table", "Mod+Shift+N"),
   general("save", "Save query / commit changes / apply structure", "Mod+S"),
@@ -83,6 +98,7 @@ export const SHORTCUTS: Shortcut[] = [
   general("shortcuts", "Keyboard shortcuts", "Mod+/"),
   general("home", "Connections", "Mod+Shift+H"),
   general("disconnect", "Disconnect", "Mod+Shift+W"),
+  general("reconnect", "Reconnect", "Mod+Shift+R"),
   general("lock", "Lock LibraTable", "Mod+Shift+L"),
 
   { id: "new-query", label: "New query tab", keys: "Mod+T", group: "Tabs" },
@@ -92,10 +108,20 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "next-tab", label: "Next tab", keys: "Ctrl+Tab", group: "Tabs" },
   { id: "prev-tab", label: "Previous tab", keys: "Ctrl+Shift+Tab", group: "Tabs" },
   { id: "tab-1", label: "Go to tab 1…9", keys: "Mod+1", group: "Tabs" },
+  { id: "tab-back", label: "Back (what the tab showed before)", keys: "Mod+Alt+[", group: "Tabs" },
+  { id: "tab-forward", label: "Forward", keys: "Mod+Alt+]", group: "Tabs" },
   { id: "history", label: "Query history", keys: "Mod+Y", group: "Tabs" },
 
   { id: "filter", label: "Filter rows", keys: "Mod+F", group: "Data" },
   { id: "add-row", label: "Add row", keys: "Mod+I", group: "Data" },
+  { id: "duplicate-row", label: "Duplicate selected rows", keys: "Mod+D", group: "Data" },
+  { id: "jump-to", label: "Jump to column or row", keys: "Mod+J", group: "Data" },
+  {
+    id: "find-replace",
+    label: "Search and replace within table",
+    keys: "Mod+Alt+R",
+    group: "Data",
+  },
   { id: "undo", label: "Undo last edit", keys: "Mod+Z", group: "Data" },
   { id: "prev-page", label: "Previous page", keys: "Mod+[", group: "Data" },
   { id: "next-page", label: "Next page", keys: "Mod+]", group: "Data" },
@@ -113,6 +139,7 @@ export const SHORTCUTS: Shortcut[] = [
   // ⌘I is "Add row" here, so Beautify (⌘I in TablePlus) moves to ⌥⌘F.
   { id: "explain", label: "Explain statement at cursor", keys: "Mod+Alt+E", group: "Query" },
   { id: "format-sql", label: "Beautify SQL (selection or all)", keys: "Mod+Alt+F", group: "Query" },
+  { id: "ask-ai", label: "Ask the SQL assistant", keys: "Mod+Shift+I", group: "Query" },
 
   { id: "toggle-sidebar", label: "Toggle sidebar", keys: "Mod+\\", group: "View" },
   { id: "toggle-console", label: "Console log", keys: "Mod+Shift+C", group: "View" },
@@ -134,6 +161,10 @@ export const UNBOUND_ACTIONS: Partial<Record<ActionId, string>> = {
   "export-tables": "Export tables…",
   "open-diagram": "ER diagram",
   "open-metrics": "Metrics",
+  "trim-whitespace": "Trim trailing whitespace",
+  "compare-schema": "Compare schema…",
+  "backup-schedules": "Backup schedules…",
+  "reconnect-all": "Reconnect all connections",
 };
 
 export const tabAction = (n: number): TabNumberAction => `tab-${n}`;
@@ -151,12 +182,16 @@ export const NON_ACTION_KEYS: Partial<Record<ShortcutGroup, [string, string][]>>
     ["↵ / F2", "Edit the focused cell (or just start typing)"],
     ["⇥ / ⇧⇥", "Next / previous cell"],
     ["⌫", "Delete selected rows"],
-    ["⌘C", "Copy selected rows"],
+    ["⌘C", "Copy selected rows (or the selected cells)"],
     ["⌘A", "Select all rows on the page"],
     ["⇧↑ / ⇧↓", "Extend the selection"],
+    ["⇧← / ⇧→", "Select a block of cells (or drag across cells)"],
+    ["⌘V", "Paste rows, a value or a block of cells"],
   ],
   Query: [
     ["⌘/", "Comment / uncomment lines"],
+    ["⌥⌘/", "Block comment / uncomment"],
+    ["⌘] / ⌘[", "Shift lines right / left"],
     ["⌘F", "Find in the editor"],
     ["⌃Space", "Autocomplete"],
   ],

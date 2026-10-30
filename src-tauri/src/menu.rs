@@ -38,6 +38,8 @@ const FILE: &[Section] = &[
     &[
         ("close-tab", "Close Tab", Some("CmdOrCtrl+W")),
         ("disconnect", "Disconnect", Some("CmdOrCtrl+Shift+W")),
+        ("reconnect", "Reconnect", Some("CmdOrCtrl+Shift+R")),
+        ("reconnect-all", "Reconnect All", None),
     ],
 ];
 
@@ -67,6 +69,13 @@ const DATA: &[Section] = &[
     &[
         ("filter", "Filter", Some("CmdOrCtrl+F")),
         ("add-row", "Add Row", Some("CmdOrCtrl+I")),
+        ("duplicate-row", "Duplicate Row", Some("CmdOrCtrl+D")),
+        ("jump-to", "Jump to Column or Row…", Some("CmdOrCtrl+J")),
+        (
+            "find-replace",
+            "Search and Replace Within Table…",
+            Some("CmdOrCtrl+Alt+R"),
+        ),
         ("discard", "Discard Changes", None),
     ],
     &[
@@ -93,6 +102,12 @@ const QUERY: &[Section] = &[
     &[
         ("explain", "Explain Statement", Some("CmdOrCtrl+Alt+E")),
         ("format-sql", "Beautify SQL", Some("CmdOrCtrl+Alt+F")),
+        ("trim-whitespace", "Trim Trailing Whitespace", None),
+        (
+            "ask-ai",
+            "Ask the SQL Assistant…",
+            Some("CmdOrCtrl+Shift+I"),
+        ),
     ],
     &[("history", "Query History", Some("CmdOrCtrl+Y"))],
 ];
@@ -102,7 +117,11 @@ const TOOLS: &[Section] = &[
         ("process-list", "Process List", None),
         ("users", "Users & Privileges", None),
     ],
-    &[("backup", "Backup…", None), ("restore", "Restore…", None)],
+    &[
+        ("backup", "Backup…", None),
+        ("restore", "Restore…", None),
+        ("backup-schedules", "Backup Schedules…", None),
+    ],
     &[("command-line", "Open in Command Line", None)],
 ];
 
@@ -110,15 +129,24 @@ const GO: &[Section] = &[
     &[
         ("open-anything", "Open Table or Query…", Some("CmdOrCtrl+P")),
         ("switch-database", "Open Database…", Some("CmdOrCtrl+K")),
+        (
+            "open-connection",
+            "Open Connection…",
+            Some("CmdOrCtrl+Shift+K"),
+        ),
+        ("new-window", "New Window", Some("CmdOrCtrl+Alt+N")),
     ],
     &[
         ("next-tab", "Next Tab", Some("CmdOrCtrl+Shift+]")),
         ("prev-tab", "Previous Tab", Some("CmdOrCtrl+Shift+[")),
+        ("tab-back", "Back", Some("CmdOrCtrl+Alt+[")),
+        ("tab-forward", "Forward", Some("CmdOrCtrl+Alt+]")),
         ("home", "Connections", Some("CmdOrCtrl+Shift+H")),
     ],
     &[
         ("open-diagram", "ER Diagram", None),
         ("open-metrics", "Metrics", None),
+        ("compare-schema", "Compare Schema…", None),
     ],
 ];
 

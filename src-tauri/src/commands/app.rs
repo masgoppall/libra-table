@@ -106,8 +106,10 @@ pub async fn change_passcode(
 
 /// Which page is visible, so closing the window can go back to the connections page.
 #[tauri::command]
-pub fn set_window_view(in_workspace: bool) {
-    crate::window::set_in_workspace(in_workspace);
+pub fn set_window_view(window: tauri::Window, in_workspace: bool) {
+    if window.label() == crate::window::MAIN {
+        crate::window::set_in_workspace(in_workspace);
+    }
 }
 
 /// The compact welcome window (no connection open) or the large workspace window.

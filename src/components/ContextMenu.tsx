@@ -14,6 +14,8 @@ export interface MenuItem {
   selected?: boolean;
   /** A check mark in front (items that toggle). */
   checked?: boolean;
+  /** Items of a submenu, opened on hover (e.g. "Copy as ▸"). */
+  submenu?: MenuItem[];
 }
 
 export const SEPARATOR: MenuItem = { label: "", separator: true };
@@ -35,8 +37,9 @@ interface MenuProps {
 }
 
 /** Closes on any outside click, blur, resize or Escape. */
-function useDismiss(onClose: () => void) {
+function useDismiss(onClose: () => void, enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     const events = ["mousedown", "blur", "resize"] as const;
     events.forEach((ev) => window.addEventListener(ev, onClose));
@@ -45,17 +48,22 @@ function useDismiss(onClose: () => void) {
       events.forEach((ev) => window.removeEventListener(ev, onClose));
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, enabled]);
 }
 
 function MenuRow({
   item,
   hasIcons,
   close,
+  open,
+  onHover,
 }: {
   item: MenuItem;
   hasIcons: boolean;
   close: () => void;
+  /** Its submenu is showing. */
+  open: boolean;
+  onHover: (row: HTMLElement) => void;
 }) {
   if (item.separator) return <div className="menu-sep" />;
   const classes = [
@@ -63,13 +71,17 @@ function MenuRow({
     item.danger && "danger",
     item.disabled && "disabled",
     item.selected && "selected",
+    open && "open",
   ];
   return (
     <div
       role="menuitem"
+      aria-haspopup={item.submenu ? "menu" : undefined}
       className={classes.filter(Boolean).join(" ")}
-      onClick={() => {
+      onMouseEnter={(e) => onHover(e.currentTarget)}
+      onClick={(e) => {
         if (item.disabled) return;
+        if (item.submenu) return onHover(e.currentTarget);
         close();
         item.onClick?.();
       }}
@@ -82,36 +94,73 @@ function MenuRow({
       )}
       <span className="menu-label">{item.label}</span>
       {item.hint && <span className="menu-hint">{item.hint}</span>}
+      {item.submenu && <span className="menu-more" aria-hidden />}
     </div>
   );
 }
 
-export function ContextMenu(props: MenuProps) {
+interface Sub {
+  index: number;
+  row: DOMRect;
+}
+
+export function ContextMenu(props: MenuProps & { submenu?: boolean; parentLeft?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: props.x, y: props.y });
+  const [sub, setSub] = useState<Sub | null>(null);
   useLayoutEffect(() => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
-    const x = Math.max(4, Math.min(props.x, window.innerWidth - r.width - EDGE));
+    // A submenu that doesn't fit on the right opens on the left of its parent.
+    const flip = props.submenu && props.x + r.width > window.innerWidth - EDGE;
+    const left = flip ? (props.parentLeft ?? props.x) - r.width + 2 : props.x;
+    const x = Math.max(4, Math.min(left, window.innerWidth - r.width - EDGE));
     const top = props.bottom === undefined ? props.y : props.bottom - r.height;
     const y = Math.max(4, Math.min(top, window.innerHeight - r.height - EDGE));
     setPos({ x, y });
     ref.current?.querySelector(".menu-item.selected")?.scrollIntoView?.({ block: "nearest" });
   }, [props.x, props.y, props.bottom]);
-  useDismiss(props.onClose);
+  useDismiss(props.onClose, !props.submenu);
   const hasIcons = props.items.some((i) => i.icon);
+  const subItems = sub ? props.items[sub.index]?.submenu : undefined;
   return (
-    <div
-      className="menu"
-      ref={ref}
-      style={{ left: pos.x, top: pos.y, minWidth: props.minWidth }}
-      onMouseDown={(e) => e.stopPropagation()}
-      role="menu"
-    >
-      {props.items.map((item, i) => (
-        <MenuRow key={i} item={item} hasIcons={hasIcons} close={props.onClose} />
-      ))}
-    </div>
+    <>
+      <div
+        className="menu"
+        ref={ref}
+        style={{ left: pos.x, top: pos.y, minWidth: props.minWidth }}
+        onMouseDown={(e) => e.stopPropagation()}
+        role="menu"
+      >
+        {props.items.map((item, i) => (
+          <MenuRow
+            key={i}
+            item={item}
+            hasIcons={hasIcons}
+            close={props.onClose}
+            open={sub?.index === i}
+            onHover={(row) =>
+              setSub(
+                item.submenu && !item.disabled
+                  ? { index: i, row: row.getBoundingClientRect() }
+                  : null,
+              )
+            }
+          />
+        ))}
+      </div>
+      {sub && subItems && (
+        <ContextMenu
+          key={sub.index}
+          submenu
+          x={sub.row.right + 2}
+          y={sub.row.top - MENU_PADDING}
+          parentLeft={sub.row.left - MENU_PADDING}
+          items={subItems}
+          onClose={props.onClose}
+        />
+      )}
+    </>
   );
 }
 

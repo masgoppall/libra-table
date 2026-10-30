@@ -7,6 +7,7 @@ import { type Workspace } from "@/types";
 import { ExportDialog } from "../export/ExportDialog";
 import { ToolDialogHost } from "../import/ToolDialogHost";
 import { useServerActions } from "../server/serverActions";
+import { DatabaseRail } from "../sidebar/DatabaseRail";
 import { Sidebar } from "../sidebar/Sidebar";
 import { TabBar } from "./TabBar";
 import { TabPanes } from "./TabPanes";
@@ -28,6 +29,7 @@ export function WorkspaceView({ ws, visible }: { ws: Workspace; visible: boolean
   const classes = `workspace${isProduction(conn) ? " production" : ""}`;
   return (
     <div className={classes} style={{ display: visible ? "flex" : "none" }}>
+      <DatabaseRail ws={ws} />
       <Sidebar ws={ws} onExportTable={(schema, table) => setExportTable({ schema, table })} />
       <div className="content">
         {ws.tabs.length > 0 ? <TabBar ws={ws} /> : <WorkspaceWelcome />}

@@ -309,3 +309,75 @@
   height: 28px;
   margin-top: 16px;
 }
+
+.theme-swatch {
+  display: inline-flex;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.theme-swatch i {
+  width: 10px;
+  height: 18px;
+}
+
+/* Compare schema. */
+.compare-list {
+  max-height: 220px;
+  overflow: auto;
+  margin: 10px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-row:last-child {
+  border-bottom: none;
+}
+.compare-kind {
+  width: 48px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.compare-row.create .compare-kind {
+  color: var(--ok);
+}
+.compare-row.alter .compare-kind {
+  color: var(--warn);
+}
+.compare-row.drop .compare-kind {
+  color: var(--danger);
+}
+.compare-script {
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* Backup schedules. */
+.schedule-list {
+  margin: 10px 0 12px;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.schedule-row:last-child {
+  border-bottom: none;
+}
+.schedule-row.selected {
+  background: var(--accent-weak);
+}

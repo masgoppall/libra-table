@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versi 0.3.1" src="https://img.shields.io/badge/versi-0.3.1-3e63dd">
+  <img alt="Versi 0.4.0" src="https://img.shields.io/badge/versi-0.4.0-3e63dd">
   <img alt="macOS 13 atau lebih baru" src="https://img.shields.io/badge/macOS-13%2B-1e3190">
   <img alt="Dibuat dengan Tauri 2 dan React" src="https://img.shields.io/badge/Tauri%202-React-f2b24c">
 </p>
@@ -52,29 +52,48 @@
 
 **Koneksi**
 - Langsung atau lewat **SSH tunnel** (password atau kunci, membaca `~/.ssh/config`, memeriksa host key) dan **SSL/TLS**.
-- Grup bertingkat dengan ikon sendiri, tag lingkungan berwarna (`local`, `development`, `testing`, `staging`, `production`), dan duplikat koneksi.
+- Grup bertingkat dengan ikon sendiri, tag lingkungan berwarna (`local`, `development`, `testing`, `staging`, `production`), **tag kustom** dengan warna sendiri (Settings › Tags), dan duplikat koneksi.
 - Impor dari URL (`postgres://…`, `mysql://…`), dari file ekspor LibraTable terenkripsi, atau dari TablePlus.
 - Tidak ada koneksi otomatis: tab terakhir dipulihkan, tetapi baru tersambung saat Anda klik.
+- **Beberapa koneksi dan database sekaligus.** ⇧⌘K membuka koneksi lain tanpa meninggalkan yang sekarang. Database yang dibuka dengan ⌘K berjajar di rail kiri, dan sidebar ikut database dari tab yang aktif.
+- **Beberapa jendela.** Buka koneksi di jendela sendiri (⌥⌘N atau klik kanan › Open in New Window) dan pindahkan tab ke jendela baru.
+- **Reconnect** (⇧⌘R) bila koneksi ke server terputus, atau Reconnect All untuk semua koneksi.
 
 **Data**
 - Grid cepat untuk ribuan baris: urutkan, sembunyikan atau pindahkan kolom, ubah lebar, dan pindah halaman.
 - **Filter** per kolom atau di semua kolom, termasuk *contains*, *between*, *in list*, dan Raw SQL. Tekan ↵ untuk menerapkan, **Clear** untuk menampilkan semua baris lagi.
 - Edit sel langsung di grid, tambah atau hapus baris, lalu commit sekaligus. ⌘Z membatalkan, dan dropdown enum serta pemilih tanggal tersedia.
+- **Duplikat dan paste baris.** ⌘D menduplikat baris terpilih (primary key otomatis dibiarkan ke database). ⌘V menempel baris yang di-copy sebagai baris baru, satu nilai ke sel yang dipilih, atau blok nilai mulai dari sel itu. Klik ganda di bawah baris terakhir menambah baris baru.
+- **Pilih blok sel** dengan drag atau ⇧←/→, lalu copy hanya sel itu (⌘C) atau lewat *Copy cells as* CSV, JSON, SQL, Markdown, HTML. Satu nilai yang di-paste mengisi seluruh blok.
+- **Jump to column or row** (⌘J): cari nama kolom, nomor baris, atau nilai, lalu langsung lompat ke sana.
+- **Search & replace di tabel** (⌥⌘R) dengan Match Case, Whole Word, dan Regex. Hasil replace menjadi perubahan yang tinggal di-commit.
+- Menu header kolom: Size to fit (atau klik ganda tepi kolom), Copy column values, Remove sort, Reset column positions.
 - **Quick Look** (Spasi) untuk JSON, gambar, dan data biner. Klik foreign key untuk membuka baris yang dirujuk.
+- Pengaturan grid: tinggi baris, baris selang-seling, nomor baris, dan pilihan membuka tabel di tab baru atau di tab yang sama (dengan Back/Forward ⌥⌘[ / ⌥⌘]).
 
 **Struktur tabel**
 - Tab **Data | Structure | Index** di tab yang sama: ubah nama, tipe, nullable, default, extra, charset, collation, dan komentar kolom lewat menu atau ketik langsung.
 - Tarik kolom untuk mengubah urutan (MySQL), buat foreign key dari selnya, tambah index, lihat trigger, dan lihat DDL.
 - Semua perubahan ditampilkan sebagai SQL dulu, lalu dijalankan dengan ⌘S.
+- Dari sidebar: *Copy script as* CREATE, DROP, TRUNCATE, SELECT, INSERT, UPDATE, DELETE, dan rename database (PostgreSQL).
+- **Compare schema**: bandingkan tabel dan kolom dengan database atau koneksi lain, lalu buka skrip sinkronisasinya di tab query untuk diperiksa sebelum dijalankan.
 
 **Query**
 - Editor SQL dengan pelengkapan otomatis, format (⌥⌘F), Explain (⌥⌘E), dan variabel `:nama`.
-- Jalankan statement di kursor (⌘↵) atau semuanya (⇧⌘↵), batalkan query yang sedang berjalan (⌘.), simpan query favorit, dan cari di **riwayat**.
+- Jalankan statement di kursor (⌘↵) atau semuanya (⇧⌘↵), batalkan query yang sedang berjalan (⌘.), simpan query favorit dalam **folder**, dan cari di **riwayat**.
+- Mode **Vim**, UPPERCASE keyword otomatis, kurung otomatis, block comment (⌥⌘/), trim whitespace, ubah indentasi, dan transform teks (huruf besar/kecil, full-width, kana, Unicode).
+- Format variabel bisa dipilih: `:nama`, `$nama`, `${nama}`, `{{nama}}`, atau `%nama%`.
+- **SQL assistant** (opsional, ⇧⌘I): tulis permintaan dalam bahasa biasa, SQL-nya masuk ke editor. Memakai API key Anthropic Anda (disimpan di Keychain). Hanya pertanyaan, nama tabel/kolom, dan query di editor yang dikirim; isi baris tidak pernah dikirim.
+- Ekspor hasil dari semua tab hasil sekaligus, satu file per hasil.
 
 **Impor, ekspor, dan alat server**
 - Impor CSV/JSON ke tabel yang ada atau tabel baru, dan jalankan file SQL besar.
 - Ekspor ke CSV, JSON, atau SQL, termasuk beberapa tabel sekaligus.
 - Backup dan restore (`pg_dump`/`mysqldump`), daftar proses (cancel/kill), serta pengguna dan hak akses.
+- **Backup terjadwal**: per jam, harian, atau mingguan ke folder pilihan, menyimpan N backup terbaru. Berjalan selama LibraTable terbuka.
+
+**Tampilan**
+- Tema warna bawaan (Midnight Teal, Graphite, Dusk, Paper) dan impor file tema JSON.
 
 **Visual**
 - **Diagram ER** yang bisa digeser dan diekspor ke SVG/PNG.
@@ -119,9 +138,18 @@ Koneksi, grup bertingkat, password, dan kunci SSH ikut terbawa. Koneksi yang sud
 | --- | --- |
 | ⌘N | Koneksi baru |
 | ⌘P | Buka tabel, view, atau query |
-| ⌘K | Pindah database |
+| ⌘K | Buka database lain |
+| ⇧⌘K | Buka koneksi lain |
 | ⌘T / ⌘W | Tab query baru / tutup tab |
 | ⌘F | Filter baris |
+| ⌘I / ⌘D | Tambah baris / duplikat baris terpilih |
+| ⌘C / ⌘V | Copy baris atau blok sel / paste baris atau nilai |
+| ⌘J | Lompat ke kolom, baris, atau nilai |
+| ⌥⌘R | Cari dan ganti di tabel |
+| ⌥⌘[ / ⌥⌘] | Back / Forward di tab |
+| ⌥⌘N | Koneksi ini di jendela baru |
+| ⇧⌘R | Reconnect |
+| ⇧⌘I | SQL assistant (bila diaktifkan) |
 | ⌘S | Simpan query, commit perubahan, atau terapkan struktur |
 | ⌘R | Muat ulang |
 | ⇧⌘S | Tampilkan struktur tabel |

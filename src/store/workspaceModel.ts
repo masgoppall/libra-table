@@ -32,9 +32,15 @@ function isReusable(t: WorkspaceTab, wanted: WorkspaceTab): boolean {
   return t.database === wanted.database && t.schema === wanted.schema && sameTable;
 }
 
+/** An open tab already showing `tab`'s object. */
+export function findReusable(ws: Workspace, tab: NewTab): WorkspaceTab | undefined {
+  const full: WorkspaceTab = { ...tab, database: tab.database ?? ws.database, id: "" };
+  return ws.tabs.find((t) => isReusable(t, full));
+}
+
 export function openTab(ws: Workspace, tab: NewTab, reuse: boolean): TabsPatch {
   const full: WorkspaceTab = { ...tab, database: tab.database ?? ws.database, id: uid() };
-  const same = reuse ? ws.tabs.find((t) => isReusable(t, full)) : undefined;
+  const same = reuse ? findReusable(ws, tab) : undefined;
   if (same) return { tabs: ws.tabs, activeTabId: same.id };
   // A new tab opens next to the current one.
   const at = ws.tabs.findIndex((t) => t.id === ws.activeTabId);
@@ -93,6 +99,45 @@ export function viewAfterClose(order: string[], id: string, current: string): st
   return order[at + 1] ?? order[at - 1] ?? "home";
 }
 
+/** The databases of the rail: the ones opened in this connection, the current one included. */
+export function openDatabases(ws: Workspace): string[] {
+  const list = ws.databases ?? [];
+  return ws.database && !list.includes(ws.database) ? [...list, ws.database] : list;
+}
+
+/** Points the sidebar (and new tabs) at `database` and adds it to the rail. */
+export function withDatabase(
+  ws: Workspace,
+  database: string,
+  schema?: string,
+): Pick<Workspace, "database" | "schema" | "databases"> {
+  const opened = openDatabases(ws);
+  return {
+    database,
+    schema: schema ?? defaultSchema(ws.info.dialect, database),
+    databases: opened.includes(database) ? opened : [...opened, database],
+  };
+}
+
+/** Takes `database` off the rail with its tabs; the sidebar moves to another one. */
+export function closeDatabase(ws: Workspace, database: string): Partial<Workspace> {
+  const databases = openDatabases(ws).filter((d) => d !== database);
+  if (!databases.length) return {};
+  const tabs = ws.tabs.filter((t) => (t.database ?? ws.info.database) !== database);
+  const activeTabId = keepActive(ws, tabs);
+  const next: Partial<Workspace> = { databases, tabs, activeTabId };
+  if (ws.database !== database) return next;
+  const shown = tabs.find((t) => t.id === activeTabId)?.database ?? databases[0] ?? "";
+  return { ...next, ...withDatabase({ ...ws, databases, database: shown }, shown) };
+}
+
+/** The sidebar follows the active tab to its database, as TablePlus does. */
+export function followActiveTab(ws: Workspace): Partial<Workspace> {
+  const tab = activeTab(ws);
+  if (!tab?.database || tab.database === ws.database || !ws.caps.switchDatabase) return {};
+  return withDatabase(ws, tab.database, tab.schema);
+}
+
 /** A fresh workspace, picking up the tabs saved from the last session. */
 export function restoreWorkspace(
   info: ConnectInfo,
@@ -103,16 +148,19 @@ export function restoreWorkspace(
   let schema = defaultSchema(info.dialect, info.database);
   let tabs: WorkspaceTab[] = [];
   let activeTabId: string | null = null;
+  let databases: string[] = [];
   if (saved) {
     // Tabs saved before databases were per tab belong to the connection's database.
     tabs = (saved.tabs ?? []).map((t) => ({ ...t, database: t.database ?? info.database }));
     activeTabId = saved.activeTabId ?? tabs[0]?.id ?? null;
     if (saved.database !== undefined && info.dialect !== "sqlite") database = saved.database;
     if (saved.schema) schema = saved.schema;
+    databases = (saved.databases ?? []).filter((d) => typeof d === "string" && d);
   }
   if (info.dialect === "mysql") schema = database;
   const base = { connectionId: info.connectionId, info, caps, refreshKey: 0 };
-  return { ...base, database, schema, tabs, activeTabId };
+  if (!caps.switchDatabase) databases = [];
+  return { ...base, database, schema, databases, tabs, activeTabId };
 }
 
 /** What is saved for the next start: everything but "New table" drafts. */
@@ -121,5 +169,6 @@ export function toSaved(ws: Workspace): SavedWorkspace {
   const activeTabId = tabs.some((t) => t.id === ws.activeTabId)
     ? ws.activeTabId
     : (tabs[0]?.id ?? null);
-  return { database: ws.database, schema: ws.schema, tabs, activeTabId };
+  const { database, schema, databases } = ws;
+  return { database, schema, databases, tabs, activeTabId };
 }

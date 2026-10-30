@@ -230,6 +230,21 @@ fn databases_schemas_and_tables() {
         vec!["DROP DATABASE \"shop\" WITH (FORCE)"]
     );
     assert_eq!(
+        b(
+            Dialect::Postgres,
+            SchemaChange::RenameDatabase {
+                from: "shop".into(),
+                to: "store".into()
+            }
+        ),
+        vec!["ALTER DATABASE \"shop\" RENAME TO \"store\""]
+    );
+    let mysql = SchemaChange::RenameDatabase {
+        from: "a".into(),
+        to: "b".into(),
+    };
+    assert!(build(Dialect::Mysql, &mysql, &ctx).is_err());
+    assert_eq!(
         build(
             Dialect::Postgres,
             &SchemaChange::DropDatabase {

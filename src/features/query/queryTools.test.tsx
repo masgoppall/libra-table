@@ -112,3 +112,40 @@ describe("editor keys", () => {
     expect(screen.queryByText("Keyboard shortcuts")).toBeNull();
   });
 });
+
+describe("SQL assistant", () => {
+  it("writes SQL from a question when it is turned on", async () => {
+    h.backend.settings = { ...h.backend.settings, aiEnabled: true };
+    const view = await openEditor("select 1;");
+    fireEvent.click(await screen.findByRole("button", { name: /Ask AI/ }));
+    const input = await screen.findByLabelText("Ask the SQL assistant");
+    fireEvent.change(input, { target: { value: "names of people" } });
+    await act(async () => fireEvent.keyDown(input, { key: "Enter" }));
+    await waitFor(() =>
+      expect(view.state.doc.toString()).toBe("select 1;\n\nSELECT name FROM people;\n"),
+    );
+    const req = h.backend.lastCall("ai_ask")?.args.request;
+    expect(req.schema).toBeTypeOf("string");
+    expect(req.model).toBe("claude-opus-5-5");
+    expect(screen.getByText("Asked: names of people")).toBeTruthy();
+  });
+
+  it("opens with ⇧⌘I from inside the editor", async () => {
+    h.backend.settings = { ...h.backend.settings, aiEnabled: true };
+    await openEditor("");
+    const content = query(".cm-content");
+    fireEvent.keyDown(content, {
+      key: "I",
+      code: "KeyI",
+      ctrlKey: true,
+      shiftKey: true,
+      keyCode: 73,
+    });
+    await screen.findByLabelText("Ask the SQL assistant");
+  });
+
+  it("stays hidden until it is turned on", async () => {
+    await openEditor("");
+    expect(screen.queryByRole("button", { name: /Ask AI/ })).toBeNull();
+  });
+});

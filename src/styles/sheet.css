@@ -453,3 +453,7 @@
   gap: 9.5px;
   padding: 31px 17.5px 16.5px;
 }
+.jump-hint {
+  font-size: 11px;
+  padding-left: 4px;
+}

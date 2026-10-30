@@ -1,6 +1,7 @@
 import { connectionColor, TAGS } from "@/domain/connection";
 import { useStore } from "@/store";
 import { type Tag } from "@/types";
+import { LabelPicker } from "../LabelChips";
 import { fieldAttrs, FieldLabel } from "./fields";
 import { type ConnectionFormState } from "./useConnectionForm";
 
@@ -59,6 +60,8 @@ export function GeneralSection({ form }: { form: ConnectionFormState }) {
           ))}
         </select>
       </div>
+      <label>Tags</label>
+      <LabelPicker labels={c.labels ?? []} onChange={(labels) => set({ labels })} />
       {c.tag === "production" && (
         <>
           <span />

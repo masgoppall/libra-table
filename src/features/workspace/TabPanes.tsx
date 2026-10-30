@@ -59,6 +59,9 @@ function TabContent({ ws, tab, visible }: { ws: Workspace; tab: WorkspaceTab; vi
   }
 }
 
+const placeKey = (t: WorkspaceTab) =>
+  [t.kind, t.database, t.schema, t.table, t.object?.kind, t.object?.name].join("\u0000");
+
 export function TabPanes({ ws, visible }: { ws: Workspace; visible: boolean }) {
   return (
     <>
@@ -66,7 +69,8 @@ export function TabPanes({ ws, visible }: { ws: Workspace; visible: boolean }) {
         const active = t.id === ws.activeTabId;
         return (
           <div key={t.id} className="tab-pane" style={{ display: active ? "flex" : "none" }}>
-            <TabContent ws={ws} tab={t} visible={visible && active} />
+            {/* Opening another table in place starts its view afresh. */}
+            <TabContent key={placeKey(t)} ws={ws} tab={t} visible={visible && active} />
           </div>
         );
       })}

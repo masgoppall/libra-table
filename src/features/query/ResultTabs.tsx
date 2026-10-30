@@ -1,8 +1,11 @@
 // One tab per result, with the append-mode toggle and Clear on the right.
 
-import { ListPlus, Trash2, X } from "lucide-react";
+import { Download, ListPlus, Trash2, X } from "lucide-react";
+import { useContextMenu } from "@/components/ContextMenu";
 import { cx } from "@/lib/cx";
 import { formatCount } from "@/lib/format";
+import { type Dialect } from "@/types";
+import { exportable, exportAllResults, RESULT_FILE_FORMATS } from "./exportAllResults";
 import { type ResultItem } from "./results";
 import { type QueryRunner } from "./useQueryRunner";
 
@@ -18,8 +21,18 @@ function label(item: ResultItem, i: number, append: boolean): string {
   return append ? `#${item.run} ${base}` : base;
 }
 
-export function ResultTabs({ runner }: { runner: QueryRunner }) {
+export function ResultTabs({ runner, driver }: { runner: QueryRunner; driver: Dialect }) {
   const showRuns = runner.append || new Set(runner.items.map((i) => i.run)).size > 1;
+  const menu = useContextMenu();
+  const withRows = exportable(runner.items).length;
+  const exportMenu = (el: HTMLElement) =>
+    menu.openAt(
+      el,
+      RESULT_FILE_FORMATS.map(([format, label]) => ({
+        label: `As ${label}…`,
+        onClick: () => void exportAllResults(runner.items, format, driver),
+      })),
+    );
   return (
     <div className="result-tabs">
       {runner.items.map((item, i) => {
@@ -56,12 +69,22 @@ export function ResultTabs({ runner }: { runner: QueryRunner }) {
         >
           <ListPlus size={12} /> Append
         </button>
+        {withRows > 1 && (
+          <button
+            className="btn xs ghost"
+            onClick={(e) => exportMenu(e.currentTarget)}
+            title="Export Results from All Tabs: one file per result, in a folder"
+          >
+            <Download size={12} /> Export {withRows} results
+          </button>
+        )}
         {runner.items.length > 0 && (
           <button className="btn xs ghost" onClick={runner.clear} title="Clear all results">
             <Trash2 size={12} /> Clear
           </button>
         )}
       </div>
+      {menu.node}
     </div>
   );
 }

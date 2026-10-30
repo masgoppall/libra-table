@@ -1,15 +1,18 @@
 // CodeMirror with the driver's dialect, schema completion, the app's run/save keys and
-// the marks of the last run (flash, error gutter). ⌘/ comments lines (default keymap).
+// the marks of the last run (flash, error gutter). ⌘/ comments lines, ⌥⌘/ a block, ⌘] / ⌘[
+// shift lines; Vim keys, UPPERCASE keywords and closing brackets follow the settings.
 
 import { MySQL, PostgreSQL, SQLite, sql as sqlLang } from "@codemirror/lang-sql";
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import { vim } from "@replit/codemirror-vim";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { type RefObject, useMemo } from "react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { dispatch, shortcutFor } from "@/lib/actions";
 import { useSettings } from "@/store";
 import { redisEditor } from "../keyvalue/redisEditor";
+import { editingKeys, uppercaseKeywords } from "./editor/editing";
 import { runMarks } from "./editor/runMarks";
 import { type CompletionSchema, type Dialect } from "@/types";
 
@@ -32,6 +35,7 @@ const appKeys = Prec.highest(
     { key: "Mod-.", run: () => dispatch("cancel-query", "key") },
     { key: "Mod-Alt-e", run: () => dispatch("explain", "key"), preventDefault: true },
     { key: "Mod-Alt-f", run: () => dispatch("format-sql", "key"), preventDefault: true },
+    { key: "Shift-Mod-i", run: () => dispatch("ask-ai", "key"), preventDefault: true },
   ]),
 );
 
@@ -62,8 +66,15 @@ export function SqlEditor(p: SqlEditorProps) {
   const settings = useSettings();
   const dark = useDarkMode(settings?.theme);
   const fontSize = settings?.editorFontSize ?? 13;
+  const useVim = settings?.editorKeymap === "vim";
+  const upper = isSql && !!settings?.uppercaseKeywords;
+  const closeBrackets = settings?.closeBrackets ?? true;
   const extensions = useMemo(
     () => [
+      // Vim's keys come before every other keymap.
+      ...(useVim ? [vim()] : []),
+      ...(upper ? [uppercaseKeywords] : []),
+      editingKeys,
       ...(isSql
         ? [
             sqlLang({
@@ -80,7 +91,7 @@ export function SqlEditor(p: SqlEditorProps) {
       editorTheme(fontSize),
       EditorView.lineWrapping,
     ],
-    [p.completion, p.driver, p.schema, fontSize, isSql, p.language],
+    [p.completion, p.driver, p.schema, fontSize, isSql, p.language, useVim, upper],
   );
   return (
     <CodeMirror
@@ -91,7 +102,12 @@ export function SqlEditor(p: SqlEditorProps) {
       extensions={extensions}
       onChange={p.onChange}
       autoFocus
-      basicSetup={{ highlightActiveLine: true, foldGutter: true, autocompletion: true }}
+      basicSetup={{
+        highlightActiveLine: true,
+        foldGutter: true,
+        autocompletion: true,
+        closeBrackets,
+      }}
       placeholder={placeholder}
     />
   );

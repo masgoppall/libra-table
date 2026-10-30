@@ -262,6 +262,7 @@ pub fn connection(e: &Entry) -> Result<Converted, String> {
         group_id: Some(e.text("GroupID")).filter(|g| !g.is_empty()),
         driver,
         tag: tag(&e.text("Enviroment")),
+        labels: Vec::new(),
         color: if color.eq_ignore_ascii_case(DEFAULT_COLOR) {
             String::new()
         } else {

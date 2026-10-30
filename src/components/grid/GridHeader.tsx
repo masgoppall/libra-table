@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, Key, Link2 } from "lucide-react";
 import { useState } from "react";
 import { startDrag } from "@/lib/drag";
-import { MIN_W, reorder } from "./columns";
+import { fitWidth, MIN_W, reorder } from "./columns";
 import { type DataGridProps, type GridColumn } from "./types";
 
 const DRAG_TYPE = "text/x-col";
@@ -47,6 +47,13 @@ function HeaderCell(
     });
   };
   const sortHint = p.onSort ? "\nClick to sort, Shift+click to add" : "";
+  const fit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const grid = (e.target as HTMLElement).closest(".grid");
+    const font = grid ? getComputedStyle(grid).font : "13px sans-serif";
+    const w = fitWidth(c, (r) => p.getCell(r, col), p.rowCount, font);
+    p.onWidths?.({ ...p.widths, [c.name]: w });
+  };
   return (
     <div
       className={`grid-th${props.dragOver === c.name ? " dragover" : ""}`}
@@ -74,7 +81,13 @@ function HeaderCell(
       <span className="th-type">{c.typeName.toLowerCase()}</span>
       <SortMark p={p} name={c.name} />
       {p.onWidths && (
-        <div className="resize" onMouseDown={resize} onClick={(e) => e.stopPropagation()} />
+        <div
+          className="resize"
+          title="Drag to resize · double-click to fit the content"
+          onMouseDown={resize}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={fit}
+        />
       )}
     </div>
   );

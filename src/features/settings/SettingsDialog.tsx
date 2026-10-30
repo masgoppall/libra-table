@@ -8,6 +8,9 @@ import { store, useSettings } from "@/store";
 import { type AppInfo, type Settings } from "@/types";
 import { SecuritySection } from "./SecuritySection";
 import { AppearanceSection, FiltersSection, HistorySection } from "./SettingsSections";
+import { AssistantSection } from "./AssistantSection";
+import { TagsSection } from "./TagsSection";
+import { EditorSection, GridSection } from "./WorkSections";
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
@@ -46,7 +49,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <AppearanceSection s={draft} set={set} />
+      <GridSection s={draft} set={set} />
+      <EditorSection s={draft} set={set} />
       <FiltersSection s={draft} set={set} />
+      <TagsSection s={draft} set={set} />
+      <AssistantSection s={draft} set={set} />
       <HistorySection s={draft} set={set} info={info} />
       <SecuritySection s={draft} set={set} />
       <div className="row settings-foot">

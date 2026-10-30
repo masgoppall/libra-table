@@ -36,13 +36,19 @@ const ACTIONS: ActionId[] = [
   "import-sql",
   "open-diagram",
   "open-metrics",
+  "compare-schema",
+  "backup-schedules",
   "settings",
   "shortcuts",
   "disconnect",
+  "reconnect",
+  "reconnect-all",
+  "new-window",
   "home",
   "toggle-sidebar",
   "explain",
   "format-sql",
+  "trim-whitespace",
 ];
 
 function actionLabel(a: ActionId): string {

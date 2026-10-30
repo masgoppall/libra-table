@@ -1,9 +1,31 @@
 // Pending edits with ⌘Z: every change pushes the previous state.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { store } from "@/store";
 import { emptyPending, type Pending, pendingCount } from "./pending";
 
 const UNDO_DEPTH = 100;
+
+/** The edits of a tab, their count reported to the store (closing asks before losing them). */
+export function useTabPendingEdits(tabId: string) {
+  const edits = usePendingEdits();
+  useEffect(() => {
+    store.get().setPendingEdits(tabId, edits.dirty);
+  }, [tabId, edits.dirty]);
+  useEffect(() => () => store.get().setPendingEdits(tabId, 0), [tabId]);
+  return edits;
+}
+
+/** Selected rows and the focused one. */
+export function useRowSelection() {
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [focusRow, setFocusRow] = useState<number | null>(null);
+  const selectRows = (next: Set<number>, focus: number | null) => {
+    setSelected(next);
+    setFocusRow(focus);
+  };
+  return { selected, setSelected, focusRow, selectRows };
+}
 
 export function usePendingEdits() {
   const [pending, setPendingState] = useState<Pending>(emptyPending);

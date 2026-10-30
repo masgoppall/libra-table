@@ -4,6 +4,7 @@ import { api } from "@/api";
 import { plural } from "@/lib/format";
 import { showError, toastSuccess } from "@/services/errors";
 import { type AppInfo, type DefaultFilterColumn, type Settings, type Theme } from "@/types";
+import { ColorThemePicker } from "./ColorThemePicker";
 
 export interface SectionProps {
   s: Settings;
@@ -47,13 +48,15 @@ export function AppearanceSection({ s, set }: SectionProps) {
           {THEMES.map(([t, label]) => (
             <button
               key={t}
-              className={s.theme === t ? "active" : ""}
-              onClick={() => set({ theme: t })}
+              className={s.theme === t && !s.colorTheme ? "active" : ""}
+              onClick={() => set({ theme: t, colorTheme: "" })}
             >
               {label}
             </button>
           ))}
         </div>
+        <label>Color theme</label>
+        <ColorThemePicker s={s} set={set} />
         <label>Interface text</label>
         <SizeSlider
           value={s.uiFontSize}

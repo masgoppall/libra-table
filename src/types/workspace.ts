@@ -37,7 +37,16 @@ export interface WorkspaceTab {
   object?: SchemaObjectRef;
   /** Query tabs: the last values given to `:name` variables. */
   variables?: QueryVariable[];
+  /** What the tab showed before (Back) and after (Forward) opening something in place. */
+  back?: TabPlace[];
+  forward?: TabPlace[];
 }
+
+/** What a tab shows, as kept in its Back / Forward history. */
+export type TabPlace = Pick<
+  WorkspaceTab,
+  "kind" | "title" | "database" | "schema" | "table" | "object"
+>;
 
 export type NewTab = Omit<WorkspaceTab, "id">;
 
@@ -47,6 +56,8 @@ export interface Workspace {
   caps: Capabilities;
   /** Database and schema the sidebar shows; new tabs start there. */
   database: string;
+  /** Databases opened in this connection, in the order opened (the database rail). */
+  databases?: string[];
   schema: string;
   tabs: WorkspaceTab[];
   activeTabId: string | null;

@@ -84,6 +84,8 @@ export interface Connection {
   driver: Driver;
   tag: Tag;
   color: string;
+  /** Custom tags (Settings › Tags) on top of the environment tag. */
+  labels?: string[];
   db: DbSettings;
   ssh: SshSettings;
   tls: TlsSettings;

@@ -36,6 +36,7 @@ fn blank(driver: Driver) -> Connection {
         driver,
         tag: Tag::Local,
         color: String::new(),
+        labels: Vec::new(),
         db: DbSettings::default(),
         ssh: SshSettings::default(),
         tls: TlsSettings::default(),

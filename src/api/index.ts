@@ -4,6 +4,7 @@ import { appApi } from "./app";
 import { connectionsApi } from "./connections";
 import { dataApi } from "./data";
 import { diagramApi } from "./diagram";
+import { aiApi } from "./ai";
 import { exportApi } from "./export";
 import { metadataApi } from "./metadata";
 import { metricsApi } from "./metrics";
@@ -23,6 +24,7 @@ export const api = {
   ...historyApi,
   ...savedQueriesApi,
   ...exportApi,
+  ...aiApi,
   ...serverApi,
   ...toolsApi,
   ...objectsApi,

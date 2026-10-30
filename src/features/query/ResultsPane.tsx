@@ -3,16 +3,19 @@
 
 import { Download, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useContextMenu } from "@/components/ContextMenu";
 import { PaddedError, ErrorCallout } from "@/components/ErrorCallout";
-import { DataGrid } from "@/components/grid/DataGrid";
+import { type CellRange, DataGrid } from "@/components/grid/DataGrid";
 import { Spinner } from "@/components/Spinner";
 import { EmptyState } from "@/components/StateView";
 import { shortcutFor, withShortcut } from "@/lib/actions";
 import { copyText } from "@/lib/clipboard";
-import { copyRows } from "@/lib/copyRows";
+import { copyRows, type CopyFormat } from "@/lib/copyRows";
 import { formatCount, formatDuration, plural } from "@/lib/format";
 import { toastSuccess } from "@/services/errors";
 import { type Dialect, type StatementResult } from "@/types";
+import { copyMenu } from "../data/cellMenu";
+import { rangeValues } from "../data/useCellActions";
 import { ExplainView } from "./ExplainView";
 import { ResultTabs } from "./ResultTabs";
 import { type QueryRunner } from "./useQueryRunner";
@@ -27,7 +30,8 @@ function ResultBody(props: {
   result: StatementResult;
   selected: Set<number>;
   onSelect: (s: Set<number>) => void;
-  onCopy: () => void;
+  onCopy: (format: CopyFormat, range: CellRange | null) => void;
+  onMenu: (e: React.MouseEvent, row: number, col: number, range: CellRange | null) => void;
   widths: Record<string, number>;
   onWidths: (w: Record<string, number>) => void;
 }) {
@@ -60,7 +64,8 @@ function ResultBody(props: {
         onWidths={props.onWidths}
         selected={props.selected}
         onSelect={(s) => props.onSelect(s)}
-        onCopy={props.onCopy}
+        onCopy={(range) => props.onCopy("tsv", range)}
+        onRowContextMenu={props.onMenu}
         emptyText="The query returned no rows."
       />
     </div>
@@ -125,13 +130,40 @@ export function ResultsPane(props: {
   const [widths, setWidths] = useState<Record<string, number>>({});
   useEffect(() => setSelected(new Set()), [item?.key]);
 
-  const copySelected = async () => {
-    if (!result || selected.size === 0) return;
-    const picked = [...selected].sort((a, b) => a - b);
-    const rows = picked.flatMap((i) => (result.rows[i] ? [result.rows[i]] : []));
+  const menu = useContextMenu();
+  const getCell = (row: number, col: number) => result?.rows[row]?.[col] ?? null;
+
+  /** The selected rows, or only the cells of a selected block. */
+  const copy = async (format: CopyFormat, range: CellRange | null, rows = selected) => {
+    if (!result) return;
+    const opts = { driver: props.driver, header: format === "csv" };
+    if (range) {
+      const names = range.cols.map((c) => result.columns[c]?.name ?? "");
+      await copyText(copyRows(format, names, rangeValues(range, getCell), opts));
+      const count = (range.bottom - range.top + 1) * range.cols.length;
+      return toastSuccess(`Copied ${plural(count, "cell")}.`);
+    }
+    if (rows.size === 0) return;
+    const picked = [...rows].sort((a, b) => a - b);
+    const values = picked.flatMap((i) => (result.rows[i] ? [result.rows[i]] : []));
     const names = result.columns.map((c) => c.name);
-    await copyText(copyRows("tsv", names, rows, { driver: props.driver }));
-    toastSuccess(`Copied ${plural(selected.size, "row")}.`);
+    await copyText(copyRows(format, names, values, opts));
+    toastSuccess(`Copied ${plural(rows.size, "row")}.`);
+  };
+
+  const openMenu = (e: React.MouseEvent, row: number, col: number, range: CellRange | null) => {
+    const rows = selected.has(row) ? selected : new Set([row]);
+    if (!selected.has(row)) setSelected(rows);
+    menu.open(
+      e,
+      copyMenu({
+        value: getCell(row, col),
+        rowCount: rows.size,
+        cellCount: range ? (range.bottom - range.top + 1) * range.cols.length : 0,
+        copy: (f) => void copy(f, null, rows),
+        copyCells: (f) => void copy(f, range),
+      }),
+    );
   };
 
   const body = result && (
@@ -140,7 +172,8 @@ export function ResultsPane(props: {
       result={result}
       selected={selected}
       onSelect={setSelected}
-      onCopy={() => void copySelected()}
+      onCopy={(f, range) => void copy(f, range)}
+      onMenu={openMenu}
       widths={widths}
       onWidths={setWidths}
     />
@@ -157,7 +190,7 @@ export function ResultsPane(props: {
         </div>
       )}
       {!running && (items.length > 0 || props.runner.append) && (
-        <ResultTabs runner={props.runner} />
+        <ResultTabs runner={props.runner} driver={props.driver} />
       )}
       {!running && item && result && (
         <>
@@ -175,6 +208,7 @@ export function ResultsPane(props: {
         </>
       )}
       {!running && !items.length && !error && <EmptyResults />}
+      {menu.node}
     </div>
   );
 }

@@ -159,5 +159,5 @@ export function connectionSubtitle(c: ConnectionView): string {
 }
 
 export function searchText(c: ConnectionView): string {
-  return `${c.name} ${c.summary} ${c.driver} ${c.tag}`;
+  return `${c.name} ${c.summary} ${c.driver} ${c.tag} ${(c.labels ?? []).join(" ")}`;
 }

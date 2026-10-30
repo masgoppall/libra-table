@@ -74,6 +74,11 @@ export function addInsert(p: Pending): Pending {
   return { ...clone(p), inserts: [...p.inserts, {}] };
 }
 
+/** New rows with values (duplicated or pasted rows). */
+export function addInserts(p: Pending, rows: Record<string, CellInput>[]): Pending {
+  return { ...clone(p), inserts: [...p.inserts, ...rows.map((r) => ({ ...r }))] };
+}
+
 /** New rows are removed; loaded rows toggle their "deleted" mark. */
 export function toggleDeletes(p: Pending, rows: Set<number>, base: number): Pending {
   const next = clone(p);
@@ -99,4 +104,9 @@ export function buildChanges(p: Pending, page: PageResult): Change[] {
   for (const values of p.inserts) changes.push({ kind: "insert", values });
   for (const r of p.deletes) changes.push({ kind: "delete", pk: pkOf(r) });
   return changes;
+}
+
+/** How the grid marks a row: added, marked for deletion, or neither. */
+export function rowStatus(p: Pending, baseRows: number, r: number) {
+  return r >= baseRows ? "inserted" : p.deletes.has(r) ? "deleted" : undefined;
 }

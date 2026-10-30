@@ -87,6 +87,18 @@
 .menu-item:hover .menu-hint {
   color: #fff;
 }
+.menu-more {
+  width: 6px;
+  height: 6px;
+  margin-right: -3px;
+  border: solid currentColor;
+  border-width: 1.5px 1.5px 0 0;
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+.menu-item.open {
+  background: color-mix(in srgb, var(--menu-text) 12%, transparent);
+}
 .menu-item.danger {
   color: var(--danger);
 }

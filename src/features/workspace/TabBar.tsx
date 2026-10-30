@@ -1,13 +1,14 @@
 // Tabs of a workspace: click, middle-click to close, drag to reorder, right-click menu.
 
-import { Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useContextMenu } from "@/components/ContextMenu";
 import { withShortcut } from "@/lib/actions";
-import { store } from "@/store";
+import { activeTab, store, useStore } from "@/store";
 import { type Workspace, type WorkspaceTab } from "@/types";
 import { tabMenu } from "./tabMenu";
 import { newQueryTab, TAB_ICONS, tabTooltip } from "./tabs";
+import { stepActiveTab } from "./useWorkspaceActions";
 
 const DRAG_TYPE = "text/x-tab";
 
@@ -76,8 +77,34 @@ export function TabBar({ ws }: { ws: Workspace }) {
   const newQuery = () => store.get().addTab(ws.connectionId, newQueryTab());
   // Once tabs from two databases are open, every tab says which one it is in.
   const showDatabase = new Set(ws.tabs.map((t) => t.database ?? ws.database)).size > 1;
+  const current = activeTab(ws);
+  const back = current?.back?.[current.back.length - 1];
+  const forward = current?.forward?.[current.forward.length - 1];
+  // Back / Forward show once tables open in place, or once a tab has history.
+  const inPlace = useStore((s) => s.settings?.openInNewTab === false);
+  const nav = inPlace || !!back || !!forward;
   return (
     <div className="tabbar" onDoubleClick={(e) => e.target === e.currentTarget && newQuery()}>
+      {nav && (
+        <div className="tab-nav">
+          <button
+            title={withShortcut(back ? `Back to ${back.title}` : "Back", "tab-back")}
+            aria-label="Back"
+            disabled={!back}
+            onClick={() => void stepActiveTab(ws, -1)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            title={withShortcut(forward ? `Forward to ${forward.title}` : "Forward", "tab-forward")}
+            aria-label="Forward"
+            disabled={!forward}
+            onClick={() => void stepActiveTab(ws, 1)}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
       {ws.tabs.map((t, i) => (
         <Tab
           key={t.id}

@@ -1,6 +1,7 @@
 // Saves open tabs per connection, debounced. Restoring never connects anything.
 
 import { api } from "@/api";
+import { isConnectionWindow } from "@/lib/windowRole";
 import { type SavedWorkspace, type Workspace } from "@/types";
 import { toSaved } from "./workspaceModel";
 
@@ -18,7 +19,10 @@ async function save(workspaces: Record<string, Workspace>) {
     const file = await api.getWorkspace();
     const connections: Record<string, SavedWorkspace> = { ...(file.connections ?? {}) };
     for (const ws of Object.values(workspaces)) connections[ws.connectionId] = toSaved(ws);
-    await api.saveWorkspace({ connections, open: Object.keys(workspaces) });
+    // The main window's open connections are what reopen at start; a connection
+    // window saves its tabs but leaves that list alone.
+    const open = isConnectionWindow ? file.open : Object.keys(workspaces);
+    await api.saveWorkspace({ connections, open });
   } catch {
     // Workspace persistence is best effort.
   }

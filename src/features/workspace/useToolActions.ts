@@ -20,6 +20,7 @@ export function useToolActions(ws: Workspace, visible: boolean) {
       "export-tables": () => tools.openExportTables(ws, table ? [table] : []),
       "open-diagram": () => tools.openDiagram(ws),
       "open-metrics": () => tools.openMetrics(ws),
+      "compare-schema": () => tools.openCompareSchema(ws),
     }),
   );
 }

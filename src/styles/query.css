@@ -120,3 +120,19 @@
   font-weight: 400;
   color: var(--text-2);
 }
+
+/* The SQL assistant bar above the editor. */
+.ask-bar {
+  flex: none;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.ask-icon {
+  color: var(--accent);
+  flex: none;
+}
+.ask-note {
+  margin: 5px 0 0 22px;
+  white-space: pre-wrap;
+}

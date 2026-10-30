@@ -15,7 +15,8 @@ export type ToolDialog =
   /** `table` null imports into a new table. */
   | (ToolTarget & { kind: "import"; table: string | null })
   | (ToolTarget & { kind: "sql-file" })
-  | (ToolTarget & { kind: "export-tables"; selected: string[] });
+  | (ToolTarget & { kind: "export-tables"; selected: string[] })
+  | (ToolTarget & { kind: "compare-schema" });
 
 export interface ToolsSlice {
   toolDialog: ToolDialog | null;

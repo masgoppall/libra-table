@@ -39,3 +39,20 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+.find-bar .find-toggle {
+  min-width: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.find-bar .btn.on {
+  background: var(--accent-weak);
+  color: var(--accent-text);
+}
+.find-status {
+  min-width: 70px;
+  text-align: right;
+  white-space: nowrap;
+}
+.find-status.danger-text {
+  color: var(--danger);
+}

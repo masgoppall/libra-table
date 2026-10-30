@@ -103,6 +103,11 @@ pub enum SchemaChange {
         #[serde(default)]
         force: bool,
     },
+    /// Postgres only; nobody (LibraTable included) may be connected to it.
+    RenameDatabase {
+        from: String,
+        to: String,
+    },
     CreateSchema {
         name: String,
     },

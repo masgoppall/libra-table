@@ -25,6 +25,10 @@ export function openExportTables(ws: Workspace, selected: string[] = []) {
   store.get().openToolDialog({ kind: "export-tables", selected, ...where(ws) });
 }
 
+export function openCompareSchema(ws: Workspace) {
+  store.get().openToolDialog({ kind: "compare-schema", ...where(ws) });
+}
+
 export function openDiagram(ws: Workspace) {
   store.get().addTab(ws.connectionId, diagramTab(ws.schema), { reuse: true });
 }

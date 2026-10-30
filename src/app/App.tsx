@@ -5,6 +5,7 @@ import { DialogHost } from "@/components/dialogs/DialogHost";
 import { Toasts } from "@/components/Toasts";
 import { Home } from "@/features/connections/Home";
 import { LockScreen } from "@/features/lock/LockScreen";
+import { BackupSchedulesDialog } from "@/features/server/backup/BackupSchedulesDialog";
 import { usePasscodeLock } from "@/features/lock/usePasscodeLock";
 import { ConsolePanel } from "@/features/console/ConsolePanel";
 import { Palette } from "@/features/palette/Palette";
@@ -18,7 +19,11 @@ import { HOME, useStore } from "@/store";
 import { ConnectionTabs } from "./toolbar/ConnectionTabs";
 import { Toolbar } from "./toolbar/Toolbar";
 import { useAppActions } from "./useAppActions";
-import { useAppearance } from "./useAppearance";
+import { GridPrefsContext } from "@/components/grid/prefs";
+
+import { useBackupScheduler } from "./useBackupScheduler";
+import { useConnectionWindow } from "./useConnectionWindow";
+import { useAppearance, useGridPrefsFromSettings } from "./useAppearance";
 import { useCustomShortcuts, useGlobalKeys } from "./useGlobalKeys";
 import { useWindowClose } from "./useWindowClose";
 import { useWindowMode } from "./useWindowMode";
@@ -26,6 +31,7 @@ import { useWindowMode } from "./useWindowMode";
 function Overlays() {
   const settingsOpen = useStore((s) => s.settingsOpen);
   const shortcutsOpen = useStore((s) => s.shortcutsOpen);
+  const schedulesOpen = useStore((s) => s.backupSchedulesOpen);
   const { setSettingsOpen, setShortcutsOpen } = useStore.getState();
   return (
     <>
@@ -34,6 +40,9 @@ function Overlays() {
       <ServerDialogHost />
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+      {schedulesOpen && (
+        <BackupSchedulesDialog onClose={() => useStore.getState().setBackupSchedulesOpen(false)} />
+      )}
       <DialogHost />
       <Toasts />
     </>
@@ -57,23 +66,28 @@ export default function App() {
   useGlobalKeys();
   useAppActions();
   useWindowClose();
+  useConnectionWindow();
+  useBackupScheduler();
   const compact = useWindowMode();
+  const gridPrefs = useGridPrefsFromSettings();
 
   return (
-    <div className={`app${compact ? " compact" : ""}`}>
-      {!compact && <Toolbar />}
-      {!compact && <ConnectionTabs />}
-      <div className="main">
-        <div className="home-wrap" style={{ display: view === HOME ? "flex" : "none" }}>
-          <Home />
+    <GridPrefsContext.Provider value={gridPrefs}>
+      <div className={`app${compact ? " compact" : ""}`}>
+        {!compact && <Toolbar />}
+        {!compact && <ConnectionTabs />}
+        <div className="main">
+          <div className="home-wrap" style={{ display: view === HOME ? "flex" : "none" }}>
+            <Home />
+          </div>
+          {Object.values(workspaces).map((ws) => (
+            <WorkspaceView key={ws.connectionId} ws={ws} visible={view === ws.connectionId} />
+          ))}
         </div>
-        {Object.values(workspaces).map((ws) => (
-          <WorkspaceView key={ws.connectionId} ws={ws} visible={view === ws.connectionId} />
-        ))}
+        {consoleOpen && <ConsolePanel />}
+        <Overlays />
+        <LockScreen />
       </div>
-      {consoleOpen && <ConsolePanel />}
-      <Overlays />
-      <LockScreen />
-    </div>
+    </GridPrefsContext.Provider>
   );
 }

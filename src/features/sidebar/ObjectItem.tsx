@@ -11,7 +11,8 @@ export interface ObjectItemProps {
   active: boolean;
   expanded: boolean;
   columns: ColumnsState | undefined;
-  onOpen: () => void;
+  /** `newTab` when ⌘ is held: a tab of its own even when tables open in place. */
+  onOpen: (newTab: boolean) => void;
   onToggle: () => void;
   onMenu: (e: React.MouseEvent) => void;
   pinned?: boolean;
@@ -49,7 +50,7 @@ export function ObjectItem(p: ObjectItemProps) {
     <div>
       <div
         className={`side-item${p.active ? " active" : ""}`}
-        onClick={p.onOpen}
+        onClick={(e) => p.onOpen(e.metaKey || e.ctrlKey)}
         onContextMenu={p.onMenu}
         title={o.name}
       >

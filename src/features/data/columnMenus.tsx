@@ -11,6 +11,15 @@ export interface ColumnMenuContext {
   setHidden: (hidden: string[]) => void;
   setSort: (sort: SortSpec[]) => void;
   filterColumn: (column: string) => void;
+  /** Copies the column's loaded values, one per line. */
+  copyValues: () => void;
+  /** Width to show the column's content. */
+  fit: () => void;
+  /** The column is sorted on (Remove sort is offered). */
+  sorted: boolean;
+  removeSort: () => void;
+  /** Back to the table's own column order and widths. */
+  resetLayout: () => void;
 }
 
 export function headerMenu(c: ColumnMenuContext): MenuItem[] {
@@ -25,6 +34,7 @@ export function headerMenu(c: ColumnMenuContext): MenuItem[] {
       icon: <ArrowDown size={14} />,
       onClick: () => c.setSort([{ column: c.column, desc: true }]),
     },
+    ...(c.sorted ? [{ label: "Remove sort", onClick: c.removeSort }] : []),
     {
       label: "Filter by this column",
       icon: <Filter size={14} />,
@@ -32,6 +42,7 @@ export function headerMenu(c: ColumnMenuContext): MenuItem[] {
     },
     SEPARATOR,
     { label: "Copy column name", icon: <Copy size={14} />, onClick: () => void copyText(c.column) },
+    { label: "Copy column values", onClick: c.copyValues },
     {
       label: "Hide column",
       icon: <EyeOff size={14} />,
@@ -42,6 +53,9 @@ export function headerMenu(c: ColumnMenuContext): MenuItem[] {
       disabled: c.hidden.length === 0,
       onClick: () => c.setHidden([]),
     },
+    SEPARATOR,
+    { label: "Size to fit", onClick: c.fit },
+    { label: "Reset column positions", onClick: c.resetLayout },
   ];
 }
 

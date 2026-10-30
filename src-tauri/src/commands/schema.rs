@@ -19,9 +19,9 @@ async fn ddl_session(
     change: &SchemaChange,
 ) -> Cmd<Arc<Session>> {
     match change {
-        SchemaChange::CreateDatabase { .. } | SchemaChange::DropDatabase { .. } => {
-            state.session(id).await
-        }
+        SchemaChange::CreateDatabase { .. }
+        | SchemaChange::DropDatabase { .. }
+        | SchemaChange::RenameDatabase { .. } => state.session(id).await,
         _ => state.session_in(id, database).await,
     }
 }
@@ -56,8 +56,12 @@ pub async fn apply_schema_change(
     let s = ddl_session(&state, &id, database.as_deref(), &change).await?;
     let (ctx, plan, statements) = plan(&s, &change).await?;
     confirm_production(&state, &s, &statements, confirmed)?;
-    if let SchemaChange::DropDatabase { name, .. } = &change {
-        prepare_drop_database(&s, name).await?;
+    match &change {
+        SchemaChange::DropDatabase { name, .. } => prepare_drop_database(&s, name, "drop").await?,
+        SchemaChange::RenameDatabase { from, .. } => {
+            prepare_drop_database(&s, from, "rename").await?
+        }
+        _ => {}
     }
     let timer = Timer::start();
     let result = ddl::apply(&s.pool, &plan, &change, &ctx).await;
@@ -74,14 +78,16 @@ pub async fn apply_schema_change(
     Ok(statements)
 }
 
-/// A database can't be dropped while LibraTable is connected to it: refuse the one the
-/// connection itself uses, and close our own pool to any other.
-async fn prepare_drop_database(s: &Session, name: &str) -> Cmd<()> {
+/// A database can't be dropped or renamed while LibraTable is connected to it: refuse
+/// the one the connection itself uses, and close our own pool to any other.
+async fn prepare_drop_database(s: &Session, name: &str, verb: &str) -> Cmd<()> {
     if name == s.database {
         return Err(AppError::validation(format!(
-            "LibraTable is connected to \"{name}\" itself, so it can't drop it."
+            "LibraTable is connected to \"{name}\" itself, so it can't {verb} it."
         ))
-        .hint("Set another database in the connection settings, reconnect, then drop this one."));
+        .hint(format!(
+            "Set another database in the connection settings, reconnect, then {verb} this one."
+        )));
     }
     s.close_database(name).await;
     Ok(())

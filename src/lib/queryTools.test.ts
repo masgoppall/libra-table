@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type QueryVariable } from "@/types";
+import { type QueryVariable, type VariableFormat } from "@/types";
 import { explainSql, flattenPlan, pgPlanTree, sqlitePlanTree } from "./explainPlan";
 import {
   findVariables,
@@ -133,5 +133,28 @@ describe("explain", () => {
       [0, "CORRELATED SCALAR SUBQUERY 1"],
       [1, "SEARCH orders USING INDEX o_idx (person_id=?)"],
     ]);
+  });
+});
+
+describe("variable formats", () => {
+  it("finds variables written in the chosen format", () => {
+    const names = (sql: string, format: VariableFormat, inStrings = false) =>
+      variableNames(sql, "postgres", { format, inStrings });
+    expect(names("select $id, $$body$$, $1", "dollar")).toEqual(["id"]);
+    expect(names("select ${ id }, {{x}}", "dollar-braces")).toEqual(["id"]);
+    expect(names("select {{ region }} -- {{no}}", "double-braces")).toEqual(["region"]);
+    expect(names("select %a% , '%b%'", "percent")).toEqual(["a"]);
+    expect(names("where name like '%' || :q || '%' and x = ':s'", "colon")).toEqual(["q"]);
+    expect(names("where x = ':s' -- :c", "colon", true)).toEqual(["s"]);
+  });
+
+  it("substitutes them", () => {
+    const sql = substituteVariables(
+      "select {{n}}",
+      "postgres",
+      [{ name: "n", value: "5", mode: "auto" }],
+      { format: "double-braces" },
+    );
+    expect(sql).toBe("select 5");
   });
 });

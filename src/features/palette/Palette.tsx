@@ -8,6 +8,7 @@ import { LAYER, shortcutFor, useActions } from "@/lib/actions";
 import { type SearchResult, search } from "@/lib/fuzzy";
 import { store, useStore } from "@/store";
 import { type Workspace } from "@/types";
+import { ConnectionSheet } from "./ConnectionSheet";
 import { DatabaseSheet } from "./DatabaseSheet";
 import { anythingItems, type PaletteItem } from "./paletteItems";
 
@@ -172,5 +173,6 @@ export function Palette() {
   const ws = useStore((s) => (s.palette ? s.workspaces[s.palette.connectionId] : undefined));
   if (!palette || !ws) return null;
   if (palette.kind === "database") return <DatabaseSheet key={ws.connectionId} ws={ws} />;
+  if (palette.kind === "connection") return <ConnectionSheet />;
   return <PaletteBody key={ws.connectionId} ws={ws} />;
 }

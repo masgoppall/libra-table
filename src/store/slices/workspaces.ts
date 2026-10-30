@@ -2,10 +2,10 @@
 
 import { type StateCreator } from "zustand";
 import { api } from "@/api";
-import { defaultSchema } from "@/domain/schema";
 import { type ConnectInfo, type NewTab, type Workspace, type WorkspaceTab } from "@/types";
 import { persistWorkspaces, savedWorkspace } from "../persistence";
 import { type AppState } from "../types";
+import { isNavigable, navigateTab, stepTab } from "../tabHistory";
 import * as model from "../workspaceModel";
 
 export const HOME = "home";
@@ -20,9 +20,15 @@ export interface WorkspacesSlice {
   updateWorkspace: (id: string, patch: Partial<Workspace>) => void;
   /** Points the sidebar (and new tabs) at another database of the server. */
   switchDatabase: (id: string, database: string) => void;
+  /** Takes a database off the rail and closes its tabs. */
+  closeDatabase: (id: string, database: string) => void;
   toggleSidebar: (id: string) => void;
   refresh: (id: string) => void;
-  addTab: (id: string, tab: NewTab, opts?: { reuse?: boolean }) => void;
+  /** `reuse` brings up a tab already showing the object; with "open in new tab" off it
+   * also replaces the current table tab (unless `newTab`). */
+  addTab: (id: string, tab: NewTab, opts?: { reuse?: boolean; newTab?: boolean }) => void;
+  /** Back (-1) or Forward (1) in the active tab's history. */
+  stepTab: (id: string, dir: -1 | 1) => void;
   updateTab: (id: string, tabId: string, patch: Partial<WorkspaceTab>) => void;
   setActiveTab: (id: string, tabId: string) => void;
   closeTab: (id: string, tabId: string) => void;
@@ -39,10 +45,15 @@ export const createWorkspacesSlice: StateCreator<AppState, [], [], WorkspacesSli
 ) => {
   const save = () => persistWorkspaces(() => get().workspaces);
 
-  /** Applies `fn` to one workspace, if it is open. */
+  /** Applies `fn` to one workspace, if it is open. A new active tab brings the sidebar to
+   * its database. */
   const patch = (id: string, fn: (ws: Workspace) => Partial<Workspace>) => {
     const ws = get().workspaces[id];
-    if (ws) get().updateWorkspace(id, fn(ws));
+    if (!ws) return;
+    const changes = fn(ws);
+    const moved = changes.activeTabId !== undefined && changes.activeTabId !== ws.activeTabId;
+    const follow = moved ? model.followActiveTab({ ...ws, ...changes }) : {};
+    get().updateWorkspace(id, { ...changes, ...follow });
   };
 
   return {
@@ -86,8 +97,9 @@ export const createWorkspacesSlice: StateCreator<AppState, [], [], WorkspacesSli
       save();
     },
 
-    switchDatabase: (id, database) =>
-      patch(id, (ws) => ({ database, schema: defaultSchema(ws.info.dialect, database) })),
+    switchDatabase: (id, database) => patch(id, (ws) => model.withDatabase(ws, database)),
+
+    closeDatabase: (id, database) => patch(id, (ws) => model.closeDatabase(ws, database)),
 
     toggleSidebar: (id) => patch(id, (ws) => ({ sidebarHidden: !ws.sidebarHidden })),
 
@@ -96,7 +108,24 @@ export const createWorkspacesSlice: StateCreator<AppState, [], [], WorkspacesSli
       patch(id, (ws) => ({ refreshKey: ws.refreshKey + 1 }));
     },
 
-    addTab: (id, tab, opts) => patch(id, (ws) => model.openTab(ws, tab, !!opts?.reuse)),
+    addTab: (id, tab, opts) =>
+      patch(id, (ws) => {
+        const { settings, pendingEdits } = get();
+        const current = model.activeTab(ws);
+        const inPlace =
+          opts?.reuse &&
+          !opts.newTab &&
+          settings?.openInNewTab === false &&
+          current &&
+          isNavigable(current) &&
+          isNavigable({ ...tab, id: "" }) &&
+          !pendingEdits[current.id] &&
+          !model.findReusable(ws, tab);
+        return inPlace ? navigateTab(ws, current.id, tab) : model.openTab(ws, tab, !!opts?.reuse);
+      }),
+
+    stepTab: (id, dir) =>
+      patch(id, (ws) => (ws.activeTabId ? stepTab(ws, ws.activeTabId, dir) : {})),
 
     updateTab: (id, tabId, changes) =>
       patch(id, (ws) => ({

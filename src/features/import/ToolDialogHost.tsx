@@ -2,6 +2,7 @@
 
 import { useStore } from "@/store";
 import { type Workspace } from "@/types";
+import { CompareDialog } from "../compare/CompareDialog";
 import { ExportTablesDialog } from "../export/ExportTablesDialog";
 import { ImportWizard } from "./ImportWizard";
 import { SqlFileDialog } from "./SqlFileDialog";
@@ -17,5 +18,7 @@ export function ToolDialogHost({ ws }: { ws: Workspace }) {
       return <SqlFileDialog dialog={dialog} onClose={close} />;
     case "export-tables":
       return <ExportTablesDialog dialog={dialog} onClose={close} />;
+    case "compare-schema":
+      return <CompareDialog ws={ws} onClose={close} />;
   }
 }

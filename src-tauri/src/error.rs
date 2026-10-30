@@ -223,10 +223,19 @@ impl From<sqlx::Error> for AppError {
                     "code": db.code().map(|c| c.to_string()),
                 }))
             }
+            // The server went away: TablePlus says "Press ⇧⌘R to reconnect".
+            lost @ (sqlx::Error::Io(_)
+            | sqlx::Error::PoolClosed
+            | sqlx::Error::PoolTimedOut
+            | sqlx::Error::WorkerCrashed) => Self::query(lost.to_string()).hint(LOST_HINT),
             other => Self::query(other.to_string()),
         }
     }
 }
+
+/// Hint for errors of a connection that dropped.
+pub const LOST_HINT: &str =
+    "The connection to the server was lost. Reconnect with File › Reconnect (⇧⌘R).";
 
 impl From<std::io::Error> for AppError {
     fn from(err: std::io::Error) -> Self {

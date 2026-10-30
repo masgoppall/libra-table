@@ -38,6 +38,7 @@ export function useAppActions() {
 
   useActions(LAYER.app, true, {
     settings: () => setSettingsOpen(true),
+    "backup-schedules": () => store.get().setBackupSchedulesOpen(true),
     shortcuts: () => setShortcutsOpen(true),
     lock: () =>
       store.get().passcodeEnabled

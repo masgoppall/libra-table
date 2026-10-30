@@ -15,6 +15,8 @@ const NEEDS: Partial<Record<ActionId, (c: Capabilities) => boolean>> = {
   "switch-database": (c) => c.switchDatabase,
   explain: (c) => c.explain,
   "format-sql": (c) => c.sqlDialect !== null,
+  "trim-whitespace": (c) => c.query,
+  "ask-ai": (c) => c.sqlDialect !== null,
   "process-list": (c) => c.processes,
   users: (c) => c.users,
   backup: (c) => c.backup,
@@ -25,6 +27,7 @@ const NEEDS: Partial<Record<ActionId, (c: Capabilities) => boolean>> = {
   "import-sql": (c) => c.import,
   "open-diagram": (c) => c.diagram,
   "open-metrics": (c) => c.metrics,
+  "compare-schema": (c) => c.structure !== "none" && c.sqlDialect !== null,
 };
 
 export function actionAvailable(caps: Capabilities, id: ActionId): boolean {
